@@ -83,7 +83,7 @@ func _build_body() -> void:
 	var seat := BoxMesh.new()
 	seat.size = Vector3(0.5, 0.42, 0.5)
 	chair.mesh = seat
-	chair.position = Vector3(0.0, 0.21, 0.0)
+	chair.position = Vector3(0.55, 0.21, 0.0)
 	chair.material_override = _material(Color(0.32, 0.30, 0.28))
 	chair.layers = Player.PEOPLE_LAYER
 	add_child(chair)
@@ -93,7 +93,15 @@ func _build_body() -> void:
 	# Facing in towards the court they are watching.
 	sitter.rotation.y = PI if position.z > 0.0 else 0.0
 	add_child(sitter)
-	Figure.seated(sitter, Color(0.93, 0.85, 0.30))
+
+	# The downloaded official is a standing figure and cannot be posed, so they stand
+	# beside their chair rather than in it. Line judges do sit in a real match; this
+	# is the honest cost of using a model nobody rigged.
+	var model := Models.official()
+	if model != null:
+		sitter.add_child(model)
+	else:
+		Figure.seated(sitter, Color(0.93, 0.85, 0.30))
 
 
 func _build_bubble() -> void:

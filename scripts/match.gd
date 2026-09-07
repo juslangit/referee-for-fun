@@ -318,7 +318,7 @@ func _on_length_chosen(quick: bool) -> void:
 	# A match is starting, however it was started. Putting this here rather than in
 	# the career screen's button means it holds for every route in — including the
 	# development scenes, which were leaving the menu sitting over the court.
-	ui.hide_career()
+	ui.hide_menus()
 	board = Scoreboard.new(quick)
 	board.game_won.connect(_on_game_won)
 	board.match_won.connect(_on_match_won)

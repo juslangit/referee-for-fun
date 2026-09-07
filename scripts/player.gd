@@ -102,10 +102,14 @@ func distance_to(point: Vector3) -> float:
 
 
 func _build_body() -> void:
-	# Where a modelled and animated character would go instead. Everything below is
-	# built from primitives by Figure; swapping in a real one means loading the scene
-	# here and driving it from the same position this node already has.
-	Figure.standing(self, Sides.colour(team), true)
+	# A real athlete if the downloaded assets are there, and the boxes in figure.gd
+	# if they are not. The fallback is not decoration: a game that will not start
+	# because a model is missing is worse than a game with a box in it.
+	var model := Models.player(Sides.colour(team))
+	if model != null:
+		add_child(model)
+	else:
+		Figure.standing(self, Sides.colour(team), true)
 
 	# Facing across the net, towards whoever they are playing.
 	rotation.y = 0.0 if Sides.half_sign(team) > 0.0 else PI

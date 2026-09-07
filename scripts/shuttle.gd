@@ -184,6 +184,14 @@ func force_landing() -> void:
 
 
 func _build_body() -> void:
+	# A modelled shuttlecock if it was downloaded, and the cork-and-skirt built out of
+	# primitives below if it was not.
+	var model := Models.shuttlecock()
+	if model != null:
+		model.name = "Shuttlecock"
+		add_child(model)
+		return
+
 	var cork_material := StandardMaterial3D.new()
 	cork_material.albedo_color = Color(0.85, 0.80, 0.68)
 	var skirt_material := StandardMaterial3D.new()

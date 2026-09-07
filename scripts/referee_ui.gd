@@ -303,6 +303,16 @@ func hide_career() -> void:
 	_career_panel.visible = false
 
 
+## Clears every front-of-game screen. Called wherever a match begins, so that no
+## route in can leave a menu sitting over the court — which each of these panels has
+## managed to do in turn.
+func hide_menus() -> void:
+	_main_menu.visible = false
+	_career_panel.visible = false
+	_pause_menu.visible = false
+	_length_panel.visible = false
+
+
 func _gap(height: int) -> Control:
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, height)

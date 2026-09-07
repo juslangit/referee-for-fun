@@ -16,3 +16,9 @@ build/
 # Debug screenshots
 _shot.png
 _shot_*.png
+
+# Downloaded Sketchfab models. Large binaries; fetch them with the sketchfab CLI —
+# the uids are in CREDITS.md.
+assets/sketchfab/**/*.glb
+assets/sketchfab/**/*.gltf
+assets/sketchfab/**/*.bin
