@@ -25,6 +25,10 @@ extends Camera3D
 ## Where the view starts: angled slightly down at the court.
 @export var start_pitch_deg := -24.0
 
+## Whether the player is actually sitting in the chair yet. False while a menu is
+## up, so the menu keeps the mouse.
+var active := false
+
 var _yaw := 0.0
 var _pitch := 0.0
 var _looking := false
@@ -33,10 +37,18 @@ var _looking := false
 func _ready() -> void:
 	_pitch = deg_to_rad(start_pitch_deg)
 	_apply_rotation()
-	_set_looking(true)
+
+
+## Takes the chair, or gives it up to a menu.
+func set_active(value: bool) -> void:
+	active = value
+	_set_looking(value)
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not active:
+		return
+
 	# Escape lets go of the mouse so the window can be left. Clicking takes it back.
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		_set_looking(false)
