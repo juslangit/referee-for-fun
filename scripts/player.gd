@@ -29,6 +29,23 @@ const LOWEST_STRIKE := 0.28
 ## How far from the shuttle they can still reach it, racket included.
 @export var reach := 0.95
 
+## How far the player has to move in a second before they look like they are running.
+const MOVING_THRESHOLD := 0.35
+
+## How the players are animated.
+##
+## The models are static meshes, so this moves the whole figure rather than posing a
+## skeleton: a run cycle's worth of bob and lean, and a racket swing when a shot is
+## played. It is not a substitute for a rigged character — nobody's knees bend — but a
+## figure that dips as it runs, leans into the run and swings when it hits reads as
+## alive, and one that glides along at a constant height does not.
+const BOB_HEIGHT := 0.055
+const BOB_SPEED := 11.0
+const RUN_LEAN := 0.17
+const LEAN_SPEED := 2.4
+const SWING_SECONDS := 0.34
+const SWING_SWEEP := 2.3
+
 var team := Sides.Team.NONE
 
 ## Where they stand when the shuttle is not their problem.
@@ -41,6 +58,14 @@ var _destination := Vector3.ZERO
 var _lunge_left := 0.0
 var _lunge_spot := Vector3.ZERO
 
+## The figure and the racket in its hand.
+var _figure: Node3D
+var _racket: Node3D
+var _racket_rest := Vector3.ZERO
+var _bob := 0.0
+var _lean := 0.0
+var _swing_left := 0.0
+
 
 func setup(for_team: Sides.Team, home_position: Vector3) -> void:
 	team = for_team
@@ -48,6 +73,47 @@ func setup(for_team: Sides.Team, home_position: Vector3) -> void:
 	position = home_position
 	_destination = home_position
 	_build_body()
+
+
+## Sized once it is in the tree, where a model's real dimensions are knowable, and
+## dressed afterwards — the bib does not scale with the model, so measuring it as part
+## of the figure set a floor the fit could never get under.
+func _settle_when_posed(model: Node3D) -> void:
+	await get_tree().process_frame
+	if not is_instance_valid(model):
+		return
+	Models.settle(model)
+	Models.dress_player(model)
+	_racket = model.get_meta("racket", null)
+	if _racket != null:
+		_racket_rest = _racket.rotation
+
+
+## Takes a swing. Called when this player plays a shot, so the racket moves at the
+## moment the shuttle does.
+func swing() -> void:
+	_swing_left = SWING_SECONDS
+
+
+## Bob, lean and swing. All of it moves the whole figure, because the figure is a
+## single static mesh with no skeleton to pose.
+func _animate(delta: float, running: bool) -> void:
+	if _figure == null:
+		return
+
+	if running:
+		_bob += delta * BOB_SPEED
+	_figure.position.y = absf(sin(_bob)) * BOB_HEIGHT if running else 0.0
+
+	_lean = move_toward(_lean, RUN_LEAN if running else 0.0, delta * LEAN_SPEED)
+	_figure.rotation.x = -_lean
+
+	if _swing_left <= 0.0 or _racket == null:
+		return
+	_swing_left -= delta
+	# One smooth sweep through and back, rather than a snap.
+	var through := 1.0 - clampf(_swing_left / SWING_SECONDS, 0.0, 1.0)
+	_racket.rotation.x = _racket_rest.x - sin(through * PI) * SWING_SWEEP
 
 
 func _physics_process(delta: float) -> void:
@@ -60,6 +126,14 @@ func _physics_process(delta: float) -> void:
 	var there := Vector2(aim.x, aim.z)
 	var moved := here.move_toward(there, speed * delta)
 	position = Vector3(moved.x, 0.0, moved.y)
+
+	var travelled := here.distance_to(moved) / maxf(delta, 0.0001)
+	_animate(delta, travelled > MOVING_THRESHOLD)
+
+	# Facing the way they are running.
+	var heading := moved - here
+	if heading.length() > 0.0005:
+		rotation.y = atan2(heading.x, heading.y) + PI
 
 
 ## Go after the shuttle, to the spot they believe it will land.
@@ -108,6 +182,8 @@ func _build_body() -> void:
 	var model := Models.player(Sides.colour(team))
 	if model != null:
 		add_child(model)
+		_figure = model
+		_settle_when_posed(model)
 	else:
 		Figure.standing(self, Sides.colour(team), true)
 

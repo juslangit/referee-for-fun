@@ -8,6 +8,10 @@ func _ready() -> void:
 			print("%-12s NULL" % entry[0])
 			continue
 		add_child(made)
+		await get_tree().process_frame
+		Models.settle(made)
+		if entry[0] == "player":
+			Models.dress_player(made)
 		var box := _world_bounds(made)
 		print("%-12s size %5.2f x %5.2f x %5.2f   bottom y %+.3f   centre (%+.2f, %+.2f)" % [
 			entry[0], box.size.x, box.size.y, box.size.z, box.position.y,

@@ -100,8 +100,23 @@ func _build_body() -> void:
 	var model := Models.official()
 	if model != null:
 		sitter.add_child(model)
+		# Standing and watching, which is all a line judge does between calls. Started
+		# before the sizing, so the sizing measures the pose that will be on screen.
+		var animator := Models.animator(model)
+		var idle := Models.clip_named(animator, ["idle", "stand"])
+		if animator != null and not idle.is_empty():
+			Models.make_looping(animator, idle)
+			animator.play(idle)
+		_settle_when_posed(model)
 	else:
 		Figure.seated(sitter, Color(0.93, 0.85, 0.30))
+
+
+## Sized a frame later, once the skeleton has posed. See Player for why.
+func _settle_when_posed(model: Node3D) -> void:
+	await get_tree().process_frame
+	if is_instance_valid(model):
+		Models.settle(model)
 
 
 func _build_bubble() -> void:

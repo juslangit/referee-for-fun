@@ -15,8 +15,24 @@ extends RefCounted
 ## game that will not start because an athlete is missing is worse than a game with a
 ## box in it.
 
+## Static models, animated by hand in player.gd.
+##
+## The rigged pair (low_poly_man / low_poly_woman, still in assets/) was tried first
+## and abandoned. Their clips have the orientation and the root motion baked into the
+## animation itself: `settle` measures them, stands them up correctly, and the moment
+## the clip advances a frame it puts them straight back on their backs somewhere over
+## the third row of the stands. Fixing that properly means extracting root motion and
+## retargeting, which is a bigger job than the animation is worth here.
+##
+## Both files are kept. A character rigged in the ordinary way — the KayKit packs, or
+## anything out of Mixamo — would drop into this exact code path and bring real
+## locomotion with it.
 const ATHLETE := "res://assets/sketchfab/olympic_athlete/olympic_athlete.glb"
 const OFFICIAL := "res://assets/sketchfab/male_character_in_caual_clothing/male_character_in_caual_clothing.glb"
+const RIGGED_ATHLETE := "res://assets/sketchfab/low_poly_man/low_poly_man.glb"
+
+## The bone a racket goes in. Both models happen to name it the same way.
+const RACKET_HAND := "R.hand_028"
 const KIT := "res://assets/sketchfab/badminton_racket_and_shuttlecock_low_poly/badminton_racket_and_shuttlecock_low_poly.glb"
 
 ## Real heights, in metres.
@@ -29,29 +45,85 @@ const SHUTTLE_LENGTH := 0.085
 
 
 ## A player, in their team's colour, holding a racket.
+## A player. **Must be followed by `settle()` once it is in the tree** — see there.
 static func player(team_colour: Color) -> Node3D:
-	var figure := _normalise(ATHLETE, PLAYER_HEIGHT)
+	var figure := _load(ATHLETE, PLAYER_HEIGHT)
 	if figure == null:
 		return null
 
-	# A bib, not a tint.
-	#
-	# Recolouring the athlete was the obvious thing and it does not work: the kit is
-	# painted red in the texture, and multiplying red by blue gives a dark red rather
-	# than a blue. Both teams came out looking like the same team, which in a game
-	# where you are deciding who wins a rally is not a cosmetic problem. So the model
-	# keeps its own colours and wears a numbered-bib band over the top, which is how
-	# amateur tournaments tell sides apart anyway.
-	_add_bib(figure, team_colour)
+	figure.set_meta("bib_colour", team_colour)
+	return figure
 
-	# The athlete stands with their arms down, so the racket hangs at their side.
+
+## Puts the team bib on and a racket in the hand. Kept separate from `settle` and run
+## strictly after it, because both of these are added to the holder rather than to the
+## model, and so do not scale with it — measured while fitting, the bib sat at a fixed
+## height and set a floor the fit could never get under. Every player came out about
+## 1.4 m tall no matter what scale the model was given.
+static func dress_player(figure: Node3D) -> void:
+	if figure == null:
+		return
+	# A bib, not a tint. Recolouring does not work: the kit is painted red in the
+	# texture, and red times blue is dark red, so both teams looked like one team.
+	_add_bib(figure, figure.get_meta("bib_colour", Color.WHITE))
+	_hold_racket(figure)
+
+
+## Puts a racket in the player's right hand, on the bone, so it moves with the arm.
+##
+## The alternative — hanging it off the figure at a fixed offset — was fine while
+## everybody stood still and looks ridiculous the moment their arms start swinging.
+static func _hold_racket(figure: Node3D) -> void:
 	var held := racket()
-	if held != null:
+	if held == null:
+		return
+
+	var skeleton := _find_skeleton(figure)
+	var bone := -1 if skeleton == null else skeleton.find_bone(RACKET_HAND)
+
+	if skeleton == null or bone < 0:
+		# No hand to put it in, so it hangs at the side as it used to.
 		held.position = Vector3(0.30, 0.74, 0.06)
 		held.rotation = Vector3(deg_to_rad(-72.0), 0.0, deg_to_rad(-8.0))
 		figure.add_child(held)
+		figure.set_meta("racket", held)
+		return
 
-	return figure
+	var socket := BoneAttachment3D.new()
+	socket.name = "RacketHand"
+	socket.bone_name = RACKET_HAND
+	skeleton.add_child(socket)
+	socket.add_child(held)
+	figure.set_meta("racket", held)
+
+	# The skeleton lives inside a model that has been scaled to make the person a
+	# real height, and anything parented to a bone inherits that. The racket was
+	# already sized in metres, so the scaling has to be undone or it arrives either
+	# enormous or invisible.
+	held.position = Vector3(0.0, 0.06, 0.0)
+	held.rotation = Vector3(deg_to_rad(90.0), 0.0, 0.0)
+
+	# Anything parented to a bone inherits every scale between here and the model
+	# root, and there is more than one. Rather than try to work out what they all
+	# multiply to, the racket is measured where it has ended up and corrected.
+	var box := _world_aabb(held)
+	var longest := maxf(box.size.x, maxf(box.size.y, box.size.z))
+	if longest > 0.0001:
+		held.scale *= RACKET_LENGTH / longest
+
+
+static func _world_aabb(node: Node3D) -> AABB:
+	var box := AABB()
+	var started := false
+	for child in _every(node):
+		if child is VisualInstance3D:
+			var shape: AABB = (child as VisualInstance3D).get_aabb()
+			if shape.size == Vector3.ZERO:
+				continue
+			var here: AABB = child.global_transform * shape
+			box = here if not started else box.merge(here)
+			started = true
+	return box
 
 
 ## A band round the chest in the team's colour, bright enough to read across a hall.
@@ -75,13 +147,121 @@ static func _add_bib(figure: Node3D, colour: Color) -> void:
 
 
 ## A line judge. Deliberately not in either team's colours.
+## The AnimationPlayer inside a model, if it has one.
+static func animator(figure: Node) -> AnimationPlayer:
+	for child in _every(figure):
+		if child is AnimationPlayer:
+			return child
+	return null
+
+
+## Finds an animation whose name mentions any of `words`, because every model names
+## its clips differently — one calls it "Run" and the next "Armature|walk2".
+static func clip_named(player: AnimationPlayer, words: Array) -> String:
+	if player == null:
+		return ""
+	for word in words:
+		for name in player.get_animation_list():
+			if String(name).to_lower().contains(String(word).to_lower()):
+				return name
+	return ""
+
+
+## Makes a clip loop. Almost every downloaded animation arrives set to play once.
+static func make_looping(player: AnimationPlayer, clip: String) -> void:
+	if player == null or clip.is_empty() or not player.has_animation(clip):
+		return
+	var animation: Animation = player.get_animation(clip)
+	animation.loop_mode = Animation.LOOP_LINEAR
+
+
+static func _find_skeleton(node: Node) -> Skeleton3D:
+	for child in _every(node):
+		if child is Skeleton3D:
+			return child
+	return null
+
+
+## Sizes a model and stands it on the floor, then puts a racket in its hand if it is
+## a player. This cannot happen when the model is built, which is the whole reason it
+## is a separate call.
+##
+## A rigged character's mesh is skinned: its shape comes from the skeleton, and until
+## the skeleton has entered the tree and posed itself, asking the mesh how big it is
+## returns the raw bind-pose numbers in whatever units the artist happened to use.
+## Sizing from those made every player about ten times too tall — the first thing
+## visible on court was a pair of shoes the size of cars.
+static func settle(figure: Node3D) -> void:
+	if figure == null or figure.get_child_count() == 0:
+		return
+	# Rackets and shuttlecocks were sized when they were cut out of their pack and
+	# have no business being resized to the height of a person.
+	if not figure.has_meta("target_height"):
+		return
+	var model: Node3D = figure.get_child(0)
+	var height: float = figure.get_meta("target_height", 1.80)
+
+	var box := _in_tree_bounds(figure)
+
+	# Stand it up if it arrived on its back. Exporters disagree about which axis is
+	# up, and guessing per model was how the line judge ended up ten metres wide
+	# earlier — so it is measured instead. A person is reliably taller than they are
+	# deep, so a figure longer front-to-back than it is tall is lying down.
+	if box.size.z > box.size.y * 1.4:
+		model.rotation.x = deg_to_rad(-90.0)
+		box = _in_tree_bounds(figure)
+
+	if box.size.y > 0.001:
+		var factor := height / box.size.y
+		model.scale *= factor
+		figure.set_meta("model_scale", model.scale.y)
+		box = _in_tree_bounds(figure)
+
+	# Feet on the floor, centred where the game thinks the person is standing.
+	model.position -= Vector3(box.get_center().x, box.position.y, box.get_center().z)
+
+
+## The size of everything under `figure`, measured in `figure`'s own space, with the
+## skeleton posed. Only meaningful once the node is in the tree.
+static func _in_tree_bounds(figure: Node3D) -> AABB:
+	var into := figure.global_transform.affine_inverse()
+	var box := AABB()
+	var started := false
+	for child in _every(figure):
+		if not child is VisualInstance3D:
+			continue
+		# The mesh's own bind-pose bounds, not the engine's. VisualInstance3D.get_aabb()
+		# on a skinned mesh is padded out to cover everywhere the animation might throw
+		# a limb, which for a running character is most of a stride — measured from
+		# that, a 1.8 m man came out 1.4 m tall and two and a third metres deep.
+		var shape := AABB()
+		if child is MeshInstance3D and (child as MeshInstance3D).mesh != null:
+			shape = (child as MeshInstance3D).mesh.get_aabb()
+		else:
+			shape = (child as VisualInstance3D).get_aabb()
+		if shape.size == Vector3.ZERO:
+			continue
+
+		# A skinned mesh is placed by its skeleton rather than by its own node.
+		var placed_by: Node3D = child
+		if child is MeshInstance3D:
+			var driver: Node = child.get_node_or_null((child as MeshInstance3D).skeleton)
+			if driver is Skeleton3D:
+				placed_by = driver
+
+		var here: AABB = (into * placed_by.global_transform) * shape
+		box = here if not started else box.merge(here)
+		started = true
+	return box
+
+
 static func official() -> Node3D:
 	# No correcting rotation, despite the mesh inside this one measuring 1.83 x 0.31 x
 	# 1.80 and looking exactly like a Z-up export lying on its back. That figure is
 	# the mesh's *local* box, and Sketchfab's exporter has already put a quarter turn
 	# on the node above it. Adding another one laid the poor man flat and made him ten
 	# metres wide. Measure the assembled model, not the mesh inside it.
-	return _normalise(OFFICIAL, OFFICIAL_HEIGHT)
+	return _load(OFFICIAL, OFFICIAL_HEIGHT)
 
 
 static func racket() -> Node3D:
@@ -100,7 +280,9 @@ static func has_assets() -> bool:
 
 ## Instantiates a model, turns it upright, scales it to `height` and stands it on the
 ## floor with its feet at the origin.
-static func _normalise(path: String, height: float, pre_rotation := Vector3.ZERO) -> Node3D:
+## Instantiates a model and records the height it should end up. The sizing itself
+## happens in settle(), once it is in the tree.
+static func _load(path: String, height: float) -> Node3D:
 	if not ResourceLoader.exists(path):
 		return null
 	var scene: PackedScene = load(path)
@@ -110,19 +292,18 @@ static func _normalise(path: String, height: float, pre_rotation := Vector3.ZERO
 	var holder := Node3D.new()
 	holder.name = path.get_file().get_basename()
 
+	# holder -> pivot -> model. The pivot exists because the upright correction and
+	# the scaling have to live on a node the animation cannot reach: these clips are
+	# authored Z-up and animate the model root itself, so a rotation put there is
+	# thrown away the moment anything starts playing and everybody lies down again.
+	var pivot := Node3D.new()
+	pivot.name = "Pivot"
+	holder.add_child(pivot)
+
 	var model: Node3D = scene.instantiate()
-	model.rotation = pre_rotation
-	holder.add_child(model)
-
-	var box := _bounds(model)
-	if box.size.y <= 0.001:
-		return holder
-
-	model.scale = Vector3.ONE * (height / box.size.y)
-	box = _bounds(model)
-
-	# Feet on the floor, and centred on where the game thinks the person is.
-	model.position -= Vector3(box.get_center().x, box.position.y, box.get_center().z)
+	pivot.add_child(model)
+	holder.set_meta("target_height", height)
+	holder.set_meta("model_scale", 1.0)
 	_set_layer(holder, Figure.PEOPLE_LAYER)
 	return holder
 

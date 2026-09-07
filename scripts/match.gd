@@ -555,6 +555,7 @@ func _return_shot(player: Player) -> void:
 	# They have played their shot, whatever happens next. Standing them off first
 	# also stops this being re-entered while a carry is being held.
 	player.stand_off()
+	player.swing()
 
 	var offence := _roll_for_offence(player)
 
