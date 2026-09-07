@@ -19,6 +19,14 @@ extends RefCounted
 ## so it caps there.
 const BLATANT_MARGIN := 0.75
 
+## How visible it is to accuse somebody of an offence that never happened.
+##
+## High, and deliberately so. A wrong line call is a matter of centimetres nobody can
+## be certain about. Announcing a net touch when nobody touched the net is not a
+## judgement anybody can charitably disagree with — the hall saw nothing, and the
+## umpire has just described something that did not occur.
+const FABRICATION_VISIBILITY := 0.62
+
 ## How visible a let called over a completed rally is. Not measured from the
 ## landing, because a let is not a claim about where the shuttle went — it is a
 ## claim that something interfered, and everyone can see that nothing did.
@@ -74,6 +82,11 @@ var went_over_the_net := true
 ## Which side hit the shuttle. If it lands in, they win the rally.
 var struck_by := Sides.Team.NONE
 
+## Anything else that went wrong during the rally. A fault beats a line call: it
+## happened first, so it is what should have decided the rally however the shuttle
+## eventually landed.
+var incident := Incident.new()
+
 ## Whether this rally is being played as doubles, which widens the court.
 var doubles := true
 
@@ -81,6 +94,9 @@ var doubles := true
 
 ## The call the player made, once they have made one.
 var call: CallType = null
+
+## Which side the call was made against. Only meaningful for a fault.
+var call_against := Sides.Team.NONE
 
 ## How long the umpire took over it, in seconds.
 ##
@@ -126,9 +142,11 @@ func record_landing(point: Vector3) -> void:
 	margin = CourtSpec.margin(point, doubles)
 
 
-## Called when the player finally says something.
-func record_call(made: CallType) -> void:
+## Called when the player finally says something. A fault has to name a side; a line
+## call does not.
+func record_call(made: CallType, against := Sides.Team.NONE) -> void:
 	call = made
+	call_against = against
 
 
 ## Who the rally was awarded to, according to the call that was actually made.
@@ -140,12 +158,18 @@ func point_goes_to() -> Sides.Team:
 			return struck_by
 		CallType.Outcome.POINT_TO_RECEIVER:
 			return Sides.opponent(struck_by)
+		CallType.Outcome.POINT_AGAINST_THE_OFFENDER:
+			return Sides.opponent(call_against)
 		_:
 			return Sides.Team.NONE
 
 
 ## Who should have won the rally, if the truth had been told.
 func rightful_winner() -> Sides.Team:
+	# A fault stops the rally the moment it happens, so it settles the point no matter
+	# where the shuttle went afterwards.
+	if incident.happened():
+		return Sides.opponent(incident.by)
 	if not is_settled:
 		return Sides.Team.NONE
 	return struck_by if was_in else Sides.opponent(struck_by)
@@ -173,8 +197,22 @@ func echoes_line_judge() -> bool:
 func verdict() -> Verdict:
 	if call == null:
 		return Verdict.NO_CALL
+
+	# A fault is right only if that offence happened and the right side did it.
+	# Naming the wrong offence, or the wrong side, is as wrong as inventing one.
+	if call.judges_conduct:
+		var named_it := incident.kind == call.claims and incident.by == call_against
+		return Verdict.CORRECT if named_it else Verdict.WRONG
+
 	if not call.judges_the_landing:
 		return Verdict.UNVERIFIABLE
+
+	# When something did go wrong, a line call is judged by whether it still ends up
+	# awarding the rally to the side that deserved it. Quietly ignoring a net touch
+	# because the shuttle happened to land the way you wanted is a lie too.
+	if incident.happened():
+		return Verdict.CORRECT if point_goes_to() == rightful_winner() else Verdict.WRONG
+
 	return Verdict.CORRECT if call.asserts_in == was_in else Verdict.WRONG
 
 
@@ -188,7 +226,18 @@ func verdict() -> Verdict:
 func visibility() -> float:
 	match verdict():
 		Verdict.WRONG:
-			return clampf(absf(margin) / BLATANT_MARGIN, 0.0, 1.0)
+			if call.judges_conduct:
+				# Accusing somebody of nothing, or of the wrong thing, or the wrong
+				# person. If something did happen the hall saw that too.
+				return maxf(FABRICATION_VISIBILITY, incident.visibility)
+
+			# A line call that described the landing perfectly well, and is only
+			# wrong because it quietly ignored an offence. What the hall saw is the
+			# offence, not the line — the shuttle really was where you said it was.
+			if call.asserts_in == was_in:
+				return incident.visibility
+
+			return maxf(clampf(absf(margin) / BLATANT_MARGIN, 0.0, 1.0), incident.visibility)
 		Verdict.UNVERIFIABLE:
 			# A let called over a rally that plainly finished is its own kind of
 			# obvious, and does not depend on where the shuttle landed.
@@ -230,9 +279,12 @@ func describe() -> String:
 		landing_point.x,
 		landing_point.z,
 	]
+	if incident.happened():
+		text += "  +  " + incident.describe()
 	if call != null:
-		text += "  |  called %s -> %s (visibility %.2f)" % [
+		text += "  |  called %s%s -> %s (visibility %.2f)" % [
 			call.label,
+			"" if call_against == Sides.Team.NONE else " on " + Sides.label(call_against),
 			Verdict.keys()[verdict()],
 			visibility(),
 		]

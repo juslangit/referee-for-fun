@@ -38,6 +38,8 @@ var home := Vector3.ZERO
 var chasing := false
 
 var _destination := Vector3.ZERO
+var _lunge_left := 0.0
+var _lunge_spot := Vector3.ZERO
 
 
 func setup(for_team: Sides.Team, home_position: Vector3) -> void:
@@ -49,8 +51,13 @@ func setup(for_team: Sides.Team, home_position: Vector3) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	var aim := _destination
+	if _lunge_left > 0.0:
+		_lunge_left -= delta
+		aim = _lunge_spot
+
 	var here := Vector2(position.x, position.z)
-	var there := Vector2(_destination.x, _destination.z)
+	var there := Vector2(aim.x, aim.z)
 	var moved := here.move_toward(there, speed * delta)
 	position = Vector3(moved.x, 0.0, moved.y)
 
@@ -65,6 +72,13 @@ func chase(point: Vector3) -> void:
 ## umpire, and the player has no idea who the umpire wants to win.
 func stand_off() -> void:
 	chasing = false
+
+
+## Throws the player at a spot for a moment, overriding wherever they were going.
+## Used to send them reaching over the net, which is what obstruction looks like.
+func lunge(spot: Vector3, seconds := 0.7) -> void:
+	_lunge_spot = Vector3(spot.x, 0.0, spot.z)
+	_lunge_left = seconds
 
 
 func go_home() -> void:

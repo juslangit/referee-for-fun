@@ -23,6 +23,15 @@ const HALL_WIDTH := 20.0
 const HALL_LENGTH := 26.0
 const HALL_HEIGHT := 9.0
 
+## How long the net keeps wobbling after somebody catches it, and how far.
+const NET_SHAKE_SECONDS := 0.9
+const NET_SHAKE_AMPLITUDE := 0.055
+
+var _net_parts: Array[MeshInstance3D] = []
+var _net_rest: Array[Vector3] = []
+var _shake_left := 0.0
+var _shake_strength := 0.0
+
 var _mat_material: StandardMaterial3D
 var _line_material: StandardMaterial3D
 var _hall_material: StandardMaterial3D
@@ -175,20 +184,23 @@ func _build_net() -> void:
 
 	# The mesh of the net, hanging below its tape.
 	var mesh_height := CourtSpec.NET_DEPTH - tape
-	_add_box(
+	_net_parts.append(_add_box(
 		"NetMesh",
 		Vector3(width, mesh_height, 0.02),
 		Vector3(0.0, top - tape - mesh_height * 0.5, 0.0),
 		_net_material
-	)
+	))
 
 	# The white tape along the top edge — the thing players actually aim just over.
-	_add_box(
+	_net_parts.append(_add_box(
 		"NetTape",
 		Vector3(width, tape, 0.03),
 		Vector3(0.0, top - tape * 0.5, 0.0),
 		_line_material
-	)
+	))
+
+	for part in _net_parts:
+		_net_rest.append(part.position)
 
 	# The net is solid. Until now the shuttle flew straight through it, which is the
 	# one thing in badminton everybody can see happen.
@@ -249,6 +261,27 @@ func _build_umpire_chair() -> void:
 				Vector3(x, seat_height * 0.5, z),
 				_chair_material
 			)
+
+
+## Sets the net wobbling. This is the whole of what a net touch looks like from the
+## umpire's chair, so how hard it shakes is how obvious the offence was — a racket
+## brushing the cord barely moves it, a player falling into it is unmistakable.
+func shake_net(strength := 1.0) -> void:
+	_shake_strength = clampf(strength, 0.0, 1.0)
+	_shake_left = NET_SHAKE_SECONDS
+
+
+func _process(delta: float) -> void:
+	if _shake_left <= 0.0:
+		return
+	_shake_left -= delta
+
+	var fading := maxf(0.0, _shake_left / NET_SHAKE_SECONDS)
+	var swing := sin(_shake_left * 34.0) * NET_SHAKE_AMPLITUDE * _shake_strength * fading
+
+	for i in _net_parts.size():
+		var rest: Vector3 = _net_rest[i]
+		_net_parts[i].position = rest + Vector3(0.0, 0.0, swing)
 
 
 ## Adds one painted line, given the rectangle it covers on the floor in metres.

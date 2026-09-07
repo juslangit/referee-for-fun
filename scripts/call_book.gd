@@ -43,8 +43,43 @@ static func _build() -> void:
 	)
 	let_call.severity = 0.6
 
-	for call in [shuttle_in, shuttle_out, let_call]:
+	var faults: Array[CallType] = [
+		_fault(&"net_touch", "NET TOUCH", "Fault. Touched the net.", Incident.Kind.NET_TOUCH, 1.0),
+		_fault(&"carry", "CARRY", "Fault. Carried.", Incident.Kind.CARRY, 1.0),
+		_fault(&"double_hit", "DOUBLE HIT", "Fault. Double hit.", Incident.Kind.DOUBLE_HIT, 1.0),
+		_fault(&"obstruction", "OBSTRUCTION", "Fault. Obstruction.", Incident.Kind.OBSTRUCTION, 1.2),
+	]
+
+	for call in [shuttle_in, shuttle_out, let_call] + faults:
 		_calls[call.id] = call
+
+
+## A call that accuses one side of an offence. Unlike a line call it is not a claim
+## about the shuttle at all, so it is judged against what actually happened in the
+## rally — and, crucially, it has to name somebody.
+static func _fault(
+	id: StringName,
+	label: String,
+	announcement: String,
+	claims: Incident.Kind,
+	severity: float
+) -> CallType:
+	var call := CallType.new(id, label, announcement, CallType.Outcome.POINT_AGAINST_THE_OFFENDER)
+	call.judges_conduct = true
+	call.claims = claims
+	call.severity = severity
+	return call
+
+
+## Every call that accuses somebody of something, in the order they appear on the
+## umpire's panel.
+static func faults() -> Array:
+	_build()
+	var found := []
+	for call in _calls.values():
+		if call.judges_conduct:
+			found.append(call)
+	return found
 
 
 static func get_call(id: StringName) -> CallType:
@@ -57,13 +92,15 @@ static func all() -> Array:
 	return _calls.values()
 
 
-# Still to come, each needing its own recorded truth before the game can tell
-# whether the umpire was lying about it:
-#   service fault  — racket head above the hand, shuttle above the waist, feet moving
-#   net touch      — player or racket touching the net during play
-#   carry / sling  — shuttle held and thrown rather than struck
-#   double hit     — two strokes in succession by the same side
-#   obstruction    — invading the opponent's side or distracting them
-#   wrong court    — serving from or receiving in the wrong service court
-#   yellow card    — a warning for misconduct
-#   red card       — a fault awarded for misconduct
+# Still to come:
+#   service fault  — racket head above the hand, shuttle above the waist, feet moving.
+#                    Deliberately left out: it needs the serve itself modelled, down
+#                    to where the racket is relative to the server's waist, and none
+#                    of that exists yet.
+#   wrong court    — serving from or receiving in the wrong service court, which needs
+#                    service rotation tracked first.
+#
+# Yellow and red cards are not in this book on purpose. A card is not a judgement
+# about anything that happened — it is a punishment the umpire simply decides to
+# hand out — so it has no truth to be checked against and does not belong among the
+# calls. Match issues them directly.

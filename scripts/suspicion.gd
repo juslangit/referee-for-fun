@@ -50,6 +50,15 @@ const THINKING_TIME := 2.5
 const HESITATION_PER_SECOND := 0.02
 const MAX_HESITATION := 0.12
 
+## What a card costs. A card is not a judgement that can be right or wrong — nothing
+## happened — so it is priced directly instead of through a verdict. A yellow is an
+## insult; a red takes a point off somebody for no reason at all, in front of a hall
+## that watched them do nothing.
+const YELLOW_CARD_VISIBILITY := 0.70
+const RED_CARD_VISIBILITY := 0.95
+const YELLOW_CARD_SEVERITY := 1.2
+const RED_CARD_SEVERITY := 1.9
+
 ## How much trust one correct call wins back. Small on purpose: it takes a long run
 ## of honest calls to undo a bad one, so cheating has to be paced.
 const RECOVERY_PER_CORRECT_CALL := 0.012
@@ -167,6 +176,36 @@ static func hesitation_cost(seconds: float) -> float:
 	if dithering <= 0.0:
 		return 0.0
 	return minf(dithering * HESITATION_PER_SECOND, MAX_HESITATION)
+
+
+## A card handed out for nothing. Priced like a wrong call, and leaning the same way
+## as the rest of your errors makes it far worse — as it should, because a card is
+## the least deniable thing an umpire can do.
+func register_card(against: Sides.Team, red: bool) -> float:
+	if is_removed or against == Sides.Team.NONE:
+		return 0.0
+
+	wrong_calls += 1
+	if red:
+		stolen_rallies += 1
+
+	var seen := RED_CARD_VISIBILITY if red else YELLOW_CARD_VISIBILITY
+	var weight := RED_CARD_SEVERITY if red else YELLOW_CARD_SEVERITY
+
+	# A card leans against whoever received it, which is to say it helps the other.
+	var direction := 1.0 if Sides.opponent(against) == Sides.Team.BLUE else -1.0
+	var reinforcing := maxf(0.0, direction * lean)
+
+	var gain := seen * (IMMEDIATE_WEIGHT + reinforcing * PATTERN_WEIGHT) * weight
+	var target := level + gain
+	if level < WARNING_LEVEL and target >= REMOVAL_LEVEL:
+		target = HELD_AT_WARNING
+
+	level = clampf(target, 0.0, REMOVAL_LEVEL)
+	lean = clampf(lean + direction * seen, -1.0, 1.0)
+	level_changed.emit(level)
+	_settle_mood()
+	return gain
 
 
 func _recover() -> void:

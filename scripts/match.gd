@@ -59,6 +59,16 @@ const LINE_JUDGE_SEATS := {
 ## shuttle to have visibly landed, short enough that it still feels like a reaction.
 const LINE_JUDGE_DELAY := 0.45
 
+## How often a stroke goes wrong in some way other than missing the court. Rolled per
+## stroke, so with rallies running to six or seven shots this is roughly a third of
+## rallies having something in them.
+const INCIDENT_CHANCE := 0.07
+
+## How long the shuttle sits on the racket when a player carries it, and how long
+## after a first stroke the same side gets a second one in.
+const CARRY_HOLD := 0.18
+const DOUBLE_HIT_GAP := 0.14
+
 ## How badly a player can misread where a shot is going, in metres.
 const READING_ERROR := 0.32
 
@@ -86,6 +96,23 @@ const CLOSE_CALL_OUTSIDE := 0.06
 const BAD_SHOT_CHANCE := 0.06
 const BAD_SHOT_MIN := 0.30
 const BAD_SHOT_MAX := 1.30
+
+## How often a player simply mishits one into the net.
+##
+## Without this the game quietly became perfect at clearing the tape, because every
+## shot that would have clipped it was retried higher until it did not. Net cords are
+## a real and common way to lose a rally, and they are the most obvious call an
+## umpire ever gets, so a few of them belong in every match.
+const NET_MISHIT_CHANCE := 0.045
+
+## How often a shot is dropped just over the net, and how far past it it lands.
+##
+## Badminton is played at the net as much as at the back, and without these there was
+## no net play at all — which also meant nobody was ever close enough to the net to
+## touch it or reach over it, so two of the four offences could never happen.
+const NET_SHOT_CHANCE := 0.18
+const NET_SHOT_NEAR := 0.35
+const NET_SHOT_FAR := 1.90
 
 enum Phase {
 	## Choosing who you want to win.
@@ -171,6 +198,7 @@ func _ready() -> void:
 	ui.name = "RefereeUI"
 	ui.length_chosen.connect(_on_length_chosen)
 	ui.favour_chosen.connect(_on_favour_chosen)
+	ui.punishment_chosen.connect(_on_punishment_chosen)
 	add_child(ui)
 
 	_build_players()
@@ -223,6 +251,18 @@ func _build_players() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if ui.is_fault_panel_open():
+		if _is_key(event, KEY_ESCAPE):
+			_close_fault_panel()
+		return
+
+	if _phase == Phase.REMOVED:
+		return
+
+	if _is_key(event, KEY_F):
+		_open_fault_panel()
+		return
+
 	match _phase:
 		Phase.READY:
 			if event.is_action_pressed(&"ui_accept") or _is_key(event, KEY_SPACE):
@@ -237,12 +277,72 @@ func _unhandled_input(event: InputEvent) -> void:
 				_make_call(&"let")
 
 
+## Between rallies there is no rally to fault anybody over, so only misconduct is on
+## offer. Cards can be handed out whenever the umpire feels like it.
+func _open_fault_panel() -> void:
+	if _phase != Phase.READY and _phase != Phase.AWAITING_CALL:
+		return
+	camera.set_active(false)
+	ui.show_fault_panel(_phase == Phase.READY)
+
+
+func _close_fault_panel() -> void:
+	ui.hide_fault_panel()
+	camera.set_active(true)
+
+
+func _on_punishment_chosen(id: StringName, team: Sides.Team) -> void:
+	_close_fault_panel()
+	if id == &"yellow" or id == &"red":
+		show_card(team, id == &"red")
+		return
+	if _phase == Phase.AWAITING_CALL:
+		_make_call(id, team)
+
+
+## Produces a card. Nothing happened — nothing ever happened — so this is not a
+## judgement at all, it is the umpire simply taking a point off somebody in front of
+## a hall that watched them do nothing. It is the only cheat available on a rally you
+## did not even have to wait for, and it is priced accordingly.
+func show_card(against: Sides.Team, red: bool) -> void:
+	if _phase == Phase.REMOVED or board == null or board.is_over:
+		return
+
+	suspicion.register_card(against, red)
+	ui.announce(
+		"%s   ·   %s" % ["RED CARD" if red else "YELLOW CARD", Sides.label(against)],
+		Color(0.94, 0.36, 0.32) if red else Color(0.95, 0.85, 0.30),
+		2.4
+	)
+	ui.react(Crowd.react_to_card(red), 3.4)
+
+	if print_truth_while_testing:
+		print("[truth, testing only] %s card on %s for nothing  |  suspicion %.3f lean %+.2f" % [
+			"RED" if red else "YELLOW", Sides.label(against), suspicion.level, suspicion.lean
+		])
+
+	if not red:
+		# A yellow is a warning. The rally, if there is one, still needs deciding.
+		return
+
+	var beneficiary := Sides.opponent(against)
+	board.award(beneficiary)
+	serving = beneficiary
+	if _phase == Phase.AWAITING_CALL:
+		ui.hide_shuttle_cam()
+		for judge in line_judges:
+			judge.silence()
+		_enter_ready()
+	else:
+		_update_score()
+
+
 func _enter_ready() -> void:
 	if suspicion.is_removed or board.is_over:
 		return
 	_phase = Phase.READY
 	_update_score()
-	ui.set_prompt("SPACE  whistle to start the rally")
+	ui.set_prompt("SPACE  whistle to start the rally            F  cards")
 
 	# The hall gets on with having an opinion whether or not anything just happened.
 	if randf() < AMBIENT_CHANCE:
@@ -351,15 +451,110 @@ func _return_shot(player: Player) -> void:
 		player.stand_off()
 		return
 
+	# They have played their shot, whatever happens next. Standing them off first
+	# also stops this being re-entered while a carry is being held.
+	player.stand_off()
+
+	var offence := _roll_for_offence(player)
+
+	if offence == Incident.Kind.CARRY:
+		# The shuttle stops dead on the racket and is slung on a moment later. From
+		# the chair it is a hesitation in the middle of a stroke, and that hesitation
+		# is the only thing there is to see.
+		_shuttle.freeze = true
+		await get_tree().create_timer(CARRY_HOLD).timeout
+		if _phase != Phase.IN_FLIGHT or not is_instance_valid(_shuttle):
+			return
+		_shuttle.freeze = false
+
 	var from := _shuttle.global_position
 	var target := _pick_target(Sides.half_sign(Sides.opponent(player.team)))
 	if not _hit(from, target, _choose_angle(from), player.team):
-		player.stand_off()
+		return
+
+	if offence == Incident.Kind.DOUBLE_HIT:
+		await get_tree().create_timer(DOUBLE_HIT_GAP).timeout
+		if _phase != Phase.IN_FLIGHT or not is_instance_valid(_shuttle) or _shuttle.has_landed:
+			return
+		# The same side gets a second stroke in, which is the whole of the offence.
+		var again := _pick_target(Sides.half_sign(Sides.opponent(player.team)))
+		var here := _shuttle.global_position
+		_hit(here, again, _choose_angle(here), player.team)
+
+
+## Decides whether this stroke goes wrong, and in what way.
+##
+## Only one offence per rally. Two would be unfair on the umpire, who would then have
+## to pick which of them to announce, and the rules say the first one ends the rally
+## anyway.
+func _roll_for_offence(player: Player) -> Incident.Kind:
+	if rally.incident.happened() or randf() > INCIDENT_CHANCE:
+		return Incident.Kind.NONE
+
+	# Touching the net and reaching over it depend on where the *player* is, not
+	# where the shuttle is. Testing the shuttle meant these two offences could
+	# essentially never happen: a player standing at the net still meets the shuttle
+	# a metre or two back from it.
+	var choices: Array = [Incident.Kind.CARRY, Incident.Kind.DOUBLE_HIT]
+	if absf(player.position.z) < 1.75:
+		choices.append(Incident.Kind.NET_TOUCH)
+		choices.append(Incident.Kind.OBSTRUCTION)
+
+	var kind: Incident.Kind = choices[randi() % choices.size()]
+	var seen := _how_visible(kind)
+	rally.incident = Incident.new(kind, player.team, seen, _shuttle.global_position)
+	_perform_offence(kind, player, seen)
+	return kind
+
+
+## How plainly each kind of offence reads from the umpire's chair. A carry is a
+## flicker in a stroke; somebody reaching over the net is not something you miss.
+func _how_visible(kind: Incident.Kind) -> float:
+	match kind:
+		Incident.Kind.NET_TOUCH:
+			return randf_range(0.25, 0.85)
+		Incident.Kind.CARRY:
+			return randf_range(0.15, 0.55)
+		Incident.Kind.DOUBLE_HIT:
+			return randf_range(0.30, 0.80)
+		Incident.Kind.OBSTRUCTION:
+			return randf_range(0.40, 0.95)
+	return 0.0
+
+
+## Makes the offence actually happen on court, so there is something to have seen.
+func _perform_offence(kind: Incident.Kind, player: Player, seen: float) -> void:
+	match kind:
+		Incident.Kind.NET_TOUCH:
+			court.shake_net(seen)
+		Incident.Kind.OBSTRUCTION:
+			# Over the net and back, into the opponent's half.
+			var over := Vector3(player.position.x, 0.0, -Sides.half_sign(player.team) * 0.55)
+			player.lunge(over, 0.8)
+			court.shake_net(seen * 0.5)
 
 
 ## Sends the shuttle from `from` to `target`, and points the receiving side at it.
 func _hit(from: Vector3, target: Vector3, angle: float, striker: Sides.Team) -> bool:
-	var velocity := ShotSolver.solve(from, target, angle, Court.MAT_THICKNESS)
+	# Try the shot, and if the arc would clip the net, hit it higher and try again.
+	# Players miss the tape occasionally and that is fine — but they should not do it
+	# on every drop shot because the game only checked a straight line.
+	var velocity := Vector3.ZERO
+	var attempt_angle := angle
+	var mishit := randf() < NET_MISHIT_CHANCE
+
+	for attempt in 4:
+		var candidate := ShotSolver.solve(from, target, attempt_angle, Court.MAT_THICKNESS)
+		if candidate == Vector3.ZERO:
+			attempt_angle += 9.0
+			continue
+		# On a mishit the player does not get to try again, and the tape is where the
+		# rally ends.
+		if mishit or _clears_the_net(from, target, candidate):
+			velocity = candidate
+			break
+		attempt_angle += 9.0
+
 	if velocity == Vector3.ZERO:
 		return false
 
@@ -436,6 +631,25 @@ func _leaves_it(target: Vector3) -> bool:
 	return randf() < 0.40
 
 
+## Whether this shot actually gets over the tape, flown rather than eyeballed.
+func _clears_the_net(from: Vector3, target: Vector3, velocity: Vector3) -> bool:
+	# A shot that stays on one side never meets the net.
+	if signf(from.z) == signf(target.z) or is_zero_approx(from.z):
+		return true
+
+	var flat := Vector2(target.x - from.x, target.z - from.z).length()
+	var span := absf(target.z - from.z)
+	if flat < 0.01 or span < 0.01:
+		return true
+
+	# How far the shuttle travels horizontally before it reaches the plane of the net.
+	var along := absf(from.z) * (flat / span)
+	var speed := velocity.length()
+	var climb := rad_to_deg(asin(clampf(velocity.y / maxf(0.001, speed), -1.0, 1.0)))
+	var height := ShotSolver.height_after(from.y, speed, climb, along)
+	return height > CourtSpec.NET_HEIGHT_CENTRE + 0.05
+
+
 ## Picks a launch angle for a shot struck from `from`.
 ##
 ## Two jobs. The first is to keep the shuttle above the net: a player scrambling near
@@ -463,7 +677,7 @@ func _choose_angle(from: Vector3) -> float:
 func _on_shuttle_landed(point: Vector3) -> void:
 	rally.record_landing(point)
 	_phase = Phase.AWAITING_CALL
-	ui.set_prompt("LEFT CLICK  in        RIGHT CLICK  out        L  let")
+	ui.set_prompt("LEFT CLICK  in     RIGHT CLICK  out     L  let     F  fault or card")
 
 	_awaiting_since = Time.get_ticks_msec()
 	shuttle_cam.aim_at(point)
@@ -497,13 +711,13 @@ func _announce_line_judge(judge: LineJudge) -> void:
 	judge.announce(rally.line_judge_said_in)
 
 
-func _make_call(id: StringName) -> void:
+func _make_call(id: StringName, against := Sides.Team.NONE) -> void:
 	var call := CallBook.get_call(id)
 	if call == null:
 		return
 
 	rally.seconds_to_call = float(Time.get_ticks_msec() - _awaiting_since) / 1000.0
-	rally.record_call(call)
+	rally.record_call(call, against)
 	ui.hide_shuttle_cam()
 	var winner := rally.point_goes_to()
 
@@ -511,7 +725,11 @@ func _make_call(id: StringName) -> void:
 		board.award(winner)
 		# In badminton the side that wins the rally serves the next one.
 		serving = winner
-		ui.announce("%s   ·   POINT %s" % [call.label, Sides.label(winner)], Sides.colour(winner))
+		var accused := "" if against == Sides.Team.NONE else " on %s" % Sides.label(against)
+		ui.announce(
+			"%s%s   ·   POINT %s" % [call.label, accused, Sides.label(winner)],
+			Sides.colour(winner)
+		)
 	else:
 		ui.announce("%s   ·   PLAY IT AGAIN" % call.label, Color(0.85, 0.85, 0.80))
 
@@ -629,9 +847,19 @@ func _pick_target(half: float) -> Vector3:
 			return Vector3(wide + over * signf(wide), 0.0, half * randf_range(2.0, 6.0))
 		return Vector3(randf_range(-2.8, 2.8), 0.0, half * (CourtSpec.HALF_LENGTH + over))
 
+	# A drop just over the net. Nothing to judge about where it lands, but it drags
+	# both players up to the net, which is the only place two of the four offences
+	# can happen at all.
+	if roll < BAD_SHOT_CHANCE + NET_SHOT_CHANCE:
+		return Vector3(
+			randf_range(-2.5, 2.5),
+			0.0,
+			half * randf_range(NET_SHOT_NEAR, NET_SHOT_FAR)
+		)
+
 	# A shot played safely into the middle of the court, where there is nothing to
 	# judge and the umpire simply confirms what everyone saw.
-	if roll > BAD_SHOT_CHANCE + CLOSE_CALL_CHANCE:
+	if roll > BAD_SHOT_CHANCE + NET_SHOT_CHANCE + CLOSE_CALL_CHANCE:
 		return Vector3(randf_range(-2.3, 2.3), 0.0, half * randf_range(2.6, 5.6))
 
 	var drift := randf_range(-CLOSE_CALL_INSIDE, CLOSE_CALL_OUTSIDE)

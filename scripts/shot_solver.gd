@@ -114,6 +114,40 @@ static func _range_for(speed: float, height: float, angle: float) -> float:
 	return lerpf(previous_tip.x, tip.x, crossing)
 
 
+## How high the shuttle will be after travelling `along` metres horizontally.
+##
+## Needed because a shot can start out aimed comfortably over the net and still hit
+## it. A straight line from the racket to the target clears the tape easily on a
+## lofted drop, but the shuttle does not travel in a straight line — it arcs, and on
+## a gentle shot the arc has already begun falling by the time it reaches the net.
+## The only honest way to know is to fly it and look.
+static func height_after(start_height: float, speed: float, angle_deg: float, along: float) -> float:
+	var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
+	var drag := gravity / (Shuttle.TERMINAL_VELOCITY * Shuttle.TERMINAL_VELOCITY)
+	var step := _step()
+	var angle := deg_to_rad(angle_deg)
+
+	var position := Vector2(0.0, start_height)
+	var velocity := Vector2(cos(angle), sin(angle)) * speed
+	var previous := position
+
+	var time := 0.0
+	while position.x < along and time < 20.0:
+		previous = position
+		var acceleration := Vector2(0.0, -gravity) - velocity * velocity.length() * drag
+		velocity += acceleration * step
+		position += velocity * step
+		time += step
+
+	if position.x < along:
+		return -1.0
+
+	var crossing := 1.0
+	if not is_equal_approx(previous.x, position.x):
+		crossing = clampf((along - previous.x) / (position.x - previous.x), 0.0, 1.0)
+	return lerpf(previous.y, position.y, crossing)
+
+
 ## The cork tip leads the shuttle along its direction of travel.
 static func _cork_tip_of(position: Vector2, velocity: Vector2) -> Vector2:
 	if velocity.length_squared() <= 0.0:

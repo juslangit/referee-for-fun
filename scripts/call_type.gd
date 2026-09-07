@@ -15,6 +15,8 @@ enum Outcome {
 	POINT_TO_STRIKER,
 	## The side that received it wins the rally.
 	POINT_TO_RECEIVER,
+	## The side the call was made against loses the rally, whoever hit the shuttle.
+	POINT_AGAINST_THE_OFFENDER,
 	## Nobody wins. The point is played again.
 	REPLAY,
 }
@@ -40,6 +42,14 @@ var judges_the_landing := false
 
 ## For a line call, what it asserts: true means "the shuttle was in".
 var asserts_in := false
+
+## Whether this call is a claim that somebody did something wrong, rather than a
+## claim about where the shuttle landed. These are judged against the rally's
+## incident instead of its landing point, and they have to name a side.
+var judges_conduct := false
+
+## Which offence it claims. Only meaningful when judges_conduct is true.
+var claims := Incident.Kind.NONE
 
 ## How seriously a wrong call of this kind is taken, before any weighting for how
 ## obvious it was. A fabricated card is a far bigger deal than a generous line call.

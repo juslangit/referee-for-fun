@@ -52,6 +52,15 @@ const IMPATIENCE := [
 	"\"What is there to think about?\"",
 ]
 
+## What happens when the umpire produces a card nobody was expecting.
+const CARD_UPROAR := [
+	"the whole hall is on its feet",
+	"\"FOR WHAT?!\"",
+	"the bench is halfway onto the court",
+	"a coach is being held back",
+	"\"HE DIDN'T DO ANYTHING!\"",
+]
+
 ## Ambient pressure between rallies, once things have gone bad.
 const AMBIENT := {
 	Suspicion.Mood.MURMURING: [
@@ -100,6 +109,13 @@ static func react_to_delay(seconds: float) -> String:
 	if Suspicion.hesitation_cost(seconds) <= 0.0:
 		return ""
 	return _pick(IMPATIENCE)
+
+
+## What the hall makes of a card. There is no quiet version of this.
+static func react_to_card(red: bool) -> String:
+	if red:
+		return _pick(CARD_UPROAR)
+	return _pick(COMPLAINT if randf() < 0.5 else CARD_UPROAR)
 
 
 ## Something for the hall to do between rallies, once it has stopped trusting you.

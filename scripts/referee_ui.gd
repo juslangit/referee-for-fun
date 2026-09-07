@@ -10,6 +10,7 @@ extends CanvasLayer
 
 signal length_chosen(quick: bool)
 signal favour_chosen(team: Sides.Team)
+signal punishment_chosen(id: StringName, team: Sides.Team)
 
 const TITLE_SIZE := 34
 const BUTTON_SIZE := 22
@@ -29,6 +30,8 @@ var _prompt_label: Label
 var _message_label: Label
 var _reaction_label: Label
 var _banner_label: Label
+var _fault_panel: Control
+var _fault_rows: VBoxContainer
 var _shuttle_cam_panel: Control
 var _shuttle_cam_view: TextureRect
 var _message_timer := 0.0
@@ -43,6 +46,7 @@ func _ready() -> void:
 	_build_hud()
 	_build_ending()
 	_build_shuttle_cam()
+	_build_fault_panel()
 	_pre_match.visible = false
 	_length_panel.visible = true
 
@@ -259,6 +263,93 @@ func react(line: String, seconds := 2.6) -> void:
 func show_banner(text: String, seconds := 5.0) -> void:
 	_banner_label.text = text
 	_banner_timer = seconds
+
+
+# --- accusing somebody ---------------------------------------------------------
+#
+# Every one of these calls has to name a side, which is the awkward part: IN and OUT
+# are about the shuttle, but a fault is about a person. Rather than invent a key
+# combination for "net touch, against blue", the umpire points — and pointing at
+# somebody is exactly the gesture being made.
+
+func _build_fault_panel() -> void:
+	_fault_panel = Control.new()
+	_fault_panel.name = "FaultPanel"
+	_fault_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_fault_panel.visible = false
+	_fault_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_fault_panel)
+
+	var backdrop := ColorRect.new()
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.color = Color(0.04, 0.05, 0.07, 0.82)
+	_fault_panel.add_child(backdrop)
+
+	_fault_rows = VBoxContainer.new()
+	_fault_rows.set_anchors_preset(Control.PRESET_CENTER)
+	_fault_rows.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_fault_rows.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_fault_rows.alignment = BoxContainer.ALIGNMENT_CENTER
+	_fault_rows.add_theme_constant_override("separation", 10)
+	_fault_panel.add_child(_fault_rows)
+
+
+## Builds the list fresh each time, because between rallies there is no rally to
+## fault anybody over — only misconduct, which can be punished whenever you like.
+func show_fault_panel(cards_only: bool) -> void:
+	for child in _fault_rows.get_children():
+		child.queue_free()
+
+	_fault_rows.add_child(_make_label(
+		"CARDS" if cards_only else "FAULT — AGAINST WHOM?", TITLE_SIZE - 6, Color(0.95, 0.95, 0.93)
+	))
+	_fault_rows.add_child(_make_label(
+		"BLUE is on your left, RED on your right.        ESC to say nothing.",
+		PROMPT_SIZE, Color(0.62, 0.64, 0.68)
+	))
+
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 10)
+	_fault_rows.add_child(spacer)
+
+	if not cards_only:
+		for call in CallBook.faults():
+			_fault_rows.add_child(_make_accusation_row(call.label, call.id, Color(0.90, 0.88, 0.84)))
+
+	_fault_rows.add_child(_make_accusation_row("YELLOW CARD", &"yellow", Color(0.95, 0.85, 0.30)))
+	_fault_rows.add_child(_make_accusation_row("RED CARD", &"red", Color(0.94, 0.36, 0.32)))
+
+	_fault_panel.visible = true
+
+
+func _make_accusation_row(label: String, id: StringName, tint: Color) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 10)
+
+	var name_label := _make_label(label, PROMPT_SIZE + 3, tint)
+	name_label.custom_minimum_size = Vector2(220, 40)
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	row.add_child(name_label)
+
+	for team in [Sides.Team.BLUE, Sides.Team.RED]:
+		var button := Button.new()
+		button.text = Sides.label(team)
+		button.custom_minimum_size = Vector2(110, 40)
+		button.add_theme_font_size_override("font_size", BUTTON_SIZE - 5)
+		button.add_theme_color_override("font_color", Sides.colour(team))
+		button.pressed.connect(func() -> void: punishment_chosen.emit(id, team))
+		row.add_child(button)
+
+	return row
+
+
+func hide_fault_panel() -> void:
+	_fault_panel.visible = false
+
+
+func is_fault_panel_open() -> bool:
+	return _fault_panel.visible
 
 
 # --- the shuttle camera --------------------------------------------------------
