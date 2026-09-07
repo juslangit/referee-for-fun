@@ -8,6 +8,7 @@ extends CanvasLayer
 ## hall can see. Whether the call was true is not among them. The moment this screen
 ## can tell the player they got it right, the game stops being about judgement.
 
+signal length_chosen(quick: bool)
 signal favour_chosen(team: Sides.Team)
 
 const TITLE_SIZE := 34
@@ -18,6 +19,7 @@ const PROMPT_SIZE := 17
 const REACTION_SIZE := 19
 const BANNER_SIZE := 24
 
+var _length_panel: Control
 var _pre_match: Control
 var _ending: Control
 var _ending_headline: Label
@@ -34,10 +36,12 @@ var _banner_timer := 0.0
 
 func _ready() -> void:
 	layer = 10
+	_build_length_panel()
 	_build_pre_match()
 	_build_hud()
 	_build_ending()
-	show_pre_match()
+	_pre_match.visible = false
+	_length_panel.visible = true
 
 
 func _process(delta: float) -> void:
@@ -56,6 +60,57 @@ func _tick(delta: float, timer: float, label: Label) -> float:
 
 
 # --- pre-match -----------------------------------------------------------------
+
+func _build_length_panel() -> void:
+	_length_panel = Control.new()
+	_length_panel.name = "MatchLength"
+	_length_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_length_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_length_panel)
+
+	var backdrop := ColorRect.new()
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.color = Color(0.05, 0.06, 0.08, 0.94)
+	_length_panel.add_child(backdrop)
+
+	var column := VBoxContainer.new()
+	column.set_anchors_preset(Control.PRESET_CENTER)
+	column.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	column.grow_vertical = Control.GROW_DIRECTION_BOTH
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_theme_constant_override("separation", 18)
+	_length_panel.add_child(column)
+
+	column.add_child(_make_label("HOW LONG HAVE YOU GOT?", TITLE_SIZE, Color(0.95, 0.95, 0.93)))
+	column.add_child(_make_label(
+		"A longer match gives you more chances, and more chances to be caught taking them.",
+		PROMPT_SIZE,
+		Color(0.62, 0.64, 0.68)
+	))
+
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 14)
+	column.add_child(spacer)
+
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 14)
+	column.add_child(row)
+
+	row.add_child(_make_length_button("QUICK GAME\nfirst to 11", true))
+	row.add_child(_make_length_button("FULL MATCH\nbest of 3 to 21", false))
+
+
+func _make_length_button(text: String, quick: bool) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.custom_minimum_size = Vector2(210, 66)
+	button.add_theme_font_size_override("font_size", BUTTON_SIZE - 4)
+	# The button only reports the choice. Which screen comes next is the match's
+	# decision, not this file's — otherwise the flow only works when a human clicks.
+	button.pressed.connect(func() -> void: length_chosen.emit(quick))
+	return button
+
 
 func _build_pre_match() -> void:
 	_pre_match = Control.new()
@@ -105,6 +160,12 @@ func _make_choice_button(team: Sides.Team) -> Button:
 	button.add_theme_color_override("font_color", Sides.colour(team))
 	button.pressed.connect(func() -> void: favour_chosen.emit(team))
 	return button
+
+
+## Moves on from the match-length question to the one that matters.
+func show_favour_choice() -> void:
+	_length_panel.visible = false
+	_pre_match.visible = true
 
 
 func show_pre_match() -> void:
@@ -158,10 +219,17 @@ func _build_hud() -> void:
 	hud.add_child(_banner_label)
 
 
-func set_score(red: int, blue: int, serving: Sides.Team) -> void:
+func set_score(board: Scoreboard, serving: Sides.Team) -> void:
 	var red_mark := "•" if serving == Sides.Team.RED else " "
 	var blue_mark := "•" if serving == Sides.Team.BLUE else " "
-	_score_label.text = "%s RED  %d  —  %d  BLUE %s" % [red_mark, red, blue, blue_mark]
+	var games := ""
+	if board.games_needed > 1:
+		games = "        games  %d — %d" % [
+			board.games[Sides.Team.RED], board.games[Sides.Team.BLUE]
+		]
+	_score_label.text = "%s RED  %d  —  %d  BLUE %s%s" % [
+		red_mark, board.points[Sides.Team.RED], board.points[Sides.Team.BLUE], blue_mark, games
+	]
 
 
 func set_prompt(text: String) -> void:
@@ -222,8 +290,9 @@ func _build_ending() -> void:
 
 ## The reckoning. Once the match is over the truth is finally allowed on screen —
 ## this is the only place in the whole game where that is true.
-func show_ending(headline: String, detail: String) -> void:
+func show_ending(headline: String, detail: String, tint := Color(0.96, 0.42, 0.36)) -> void:
 	_ending_headline.text = headline
+	_ending_headline.add_theme_color_override("font_color", tint)
 	_ending_detail.text = detail
 	_ending.visible = true
 

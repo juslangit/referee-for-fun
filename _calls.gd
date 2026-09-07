@@ -17,6 +17,7 @@ func _ready() -> void:
 	add_child(arena)
 	await get_tree().physics_frame
 
+	arena._on_length_chosen(false)
 	arena._on_favour_chosen(Sides.Team.RED)
 
 	print("favouring RED, and lying only when the margin is under %.0f cm\n" % (Rally.BLATANT_MARGIN * NERVE * 100.0))
@@ -58,11 +59,11 @@ func _ready() -> void:
 			rally.call.label,
 			Rally.Verdict.keys()[rally.verdict()],
 			rally.visibility(),
-			arena.score[Sides.Team.RED],
-			arena.score[Sides.Team.BLUE],
+			arena.board.points[Sides.Team.RED],
+			arena.board.points[Sides.Team.BLUE],
 		])
 
-	print("\nfinal  RED %d — %d BLUE" % [arena.score[Sides.Team.RED], arena.score[Sides.Team.BLUE]])
+	print("\nfinal  RED %d — %d BLUE" % [arena.board.points[Sides.Team.RED], arena.board.points[Sides.Team.BLUE]])
 	print("told %d lies, %d of which stole the rally" % [lies, stolen])
 	print("average visibility of a lie: %.3f  (1.0 would be blatant to the whole hall)" % [
 		total_visibility / maxf(1.0, float(lies))

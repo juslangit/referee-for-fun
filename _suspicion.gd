@@ -22,6 +22,7 @@ func _run(policy: String) -> void:
 	await get_tree().physics_frame
 	# Seeded after the arena is built, so every policy referees the same match.
 	seed(20260907)
+	arena._on_length_chosen(false)
 	arena._on_favour_chosen(Sides.Team.RED)
 
 	var suspicion: Suspicion = arena.suspicion

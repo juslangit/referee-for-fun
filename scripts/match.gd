@@ -23,14 +23,46 @@ const LIGHT_ENERGY := 1.7
 const SERVE_DISTANCE := 3.0
 const SERVE_HEIGHT := 2.45
 
-## How often a shot is aimed within a few centimetres of a line, and how far either
-## side of it. See _pick_target for why this bias exists at all.
-const CLOSE_CALL_CHANCE := 0.60
-const CLOSE_CALL_DRIFT := 0.09
+## Where the four players stand when the shuttle is not their problem. Front and
+## back, which is how a doubles pair defends.
+const HOME_POSITIONS := [
+	Vector3(-1.20, 0.0, -2.20),
+	Vector3(1.20, 0.0, -4.60),
+	Vector3(1.20, 0.0, 2.20),
+	Vector3(-1.20, 0.0, 4.60),
+]
+
+## How many shots a rally can run to before somebody simply runs out of legs.
+const RALLY_SHOT_CAP := 16
+
+## A hard stop on a rally, in seconds. A backstop, not a design.
+const MAX_RALLY_SECONDS := 40.0
+
+## How badly a player can misread where a shot is going, in metres.
+const READING_ERROR := 0.32
+
+## How high the shuttle has to be for a player to hit down on it, and how often they
+## take the chance.
+##
+## Without this the rally never ends on its own: a lifted shot hangs in the air for
+## two seconds, which is long enough for anyone to walk to it, so every rally would
+## finish only when a player chose not to play one. A smash arrives in well under a
+## second and simply cannot be reached. It is what makes a shot a winner.
+const SMASH_MIN_HEIGHT := 2.20
+const SMASH_CHANCE := 0.32
+
+## How often a player goes for the line, and how far either side of it they land.
+##
+## The range is deliberately lopsided. A player aiming at the line is trying to keep
+## it in, so most of these land just inside and only some slip out — which is both
+## how badminton actually looks and what stops the umpire's job becoming a coin toss.
+const CLOSE_CALL_CHANCE := 0.34
+const CLOSE_CALL_INSIDE := 0.13
+const CLOSE_CALL_OUTSIDE := 0.06
 
 ## How often a shot is simply a bad one that sails clearly out, and how far past the
 ## line it goes. These are the rallies where the whole hall can see the answer.
-const BAD_SHOT_CHANCE := 0.16
+const BAD_SHOT_CHANCE := 0.06
 const BAD_SHOT_MIN := 0.30
 const BAD_SHOT_MAX := 1.30
 
@@ -70,8 +102,19 @@ var favoured := Sides.Team.NONE
 ## How much the hall doubts you. Never displayed — you find out by reading the room.
 var suspicion: Suspicion
 
+## The scoreline, and the badminton rules that govern it.
+var board: Scoreboard
+
+var players: Array[Player] = []
 var serving := Sides.Team.RED
-var score := {Sides.Team.RED: 0, Sides.Team.BLUE: 0}
+
+var _shots_this_rally := 0
+
+## Whether the shuttle that just landed was left to drop rather than chased. Set as
+## each shot is directed, so by the time it lands it describes the final shot.
+var rally_left_alone := false
+
+var _rally_seconds := 0.0
 
 var _phase := Phase.PRE_MATCH
 var _shuttle: Shuttle
@@ -96,8 +139,11 @@ func _ready() -> void:
 
 	ui = RefereeUI.new()
 	ui.name = "RefereeUI"
+	ui.length_chosen.connect(_on_length_chosen)
 	ui.favour_chosen.connect(_on_favour_chosen)
 	add_child(ui)
+
+	_build_players()
 
 	suspicion = Suspicion.new()
 	suspicion.warning_issued.connect(_on_warning_issued)
@@ -106,11 +152,32 @@ func _ready() -> void:
 
 # --- the loop ------------------------------------------------------------------
 
+func _on_length_chosen(quick: bool) -> void:
+	board = Scoreboard.new(quick)
+	board.game_won.connect(_on_game_won)
+	board.match_won.connect(_on_match_won)
+	ui.show_favour_choice()
+
+
 func _on_favour_chosen(team: Sides.Team) -> void:
 	favoured = team
+	if board == null:
+		board = Scoreboard.new(false)
+		board.game_won.connect(_on_game_won)
+		board.match_won.connect(_on_match_won)
 	ui.hide_pre_match()
 	camera.set_active(true)
 	_enter_ready()
+
+
+func _build_players() -> void:
+	for i in HOME_POSITIONS.size():
+		var home: Vector3 = HOME_POSITIONS[i]
+		var player := Player.new()
+		player.name = "Player%d" % i
+		add_child(player)
+		player.setup(Sides.half_containing(home.z), home)
+		players.append(player)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -129,7 +196,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _enter_ready() -> void:
-	if suspicion.is_removed:
+	if suspicion.is_removed or board.is_over:
 		return
 	_phase = Phase.READY
 	_update_score()
@@ -141,6 +208,13 @@ func _enter_ready() -> void:
 
 
 func _start_rally() -> void:
+	for player in players:
+		player.go_home()
+
+	_shots_this_rally = 0
+	_rally_seconds = 0.0
+	rally = Rally.new(serving, true)
+
 	var from := Vector3(
 		randf_range(-1.6, 1.6),
 		SERVE_HEIGHT,
@@ -148,11 +222,159 @@ func _start_rally() -> void:
 	)
 	var target := _pick_target(Sides.half_sign(Sides.opponent(serving)))
 
-	if serve(from, target, randf_range(30.0, 44.0), serving) == null:
+	if not _hit(from, target, _choose_angle(from), serving):
 		return
 
 	_phase = Phase.IN_FLIGHT
 	ui.set_prompt("watch it")
+
+
+## Watches for a player getting a racket on the shuttle before it can land.
+func _physics_process(_delta: float) -> void:
+	if _phase != Phase.IN_FLIGHT:
+		return
+	if not is_instance_valid(_shuttle) or _shuttle.has_landed:
+		return
+	# Only on the way down. A shuttle still climbing is on its way over the net.
+	if _shuttle.linear_velocity.y >= 0.0:
+		return
+
+	var receiving := Sides.opponent(rally.struck_by)
+
+	# A player may only play the shuttle once it is on their own side of the net.
+	# This is a real rule, and it is also the only thing stopping a pair of players
+	# standing either side of the net batting the same shuttle back and forth in one
+	# spot forever — a smash starts descending the instant it is struck, so without
+	# this the receiver can return it from the point it was hit, and the rally never
+	# ends.
+	if _shuttle.global_position.z * Sides.half_sign(receiving) <= 0.0:
+		return
+
+	for player in players:
+		if player.team != receiving:
+			continue
+		if player.can_strike(_shuttle.global_position):
+			_return_shot(player)
+			return
+
+	# A rally that has somehow gone on far too long is brought to an end rather than
+	# left to hang. Nothing should reach this, but a match that cannot finish is a
+	# far worse failure than a rally that ends oddly.
+	_rally_seconds += _delta
+	if _rally_seconds > MAX_RALLY_SECONDS:
+		for player in players:
+			player.stand_off()
+
+
+func _return_shot(player: Player) -> void:
+	# Rallies cannot run forever. Past the cap the legs go and the shuttle drops.
+	if _shots_this_rally >= RALLY_SHOT_CAP:
+		player.stand_off()
+		return
+
+	var from := _shuttle.global_position
+	var target := _pick_target(Sides.half_sign(Sides.opponent(player.team)))
+	if not _hit(from, target, _choose_angle(from), player.team):
+		player.stand_off()
+
+
+## Sends the shuttle from `from` to `target`, and points the receiving side at it.
+func _hit(from: Vector3, target: Vector3, angle: float, striker: Sides.Team) -> bool:
+	var velocity := ShotSolver.solve(from, target, angle, Court.MAT_THICKNESS)
+	if velocity == Vector3.ZERO:
+		return false
+
+	if not is_instance_valid(_shuttle):
+		_shuttle = Shuttle.new()
+		_shuttle.name = "Shuttle"
+		add_child(_shuttle)
+		_shuttle.landed.connect(_on_shuttle_landed)
+
+	_shuttle.launch(from, velocity)
+	rally.struck_by = striker
+	_shots_this_rally += 1
+	_direct_players(Sides.opponent(striker), target)
+	return true
+
+
+## Decides which of the receiving pair goes for the shuttle, and whether they bother.
+func _direct_players(receiving: Sides.Team, target: Vector3) -> void:
+	var taker: Player = null
+	var shortest := INF
+
+	for player in players:
+		if player.team != receiving:
+			player.go_home()
+			continue
+		var distance := player.distance_to(target)
+		if distance < shortest:
+			shortest = distance
+			taker = player
+
+	for player in players:
+		if player.team == receiving and player != taker:
+			player.go_home()
+
+	rally_left_alone = false
+
+	if taker == null:
+		rally_left_alone = true
+		return
+
+	if _leaves_it(target):
+		rally_left_alone = true
+		# They have decided it is going out and are going to stand and watch. The
+		# rally is now entirely in the umpire's hands, and they have no idea whose
+		# side the umpire is on.
+		taker.stand_off()
+		return
+
+	taker.chase(target + Vector3(
+		randf_range(-READING_ERROR, READING_ERROR),
+		0.0,
+		randf_range(-READING_ERROR, READING_ERROR)
+	))
+
+
+## Whether the receiving player lets the shuttle drop rather than playing it.
+##
+## Real players do this constantly, and it is the single most useful thing they can
+## do for this game: a shuttle nobody touches has to be ruled on, and the player who
+## left it has staked the rally on the umpire being honest.
+func _leaves_it(target: Vector3) -> bool:
+	var margin := CourtSpec.margin(target, true)
+	if margin > 0.06:
+		# Comfortably in. Occasionally somebody misreads one anyway.
+		return randf() < 0.03
+	if margin < -0.25:
+		# Clearly going out. Only a nervous player plays this.
+		return randf() < 0.80
+	# Too close to be sure. This is where the umpire earns their money.
+	return randf() < 0.40
+
+
+## Picks a launch angle for a shot struck from `from`.
+##
+## Two jobs. The first is to keep the shuttle above the net: a player scrambling near
+## the floor must lift it, or it would fly straight through the net, which looks
+## exactly as wrong as it sounds. The second is to hit down on it when they can,
+## because a rally with no winning shot in it never ends.
+func _choose_angle(from: Vector3) -> float:
+	var to_net := maxf(0.15, absf(from.z))
+	var clearance := CourtSpec.NET_HEIGHT_CENTRE + 0.12
+
+	# The steepest downward angle that still gets over the net from here. Below the
+	# net tape there is no such angle and the shuttle has to be lifted.
+	if from.y > clearance and from.y >= SMASH_MIN_HEIGHT:
+		var steepest := rad_to_deg(atan((from.y - clearance) / to_net))
+		if steepest > 6.0 and randf() < SMASH_CHANCE:
+			return -randf_range(3.0, minf(steepest - 2.0, 20.0))
+
+	var lowest := 10.0
+	var rise := clearance - from.y
+	if rise > 0.0:
+		lowest = rad_to_deg(atan(rise / to_net)) + 7.0
+	return clampf(randf_range(26.0, 46.0), lowest, 64.0)
 
 
 func _on_shuttle_landed(point: Vector3) -> void:
@@ -170,7 +392,7 @@ func _make_call(id: StringName) -> void:
 	var winner := rally.point_goes_to()
 
 	if winner != Sides.Team.NONE:
-		score[winner] += 1
+		board.award(winner)
 		# In badminton the side that wins the rally serves the next one.
 		serving = winner
 		ui.announce("%s   ·   POINT %s" % [call.label, Sides.label(winner)], Sides.colour(winner))
@@ -221,33 +443,45 @@ func _reckoning() -> String:
 			lines.append("Which is not even who you wanted to win.")
 
 	lines.append("")
-	lines.append("Final score  RED %d — %d BLUE" % [score[Sides.Team.RED], score[Sides.Team.BLUE]])
+	lines.append("Final score  RED %d — %d BLUE      games  %d — %d" % [
+		board.points[Sides.Team.RED],
+		board.points[Sides.Team.BLUE],
+		board.games[Sides.Team.RED],
+		board.games[Sides.Team.BLUE],
+	])
 	return "\n".join(lines)
 
 
 func _update_score() -> void:
-	ui.set_score(score[Sides.Team.RED], score[Sides.Team.BLUE], serving)
+	ui.set_score(board, serving)
+
+
+func _on_game_won(team: Sides.Team) -> void:
+	if board.is_over:
+		return
+	ui.announce("GAME  ·  %s" % Sides.label(team), Sides.colour(team), 2.6)
+
+
+func _on_match_won(team: Sides.Team) -> void:
+	_phase = Phase.REMOVED
+	camera.set_active(false)
+	ui.set_prompt("")
+	ui.show_ending("%s WIN THE MATCH" % Sides.label(team), _reckoning(), Sides.colour(team))
 
 
 # --- hitting the shuttle -------------------------------------------------------
 
-## Hits a shuttle from `from` so that it lands on `target`, and starts recording a
-## new rally. `angle` decides the kind of shot: low is a drive, high is a clear.
+## Hits one shuttle with no rally around it: nobody chases it and it simply lands.
+## Used by the development scenes to set up an exact situation on demand.
 func serve(from: Vector3, target: Vector3, angle := 36.0, striker := Sides.Team.NONE) -> Shuttle:
-	var velocity := ShotSolver.solve(from, target, angle, Court.MAT_THICKNESS)
-	if velocity == Vector3.ZERO:
+	for player in players:
+		player.go_home()
+	rally = Rally.new(striker, true)
+	_shots_this_rally = RALLY_SHOT_CAP
+	if not _hit(from, target, angle, striker):
 		push_warning("No shot at %.0f degrees reaches %v from %v" % [angle, target, from])
 		return null
-
-	if is_instance_valid(_shuttle):
-		_shuttle.queue_free()
-
-	rally = Rally.new(striker, true)
-	_shuttle = Shuttle.new()
-	_shuttle.name = "Shuttle"
-	add_child(_shuttle)
-	_shuttle.landed.connect(_on_shuttle_landed)
-	_shuttle.launch(from, velocity)
+	_phase = Phase.IN_FLIGHT
 	return _shuttle
 
 
@@ -278,7 +512,7 @@ func _pick_target(half: float) -> Vector3:
 	if roll > BAD_SHOT_CHANCE + CLOSE_CALL_CHANCE:
 		return Vector3(randf_range(-2.3, 2.3), 0.0, half * randf_range(2.6, 5.6))
 
-	var drift := randf_range(-CLOSE_CALL_DRIFT, CLOSE_CALL_DRIFT)
+	var drift := randf_range(-CLOSE_CALL_INSIDE, CLOSE_CALL_OUTSIDE)
 
 	if randf() < 0.5:
 		# Along a sideline, a whisker in or a whisker out.
