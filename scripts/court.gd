@@ -78,10 +78,15 @@ func _build_floor() -> void:
 		_mat_material
 	)
 
-	# One flat collider for the whole hall, level with the top of the mat. This is
-	# what the shuttle will land on, and where its landing point gets recorded.
+	# One flat collider for the whole hall, level with the top of the mat. It is on
+	# its own layer and the shuttle deliberately ignores it — the shuttle works out
+	# its own landing point exactly, and a physics collision would have destroyed
+	# the impact velocity before that could happen. This collider is here for
+	# everything else that will need a floor: players, and anything dropped.
 	var body := StaticBody3D.new()
 	body.name = "FloorBody"
+	body.collision_layer = Shuttle.LAYER_FLOOR
+	body.collision_mask = 0
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = Vector3(HALL_WIDTH, 0.4, HALL_LENGTH)

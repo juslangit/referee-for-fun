@@ -40,6 +40,16 @@ const NET_DEPTH := 0.76
 ## The posts stand on the doubles sideline, whether or not singles is being played.
 const POST_X := HALF_WIDTH_DOUBLES
 
+## How close to the boundary still counts as on it: a tenth of a millimetre.
+##
+## In badminton a shuttle touching the line is IN, so a shuttle landing at exactly
+## 3.050 m must be given. But a shuttle aimed at 3.050 m arrives as 3.0500002 after
+## a couple of hundred physics steps, and a bare "is it under 3.05" test would call
+## that OUT — the game would then punish the player for making the honest call. The
+## tolerance is far smaller than anything anyone could see and far larger than the
+## error that float arithmetic accumulates.
+const LINE_TOLERANCE := 0.0001
+
 
 ## Was the shuttle in?
 ##
@@ -48,7 +58,10 @@ const POST_X := HALF_WIDTH_DOUBLES
 ## nominal number, with nothing to add or subtract.
 static func is_in(landing: Vector3, doubles := true) -> bool:
 	var half_width := HALF_WIDTH_DOUBLES if doubles else HALF_WIDTH_SINGLES
-	return absf(landing.x) <= half_width and absf(landing.z) <= HALF_LENGTH
+	return (
+		absf(landing.x) <= half_width + LINE_TOLERANCE
+		and absf(landing.z) <= HALF_LENGTH + LINE_TOLERANCE
+	)
 
 
 ## How far the shuttle was from the nearest boundary line, in metres.

@@ -35,7 +35,7 @@ func _ready() -> void:
 		if mesh == null:
 			continue
 		var key: String = instance.name
-		if key in ["HallFloor", "CourtMat", "NetMesh", "NetTape"]:
+		if not key.ends_with("line") and not key.ends_with("Boundary") and not key.ends_with("Sideline") and not key.ends_with("Line"):
 			continue
 		var lo: Vector3 = instance.position - mesh.size * 0.5
 		var hi: Vector3 = instance.position + mesh.size * 0.5

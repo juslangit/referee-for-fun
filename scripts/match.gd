@@ -14,8 +14,19 @@ const EYE_HEIGHT := 2.32
 ## How far outside the sideline the chair stands. Must match Court.CHAIR_OFFSET.
 const CHAIR_OFFSET := 0.9
 
+## While developing, the truth of each rally is printed to the console. This must be
+## off before anyone plays it — the player learning where the shuttle really landed
+## would remove the only interesting decision in the game.
+@export var print_truth_while_testing := true
+
 var court: Court
 var camera: UmpireCamera
+
+## What really happened in the rally being played right now. Written when the
+## shuttle lands, and never shown to the player.
+var rally: Rally
+
+var _shuttle: Shuttle
 
 
 func _ready() -> void:
@@ -77,3 +88,57 @@ func _build_hall_lights() -> void:
 			lamp.omni_attenuation = 0.6
 			lamp.light_color = Color(1.0, 0.98, 0.93)
 			add_child(lamp)
+
+
+## Hits a shuttle from `from` so that it lands on `target`, and starts recording a
+## new rally. `angle` decides the kind of shot: low is a drive, high is a clear.
+func serve(from: Vector3, target: Vector3, angle := 36.0) -> Shuttle:
+	var velocity := ShotSolver.solve(from, target, angle, Court.MAT_THICKNESS)
+	if velocity == Vector3.ZERO:
+		push_warning("No shot at %.0f degrees reaches %v from %v" % [angle, target, from])
+		return null
+
+	if is_instance_valid(_shuttle):
+		_shuttle.queue_free()
+
+	rally = Rally.new(true)
+	_shuttle = Shuttle.new()
+	_shuttle.name = "Shuttle"
+	add_child(_shuttle)
+	_shuttle.landed.connect(_on_shuttle_landed)
+	_shuttle.launch(from, velocity)
+	return _shuttle
+
+
+func _on_shuttle_landed(point: Vector3) -> void:
+	rally.record_landing(point)
+	if print_truth_while_testing:
+		print("[truth, testing only] ", rally.describe())
+
+
+# --- temporary, for testing the shuttle by hand -------------------------------
+# Enter hits a shuttle at a target that is usually right on a line. This goes away
+# once the players exist and are choosing their own shots.
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ENTER:
+			serve(Vector3(0.0, 2.6, -4.5), _test_target(), randf_range(30.0, 44.0))
+
+
+## Picks somewhere to aim. Most of the time it goes within a few centimetres of a
+## line, because a shuttle landing in the middle of the court asks the umpire
+## nothing. This bias is the reason the game has anything to judge at all.
+func _test_target() -> Vector3:
+	var near_the_line := randf() < 0.75
+	if not near_the_line:
+		return Vector3(randf_range(-2.4, 2.4), 0.0, randf_range(2.6, 5.4))
+
+	var drift := randf_range(-0.08, 0.08)
+	if randf() < 0.5:
+		# Somewhere along a sideline.
+		var side := CourtSpec.HALF_WIDTH_DOUBLES if randf() < 0.5 else -CourtSpec.HALF_WIDTH_DOUBLES
+		return Vector3(side + drift * signf(side), 0.0, randf_range(2.2, 6.2))
+
+	# Somewhere along the back line.
+	return Vector3(randf_range(-2.8, 2.8), 0.0, CourtSpec.HALF_LENGTH + drift)
