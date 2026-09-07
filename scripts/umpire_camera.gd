@@ -33,6 +33,14 @@ var _yaw := 0.0
 var _pitch := 0.0
 var _looking := false
 
+## Set when the mouse is captured, and cleared by the first motion event after it.
+##
+## Taking the mouse warps the cursor to the centre of the window, and the operating
+## system reports that warp as one enormous movement. Fed into the look code it
+## snaps the umpire's head round to face the wall — every single time the player
+## starts a match or comes back from the menu.
+var _discard_next_motion := false
+
 
 func _ready() -> void:
 	_pitch = deg_to_rad(start_pitch_deg)
@@ -59,6 +67,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventMouseMotion and _looking:
+		if _discard_next_motion:
+			_discard_next_motion = false
+			return
 		_yaw -= event.relative.x * sensitivity
 		_pitch -= event.relative.y * sensitivity
 		_yaw = clampf(_yaw, -deg_to_rad(yaw_limit_deg), deg_to_rad(yaw_limit_deg))
@@ -68,6 +79,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _set_looking(looking: bool) -> void:
 	_looking = looking
+	if looking:
+		_discard_next_motion = true
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if looking else Input.MOUSE_MODE_VISIBLE
 
 

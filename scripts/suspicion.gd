@@ -1,0 +1,168 @@
+class_name Suspicion
+extends RefCounted
+
+## How much the hall doubts the umpire.
+##
+## This is the price of cheating, and it is deliberately never shown to the player.
+## There is no bar on screen. You find out how much trouble you are in by reading the
+## room — the crowd, the players, a coach getting to his feet — which means you are
+## always guessing, exactly as you would be in the chair.
+##
+## The interesting rule here is the second one. A wrong call costs something on its
+## own, but a wrong call that leans the same way as all your previous wrong calls
+## costs far more. **It is not being wrong that gets an umpire caught. It is being
+## wrong in the same direction every time.** An umpire who makes mistakes both ways
+## looks incompetent. One whose mistakes all help the same team looks bought.
+
+signal level_changed(level: float)
+signal mood_changed(mood: Mood)
+signal warning_issued()
+signal removed_from_match()
+
+## What a single visibly wrong call costs, at its most obvious.
+const IMMEDIATE_WEIGHT := 0.45
+
+## What it costs on top of that when the call leans the way your errors always lean.
+## Larger than the immediate cost, because the pattern is the damning part.
+const PATTERN_WEIGHT := 0.90
+
+## How much trust one correct call wins back. Small on purpose: it takes a long run
+## of honest calls to undo a bad one, so cheating has to be paced.
+const RECOVERY_PER_CORRECT_CALL := 0.012
+
+## How much the memory of your leaning fades with each correct call.
+const LEAN_FADE_PER_CORRECT_CALL := 0.02
+
+## Where the tournament referee is called, and where you are taken off the match.
+const WARNING_LEVEL := 0.80
+const REMOVAL_LEVEL := 1.0
+
+## Where a call lands when it was bad enough to end the match but the umpire had not
+## been warned yet. See the clamp in register() for why this exists.
+const HELD_AT_WARNING := REMOVAL_LEVEL - 0.001
+
+enum Mood {
+	## Nobody is paying the umpire any attention. This is what a good umpire gets.
+	SETTLED,
+	## Something is off, and people have started noticing each other noticing.
+	MURMURING,
+	## Open complaint. Booing, shouting, players querying calls.
+	RESTLESS,
+	## The hall has decided you are bent, and is telling you so.
+	HOSTILE,
+	## The tournament referee has been called. One more and you are gone.
+	WARNED,
+	## Removed from the match.
+	REMOVED,
+}
+
+var level := 0.0
+
+## Which way your wrong calls lean. Negative favours RED, positive favours BLUE.
+var lean := 0.0
+
+var mood := Mood.SETTLED
+var has_been_warned := false
+var is_removed := false
+
+## Every wrong call so far, for the end-of-match reckoning.
+var wrong_calls := 0
+var stolen_rallies := 0
+
+
+## Feeds one completed call in, and returns how much suspicion it cost.
+func register(rally: Rally) -> float:
+	if is_removed:
+		return 0.0
+
+	var verdict := rally.verdict()
+
+	if verdict == Rally.Verdict.CORRECT:
+		_recover()
+		_settle_mood()
+		return 0.0
+
+	if verdict == Rally.Verdict.NO_CALL:
+		return 0.0
+
+	var visibility := rally.visibility()
+	if visibility <= 0.0:
+		return 0.0
+
+	wrong_calls += 1
+	if rally.changed_the_result():
+		stolen_rallies += 1
+
+	# Which way this particular call leaned, and whether that is the same way the
+	# umpire has been leaning all match.
+	var direction := _direction_favoured(rally)
+	var reinforcing := maxf(0.0, direction * lean)
+
+	var gain := visibility * (IMMEDIATE_WEIGHT + reinforcing * PATTERN_WEIGHT) * rally.call.severity
+	var target := level + gain
+
+	# Nobody is thrown off the court without being told once. A call outrageous
+	# enough to clear the whole scale in one go still stops at the warning, so the
+	# umpire always gets their one clear chance to referee straight — and the
+	# removal, when it comes, is for what they did *after* being told.
+	if level < WARNING_LEVEL and target >= REMOVAL_LEVEL:
+		target = HELD_AT_WARNING
+
+	level = clampf(target, 0.0, REMOVAL_LEVEL)
+	lean = clampf(lean + direction * visibility, -1.0, 1.0)
+
+	level_changed.emit(level)
+	_settle_mood()
+	return gain
+
+
+func _recover() -> void:
+	if level <= 0.0 and is_zero_approx(lean):
+		return
+	level = maxf(0.0, level - RECOVERY_PER_CORRECT_CALL)
+	lean = move_toward(lean, 0.0, LEAN_FADE_PER_CORRECT_CALL)
+	level_changed.emit(level)
+
+
+## +1 if the call helped BLUE, -1 if it helped RED, 0 if it helped nobody.
+func _direction_favoured(rally: Rally) -> float:
+	var gained := rally.point_goes_to()
+	var deserved := rally.rightful_winner()
+	if gained == deserved or gained == Sides.Team.NONE:
+		# A let takes the rally away from whoever had earned it, so it leans against
+		# them rather than towards anyone.
+		if rally.call != null and rally.call.outcome == CallType.Outcome.REPLAY:
+			return -1.0 if deserved == Sides.Team.BLUE else 1.0
+		return 0.0
+	return 1.0 if gained == Sides.Team.BLUE else -1.0
+
+
+func _settle_mood() -> void:
+	var next := mood
+
+	if level >= REMOVAL_LEVEL:
+		next = Mood.REMOVED
+	elif level >= WARNING_LEVEL:
+		next = Mood.WARNED
+	elif level >= 0.55:
+		next = Mood.HOSTILE
+	elif level >= 0.33:
+		next = Mood.RESTLESS
+	elif level >= 0.14:
+		next = Mood.MURMURING
+	else:
+		next = Mood.SETTLED
+
+	# The tournament referee is only ever called once, and once the hall has turned
+	# hostile it does not politely go back to murmuring because of one good call.
+	if next == mood:
+		return
+	mood = next
+	mood_changed.emit(mood)
+
+	if mood == Mood.WARNED and not has_been_warned:
+		has_been_warned = true
+		warning_issued.emit()
+	elif mood == Mood.REMOVED and not is_removed:
+		is_removed = true
+		removed_from_match.emit()

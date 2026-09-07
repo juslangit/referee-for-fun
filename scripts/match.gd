@@ -25,8 +25,14 @@ const SERVE_HEIGHT := 2.45
 
 ## How often a shot is aimed within a few centimetres of a line, and how far either
 ## side of it. See _pick_target for why this bias exists at all.
-const CLOSE_CALL_CHANCE := 0.72
+const CLOSE_CALL_CHANCE := 0.60
 const CLOSE_CALL_DRIFT := 0.09
+
+## How often a shot is simply a bad one that sails clearly out, and how far past the
+## line it goes. These are the rallies where the whole hall can see the answer.
+const BAD_SHOT_CHANCE := 0.16
+const BAD_SHOT_MIN := 0.30
+const BAD_SHOT_MAX := 1.30
 
 enum Phase {
 	## Choosing who you want to win.
@@ -37,7 +43,13 @@ enum Phase {
 	IN_FLIGHT,
 	## The shuttle has landed. The hall is waiting for you to say something.
 	AWAITING_CALL,
+	## Taken off the match. Nothing more to do.
+	REMOVED,
 }
+
+## How often the hall mutters something between rallies once it has stopped
+## trusting the umpire.
+const AMBIENT_CHANCE := 0.45
 
 ## While developing, the truth of each rally is printed to the console. This must be
 ## off before anyone plays it — the player learning where the shuttle really landed
@@ -55,6 +67,9 @@ var rally: Rally
 ## Who the player privately decided should win. Nothing on screen ever says this.
 var favoured := Sides.Team.NONE
 
+## How much the hall doubts you. Never displayed — you find out by reading the room.
+var suspicion: Suspicion
+
 var serving := Sides.Team.RED
 var score := {Sides.Team.RED: 0, Sides.Team.BLUE: 0}
 
@@ -63,7 +78,9 @@ var _shuttle: Shuttle
 
 
 func _ready() -> void:
-	randomize()
+	# Deliberately no randomize() here. Godot already seeds the generator randomly at
+	# startup, and calling it again would throw away any seed a test had set — which
+	# would mean two umpires could never be compared over the same run of rallies.
 	_build_environment()
 
 	court = Court.new()
@@ -81,6 +98,10 @@ func _ready() -> void:
 	ui.name = "RefereeUI"
 	ui.favour_chosen.connect(_on_favour_chosen)
 	add_child(ui)
+
+	suspicion = Suspicion.new()
+	suspicion.warning_issued.connect(_on_warning_issued)
+	suspicion.removed_from_match.connect(_on_removed_from_match)
 
 
 # --- the loop ------------------------------------------------------------------
@@ -108,9 +129,15 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _enter_ready() -> void:
+	if suspicion.is_removed:
+		return
 	_phase = Phase.READY
 	_update_score()
 	ui.set_prompt("SPACE  whistle to start the rally")
+
+	# The hall gets on with having an opinion whether or not anything just happened.
+	if randf() < AMBIENT_CHANCE:
+		ui.react(Crowd.ambient(suspicion.mood), 3.2)
 
 
 func _start_rally() -> void:
@@ -150,10 +177,52 @@ func _make_call(id: StringName) -> void:
 	else:
 		ui.announce("%s   ·   PLAY IT AGAIN" % call.label, Color(0.85, 0.85, 0.80))
 
+	# The hall makes up its mind about what it just saw. The player is told nothing
+	# except how the room reacted — which is the whole of the feedback they get.
+	suspicion.register(rally)
+	ui.react(Crowd.react_to_call(rally.visibility(), suspicion.mood))
+
 	if print_truth_while_testing:
-		print("[truth, testing only] ", rally.describe())
+		print("[truth, testing only] %s  |  suspicion %.3f lean %+.2f" % [
+			rally.describe(), suspicion.level, suspicion.lean
+		])
 
 	_enter_ready()
+
+
+func _on_warning_issued() -> void:
+	ui.show_banner("THE TOURNAMENT REFEREE HAS BEEN CALLED")
+	ui.react("the tournament referee walks to the side of the court and sits down", 5.0)
+
+
+func _on_removed_from_match() -> void:
+	_phase = Phase.REMOVED
+	camera.set_active(false)
+	ui.set_prompt("")
+	ui.show_ending("YOU HAVE BEEN REMOVED FROM THE MATCH", _reckoning())
+
+
+## The only place in the game where the truth is allowed on screen. The match is
+## over, so there is nothing left to judge and nothing left to protect.
+func _reckoning() -> String:
+	var lines := []
+	lines.append("%d wrong calls, %d of which decided the rally." % [
+		suspicion.wrong_calls, suspicion.stolen_rallies
+	])
+
+	if absf(suspicion.lean) < 0.15:
+		lines.append("They went both ways. You were not bent. You were just bad at this.")
+	else:
+		var helped := Sides.Team.BLUE if suspicion.lean > 0.0 else Sides.Team.RED
+		lines.append("Almost every one of them helped %s." % Sides.label(helped))
+		if helped == favoured:
+			lines.append("Which is who you wanted to win. Everyone worked that out before you did.")
+		else:
+			lines.append("Which is not even who you wanted to win.")
+
+	lines.append("")
+	lines.append("Final score  RED %d — %d BLUE" % [score[Sides.Team.RED], score[Sides.Team.BLUE]])
+	return "\n".join(lines)
 
 
 func _update_score() -> void:
@@ -190,7 +259,23 @@ func serve(from: Vector3, target: Vector3, angle := 36.0, striker := Sides.Team.
 ## has no decision to make. The close calls have to be manufactured, or the job is
 ## boring and the player never gets to choose whether to lie.
 func _pick_target(half: float) -> Vector3:
-	if randf() > CLOSE_CALL_CHANCE:
+	var roll := randf()
+
+	# A shot that is simply bad, sailing well past the line. These matter as much as
+	# the close ones: they are the rallies where everybody in the hall already knows
+	# the answer, so calling one of them IN is not a lie the umpire can hide behind.
+	# Without them there would be no dangerous calls at all, only safe ones, and
+	# cheating would carry no risk worth thinking about.
+	if roll < BAD_SHOT_CHANCE:
+		var over := randf_range(BAD_SHOT_MIN, BAD_SHOT_MAX)
+		if randf() < 0.45:
+			var wide := CourtSpec.HALF_WIDTH_DOUBLES * (1.0 if randf() < 0.5 else -1.0)
+			return Vector3(wide + over * signf(wide), 0.0, half * randf_range(2.0, 6.0))
+		return Vector3(randf_range(-2.8, 2.8), 0.0, half * (CourtSpec.HALF_LENGTH + over))
+
+	# A shot played safely into the middle of the court, where there is nothing to
+	# judge and the umpire simply confirms what everyone saw.
+	if roll > BAD_SHOT_CHANCE + CLOSE_CALL_CHANCE:
 		return Vector3(randf_range(-2.3, 2.3), 0.0, half * randf_range(2.6, 5.6))
 
 	var drift := randf_range(-CLOSE_CALL_DRIFT, CLOSE_CALL_DRIFT)
