@@ -38,14 +38,21 @@ const RALLY_SHOT_CAP := 16
 ## A hard stop on a rally, in seconds. A backstop, not a design.
 const MAX_RALLY_SECONDS := 40.0
 
-## Where the line judges sit: the far corner at each end, behind the back line and
-## outside the sideline, which is where they really sit. Each of them watches one
-## half of the court and says nothing about the other, so the two of them can never
-## end up publicly contradicting each other — in a real match every judge has their
-## own lines.
+## Where the line judges sit: diagonally opposite corners, behind the back line and
+## outside the sideline.
+##
+## Diagonally is the point. A full tournament has up to ten line judges; a match with
+## two seats them across the diagonal from each other, because from opposite corners
+## the pair of them can see all four boundary lines between them. Putting both on the
+## same side — which is what this originally did — leaves them looking straight down
+## the court at one another and covers the same two lines twice.
+##
+## Each watches one half and says nothing about the other, so the two of them can
+## never end up publicly contradicting each other. In a real match every judge has
+## their own lines.
 const LINE_JUDGE_SEATS := {
 	Sides.Team.BLUE: Vector3(-3.85, 0.0, 7.60),
-	Sides.Team.RED: Vector3(-3.85, 0.0, -7.60),
+	Sides.Team.RED: Vector3(3.85, 0.0, -7.60),
 }
 
 ## How long the hall waits before the line judge's call goes up. Long enough for the
