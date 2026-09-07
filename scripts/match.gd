@@ -1,0 +1,79 @@
+extends Node3D
+
+## Assembles one match: the court, the lighting, and the umpire in the chair.
+##
+## Built in code rather than laid out by hand in the editor, so that every number
+## that matters is written down somewhere readable instead of buried in a scene file.
+
+## Eye height of a seated umpire. The chair seat is at 1.55 m, so this is roughly
+## where their head is — a little above the top of the net, which is 1.524 m. That
+## is not an accident: it is why the umpire, and only the umpire, can see the net
+## cord from level.
+const EYE_HEIGHT := 2.32
+
+## How far outside the sideline the chair stands. Must match Court.CHAIR_OFFSET.
+const CHAIR_OFFSET := 0.9
+
+var court: Court
+var camera: UmpireCamera
+
+
+func _ready() -> void:
+	_build_environment()
+
+	court = Court.new()
+	court.name = "Court"
+	add_child(court)
+
+	camera = UmpireCamera.new()
+	camera.name = "UmpireCamera"
+	camera.position = Vector3(CourtSpec.HALF_WIDTH_DOUBLES + CHAIR_OFFSET, EYE_HEIGHT, 0.0)
+	camera.fov = 82.0
+	camera.current = true
+	add_child(camera)
+
+
+## How high the hall lights hang, and how bright each one is.
+const LIGHT_HEIGHT := 7.4
+const LIGHT_ENERGY := 1.7
+
+
+func _build_environment() -> void:
+	# A sports hall is lit from above by a grid of lamps, not by the sun. The sun
+	# here is only doing one job: casting a single clean shadow direction so the net
+	# and the posts sit on the floor instead of floating over it.
+	var key := DirectionalLight3D.new()
+	key.name = "KeyLight"
+	key.rotation = Vector3(deg_to_rad(-62.0), deg_to_rad(28.0), 0.0)
+	key.light_energy = 0.55
+	key.shadow_enabled = true
+	add_child(key)
+
+	_build_hall_lights()
+
+	var environment := Environment.new()
+	environment.background_mode = Environment.BG_COLOR
+	environment.background_color = Color(0.07, 0.08, 0.10)
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	environment.ambient_light_color = Color(0.55, 0.58, 0.62)
+	environment.ambient_light_energy = 0.30
+	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+
+	var world := WorldEnvironment.new()
+	world.name = "WorldEnvironment"
+	world.environment = environment
+	add_child(world)
+
+
+## The overhead lamp grid, two rows down the length of the hall.
+func _build_hall_lights() -> void:
+	for x in [-2.6, 2.6]:
+		for z in [-4.6, 0.0, 4.6]:
+			var lamp := OmniLight3D.new()
+			lamp.name = "HallLight"
+			lamp.position = Vector3(x, LIGHT_HEIGHT, z)
+			lamp.light_energy = LIGHT_ENERGY
+			lamp.omni_range = 22.0
+			lamp.omni_attenuation = 0.6
+			lamp.light_color = Color(1.0, 0.98, 0.93)
+			add_child(lamp)
