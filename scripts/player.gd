@@ -58,6 +58,17 @@ var _destination := Vector3.ZERO
 var _lunge_left := 0.0
 var _lunge_spot := Vector3.ZERO
 
+## Which of the four builds this player is.
+var look := 0
+
+## The clips on the forged character, and which one is playing.
+var _animator: AnimationPlayer
+var _clip := ""
+var _one_shot := false
+
+## Clips that run until something else interrupts them, as opposed to shots.
+const LOOPING := ["idle", "ready", "run", "walk", "tired", "argue"]
+
 ## The figure and the racket in its hand.
 var _figure: Node3D
 var _racket: Node3D
@@ -89,16 +100,69 @@ func _settle_when_posed(model: Node3D) -> void:
 		_racket_rest = _racket.rotation
 
 
-## Takes a swing. Called when this player plays a shot, so the racket moves at the
-## moment the shuttle does.
-func swing() -> void:
+## Finds the clips and sets the looping ones to loop. Downloaded animations arrive
+## set to play once, and so do these — the exporter has no way of knowing which of a
+## run cycle and a smash is meant to repeat.
+func _set_up_clips(model: Node3D) -> void:
+	_animator = Models.animator(model)
+	if _animator == null:
+		return
+	for clip in _animator.get_animation_list():
+		if String(clip) in LOOPING:
+			Models.make_looping(_animator, clip)
+	_animator.animation_finished.connect(_on_clip_finished)
+	_play("idle")
+
+
+func _play(clip: String, one_shot := false) -> void:
+	if _animator == null or clip.is_empty():
+		return
+	# A shot in progress is not interrupted by the player wandering back to position.
+	if _one_shot and not one_shot:
+		return
+	if clip == _clip and not one_shot:
+		return
+	if not _animator.has_animation(clip):
+		return
+	_clip = clip
+	_one_shot = one_shot
+	_animator.play(clip, 0.14)
+
+
+func _on_clip_finished(_clip_name: StringName) -> void:
+	_one_shot = false
+	_clip = ""
+
+
+## Takes a swing. `overhead` picks a smash over a groundstroke, so the shot on screen
+## matches the shot the rally logic actually played.
+func swing(overhead := false) -> void:
 	_swing_left = SWING_SECONDS
+	if overhead:
+		_play("smash", true)
+	else:
+		_play("forehand" if randf() < 0.65 else "backhand", true)
+
+
+## Winning the point.
+func celebrate() -> void:
+	_play("celebrate", true)
+
+
+## Turning on the chair after a call that went against them. The only time anybody in
+## this game looks at the umpire.
+func argue() -> void:
+	_play("argue", true)
 
 
 ## Bob, lean and swing. All of it moves the whole figure, because the figure is a
 ## single static mesh with no skeleton to pose.
 func _animate(delta: float, running: bool) -> void:
 	if _figure == null:
+		return
+	# The forged characters have real animation. Bobbing and leaning them on top of
+	# their own run cycle would just make them seasick.
+	if _animator != null:
 		return
 
 	if running:
@@ -128,7 +192,10 @@ func _physics_process(delta: float) -> void:
 	position = Vector3(moved.x, 0.0, moved.y)
 
 	var travelled := here.distance_to(moved) / maxf(delta, 0.0001)
-	_animate(delta, travelled > MOVING_THRESHOLD)
+	var running := travelled > MOVING_THRESHOLD
+	_animate(delta, running)
+	if _animator != null:
+		_play("run" if running else ("ready" if chasing else "idle"))
 
 	# Facing the way they are running.
 	var heading := moved - here
@@ -179,11 +246,19 @@ func _build_body() -> void:
 	# A real athlete if the downloaded assets are there, and the boxes in figure.gd
 	# if they are not. The fallback is not decoration: a game that will not start
 	# because a model is missing is worse than a game with a box in it.
-	var model := Models.player(Sides.colour(team))
+	var model := Models.player(Sides.colour(team), look)
 	if model != null:
 		add_child(model)
 		_figure = model
-		_settle_when_posed(model)
+		if Models.is_forged(model):
+			# Already the right size and the right way up. Dress it and go.
+			Models.dress_player(model)
+			_racket = model.get_meta("racket", null)
+			if _racket != null:
+				_racket_rest = _racket.rotation
+			_set_up_clips(model)
+		else:
+			_settle_when_posed(model)
 	else:
 		Figure.standing(self, Sides.colour(team), true)
 

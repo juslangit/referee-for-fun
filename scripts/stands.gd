@@ -37,14 +37,61 @@ const SHIRTS := [
 	Color(0.30, 0.48, 0.74),
 ]
 
+## How many spectators in the front row are real animated characters. The other few
+## hundred stay as boxes: three hundred skinned characters would cost more than
+## everything else in the scene together, and nobody looks at row six.
+const ANIMATED_SPECTATORS := 10
+
 var _bodies: MultiMeshInstance3D
 var _heads: MultiMeshInstance3D
 var _total := 0
+var _front_row: Array[Node3D] = []
 
 
 func _ready() -> void:
 	_build_seating()
 	_build_crowd()
+	_build_front_row()
+
+
+## The handful of spectators near enough to be looked at, as real characters. They
+## clap, cheer and sit, which the boxes behind them cannot.
+func _build_front_row() -> void:
+	var height := ROW_RISE
+	var spread := HALF_LENGTH * 1.4 / float(ANIMATED_SPECTATORS)
+
+	for i in ANIMATED_SPECTATORS:
+		var person := Models.spectator()
+		if person == null:
+			return
+
+		# The far side of the hall, which is the side the umpire is looking at.
+		person.position = Vector3(
+			-(FIRST_ROW_X + ROW_DEPTH * 0.5),
+			height,
+			-HALF_LENGTH * 0.7 + spread * float(i) + randf_range(-0.1, 0.1)
+		)
+		person.rotation.y = deg_to_rad(-90.0) + randf_range(-0.2, 0.2)
+		add_child(person)
+		_front_row.append(person)
+
+		var animator := Models.animator(person)
+		if animator == null:
+			continue
+		for clip in animator.get_animation_list():
+			Models.make_looping(animator, clip)
+		var choice: String = ["sit", "sit", "clap"][randi() % 3]
+		animator.play(choice)
+		# Started at a random point, or ten people clap in perfect unison.
+		animator.seek(randf() * animator.current_animation_length, true)
+
+
+## Sets the front row off cheering, which is what a hall does when a rally ends well.
+func cheer() -> void:
+	for person in _front_row:
+		var animator := Models.animator(person)
+		if animator != null and animator.has_animation("cheer") and randf() < 0.55:
+			animator.play("cheer")
 
 
 ## How full the hall is, from empty to packed. A school hall has a handful of

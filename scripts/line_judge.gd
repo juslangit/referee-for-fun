@@ -94,14 +94,24 @@ func _build_body() -> void:
 	sitter.rotation.y = PI if position.z > 0.0 else 0.0
 	add_child(sitter)
 
-	# The downloaded official is a standing figure and cannot be posed, so they stand
-	# beside their chair rather than in it. Line judges do sit in a real match; this
-	# is the honest cost of using a model nobody rigged.
+	# The forged spectator carries a seated clip, so the line judges finally sit down —
+	# which is what they do for the whole of a real match. Every model before this one
+	# was a standing figure that could not be posed, so they had to stand beside their
+	# chair instead.
+	var seated_model := Models.spectator()
+	if seated_model != null:
+		sitter.add_child(seated_model)
+		var seated_player := Models.animator(seated_model)
+		var seated_clip := Models.clip_named(seated_player, ["sit"])
+		if seated_player != null and not seated_clip.is_empty():
+			Models.make_looping(seated_player, seated_clip)
+			seated_player.play(seated_clip)
+		return
+
+	# Failing that, the downloaded official, who stands.
 	var model := Models.official()
 	if model != null:
 		sitter.add_child(model)
-		# Standing and watching, which is all a line judge does between calls. Started
-		# before the sizing, so the sizing measures the pose that will be on screen.
 		var animator := Models.animator(model)
 		var idle := Models.clip_named(animator, ["idle", "stand"])
 		if animator != null and not idle.is_empty():

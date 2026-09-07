@@ -15,24 +15,32 @@ extends RefCounted
 ## game that will not start because an athlete is missing is worse than a game with a
 ## box in it.
 
-## Static models, animated by hand in player.gd.
+## The characters built in Blender by tools/blender/character_forge.py.
 ##
-## The rigged pair (low_poly_man / low_poly_woman, still in assets/) was tried first
-## and abandoned. Their clips have the orientation and the root motion baked into the
-## animation itself: `settle` measures them, stands them up correctly, and the moment
-## the clip advances a frame it puts them straight back on their backs somewhere over
-## the third row of the stands. Fixing that properly means extracting root motion and
-## retargeting, which is a bigger job than the animation is worth here.
+## Four athletes of four different builds, and a spectator. Every one is rigged to the
+## same eighteen-bone skeleton and carries the same clip names, so anything that can
+## drive one can drive all of them.
 ##
-## Both files are kept. A character rigged in the ordinary way — the KayKit packs, or
-## anything out of Mixamo — would drop into this exact code path and bring real
-## locomotion with it.
+## They are also already the right size and the right way up, which is the whole
+## argument for making them rather than downloading them: the forge works in metres,
+## so a 1.88 m athlete is 1.88 m in Blender, in the glb and on court. Every downloaded
+## model before these arrived at some arbitrary scale, lying on its side, with its
+## origin in the middle of its chest.
+const ATHLETES := [
+	"res://assets/characters/athlete_tall.glb",
+	"res://assets/characters/athlete_average.glb",
+	"res://assets/characters/athlete_stocky.glb",
+	"res://assets/characters/athlete_wiry.glb",
+]
+const SPECTATOR := "res://assets/characters/spectator.glb"
+
+## Kept for the fallback path and for anyone comparing.
 const ATHLETE := "res://assets/sketchfab/olympic_athlete/olympic_athlete.glb"
 const OFFICIAL := "res://assets/sketchfab/male_character_in_caual_clothing/male_character_in_caual_clothing.glb"
-const RIGGED_ATHLETE := "res://assets/sketchfab/low_poly_man/low_poly_man.glb"
 
-## The bone a racket goes in. Both models happen to name it the same way.
-const RACKET_HAND := "R.hand_028"
+## The bone a racket goes in. The forged characters and the downloaded one disagree
+## about what to call it, so both names are tried.
+const RACKET_HANDS := ["hand.R", "R.hand_028"]
 const KIT := "res://assets/sketchfab/badminton_racket_and_shuttlecock_low_poly/badminton_racket_and_shuttlecock_low_poly.glb"
 
 ## Real heights, in metres.
@@ -44,15 +52,45 @@ const RACKET_LENGTH := 0.67
 const SHUTTLE_LENGTH := 0.085
 
 
-## A player, in their team's colour, holding a racket.
-## A player. **Must be followed by `settle()` once it is in the tree** — see there.
-static func player(team_colour: Color) -> Node3D:
-	var figure := _load(ATHLETE, PLAYER_HEIGHT)
+## One of the four athletes, in their team's colour. `which` picks the build, so the
+## four players on court are four different people rather than one person four times.
+##
+## The forged characters need no sizing at all — they are made in metres — so unlike
+## the downloaded ones there is no settle() step. Dress them and they are ready.
+static func player(team_colour: Color, which := 0) -> Node3D:
+	var path: String = ATHLETES[which % ATHLETES.size()]
+	var figure := _load_ready(path)
 	if figure == null:
-		return null
+		# The downloaded athlete, sized the hard way, if the forge has not been run.
+		figure = _load(ATHLETE, PLAYER_HEIGHT)
+		if figure == null:
+			return null
 
 	figure.set_meta("bib_colour", team_colour)
 	return figure
+
+
+## A spectator, which is also what the line judges are dressed as. They come with a
+## seated clip, so for the first time the line judges can actually sit down.
+static func spectator() -> Node3D:
+	return _load_ready(SPECTATOR)
+
+
+## A character that arrives correct: right size, right way up, feet on the floor.
+## Nothing to measure and nothing to correct.
+static func _load_ready(path: String) -> Node3D:
+	if not ResourceLoader.exists(path):
+		return null
+	var scene: PackedScene = load(path)
+	if scene == null:
+		return null
+	var holder := Node3D.new()
+	holder.name = path.get_file().get_basename()
+	holder.add_child(scene.instantiate())
+	holder.set_meta("model_scale", 1.0)
+	holder.set_meta("forged", true)
+	_set_layer(holder, Figure.PEOPLE_LAYER)
+	return holder
 
 
 ## Puts the team bib on and a racket in the hand. Kept separate from `settle` and run
@@ -79,9 +117,14 @@ static func _hold_racket(figure: Node3D) -> void:
 		return
 
 	var skeleton := _find_skeleton(figure)
-	var bone := -1 if skeleton == null else skeleton.find_bone(RACKET_HAND)
+	var hand := ""
+	if skeleton != null:
+		for candidate in RACKET_HANDS:
+			if skeleton.find_bone(candidate) >= 0:
+				hand = candidate
+				break
 
-	if skeleton == null or bone < 0:
+	if hand.is_empty():
 		# No hand to put it in, so it hangs at the side as it used to.
 		held.position = Vector3(0.30, 0.74, 0.06)
 		held.rotation = Vector3(deg_to_rad(-72.0), 0.0, deg_to_rad(-8.0))
@@ -91,7 +134,7 @@ static func _hold_racket(figure: Node3D) -> void:
 
 	var socket := BoneAttachment3D.new()
 	socket.name = "RacketHand"
-	socket.bone_name = RACKET_HAND
+	socket.bone_name = hand
 	skeleton.add_child(socket)
 	socket.add_child(held)
 	figure.set_meta("racket", held)
@@ -132,11 +175,16 @@ static func _add_bib(figure: Node3D, colour: Color) -> void:
 	material.albedo_color = colour
 	material.roughness = 0.75
 
-	# Sized to hug the chest. The first attempt was a good deal larger and every
-	# player was wearing a sandwich board.
-	for band in [[1.21, 0.15], [1.03, 0.04]]:
+	# Measured from the character rather than hardcoded, because the four athletes are
+	# four different sizes and the bib has to sit on the chest of all of them. It also
+	# has to be big: each athlete wears their own kit colour now, so the bib is the
+	# only thing on court saying which side somebody is on.
+	var box := _world_aabb(figure)
+	var h: float = box.size.y if box.size.y > 0.2 else 1.80
+
+	for band in [[h * 0.70, h * 0.085], [h * 0.585, h * 0.022]]:
 		var mesh := BoxMesh.new()
-		mesh.size = Vector3(0.325, band[1], 0.225)
+		mesh.size = Vector3(h * 0.265, band[1], h * 0.205)
 		var instance := MeshInstance3D.new()
 		instance.name = "Bib"
 		instance.mesh = mesh
@@ -195,7 +243,8 @@ static func settle(figure: Node3D) -> void:
 	if figure == null or figure.get_child_count() == 0:
 		return
 	# Rackets and shuttlecocks were sized when they were cut out of their pack and
-	# have no business being resized to the height of a person.
+	# have no business being resized to the height of a person. Neither do the forged
+	# characters, which were built at the size they are meant to be.
 	if not figure.has_meta("target_height"):
 		return
 	var model: Node3D = figure.get_child(0)
@@ -253,6 +302,11 @@ static func _in_tree_bounds(figure: Node3D) -> AABB:
 		box = here if not started else box.merge(here)
 		started = true
 	return box
+
+
+## Whether this figure came from the forge, and so needs no sizing.
+static func is_forged(figure: Node) -> bool:
+	return figure != null and figure.has_meta("forged")
 
 
 static func official() -> Node3D:

@@ -341,6 +341,9 @@ func _build_players() -> void:
 		var home: Vector3 = HOME_POSITIONS[i]
 		var player := Player.new()
 		player.name = "Player%d" % i
+		# One of the four builds each, so the court holds four people rather than one
+		# person standing in four places.
+		player.look = i
 		add_child(player)
 		player.setup(Sides.half_containing(home.z), home)
 		players.append(player)
@@ -555,7 +558,9 @@ func _return_shot(player: Player) -> void:
 	# They have played their shot, whatever happens next. Standing them off first
 	# also stops this being re-entered while a carry is being held.
 	player.stand_off()
-	player.swing()
+	# Overhead if the shuttle is up around head height, which is what decides whether
+	# the animation plays a smash or a groundstroke.
+	player.swing(_shuttle.global_position.y > 1.95)
 
 	var offence := _roll_for_offence(player)
 
@@ -867,6 +872,8 @@ func _make_call(id: StringName, against := Sides.Team.NONE) -> void:
 		reaction = Crowd.react_to_delay(rally.seconds_to_call)
 	ui.react(reaction)
 
+	_react_to_call(winner)
+
 	if print_truth_while_testing:
 		print("[truth, testing only] %s  |  took %.1fs  |  suspicion %.3f lean %+.2f" % [
 			rally.describe(), rally.seconds_to_call, suspicion.level, suspicion.lean
@@ -927,6 +934,23 @@ func _reckoning() -> String:
 		board.games[Sides.Team.BLUE],
 	])
 	return "\n".join(lines)
+
+
+## The players' answer to the call. Whoever won it celebrates; whoever was robbed of
+## it, plainly enough that they could tell, turns round and argues with the chair.
+##
+## This is the first thing in the game that reacts to the umpire as a person rather
+## than as a rule, and it costs almost nothing now that the characters can act.
+func _react_to_call(winner: Sides.Team) -> void:
+	var robbed := Sides.Team.NONE
+	if rally != null and rally.verdict() == Rally.Verdict.WRONG and rally.visibility() > 0.25:
+		robbed = Sides.opponent(rally.point_goes_to())
+
+	for player in players:
+		if player.team == robbed:
+			player.argue()
+		elif winner != Sides.Team.NONE and player.team == winner:
+			player.celebrate()
 
 
 func _update_score() -> void:
