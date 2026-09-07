@@ -29,6 +29,8 @@ var _prompt_label: Label
 var _message_label: Label
 var _reaction_label: Label
 var _banner_label: Label
+var _shuttle_cam_panel: Control
+var _shuttle_cam_view: TextureRect
 var _message_timer := 0.0
 var _reaction_timer := 0.0
 var _banner_timer := 0.0
@@ -40,6 +42,7 @@ func _ready() -> void:
 	_build_pre_match()
 	_build_hud()
 	_build_ending()
+	_build_shuttle_cam()
 	_pre_match.visible = false
 	_length_panel.visible = true
 
@@ -256,6 +259,51 @@ func react(line: String, seconds := 2.6) -> void:
 func show_banner(text: String, seconds := 5.0) -> void:
 	_banner_label.text = text
 	_banner_timer = seconds
+
+
+# --- the shuttle camera --------------------------------------------------------
+
+func _build_shuttle_cam() -> void:
+	_shuttle_cam_panel = Control.new()
+	_shuttle_cam_panel.name = "ShuttleCam"
+	_shuttle_cam_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_shuttle_cam_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_shuttle_cam_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_shuttle_cam_panel.position = Vector2(-ShuttleCam.WIDTH - 26, -ShuttleCam.HEIGHT - 52)
+	_shuttle_cam_panel.custom_minimum_size = Vector2(ShuttleCam.WIDTH, ShuttleCam.HEIGHT + 24)
+	_shuttle_cam_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_shuttle_cam_panel.visible = false
+	add_child(_shuttle_cam_panel)
+
+	var frame := ColorRect.new()
+	frame.color = Color(0.04, 0.05, 0.06, 0.9)
+	frame.position = Vector2(-3, -3)
+	frame.size = Vector2(ShuttleCam.WIDTH + 6, ShuttleCam.HEIGHT + 6)
+	_shuttle_cam_panel.add_child(frame)
+
+	_shuttle_cam_view = TextureRect.new()
+	_shuttle_cam_view.size = Vector2(ShuttleCam.WIDTH, ShuttleCam.HEIGHT)
+	_shuttle_cam_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_shuttle_cam_view.stretch_mode = TextureRect.STRETCH_SCALE
+	_shuttle_cam_panel.add_child(_shuttle_cam_view)
+
+	var caption := _make_label("SHUTTLE CAM", PROMPT_SIZE - 3, Color(0.72, 0.74, 0.78))
+	caption.position = Vector2(0, ShuttleCam.HEIGHT + 4)
+	caption.size = Vector2(ShuttleCam.WIDTH, 18)
+	_shuttle_cam_panel.add_child(caption)
+
+
+## Shows the line camera's view of where the shuttle came down. The picture is
+## deliberately small: it settles the obvious ones and settles nothing else, which
+## is the only way it can exist without answering the question for the player.
+func show_shuttle_cam(view: Texture2D) -> void:
+	if _shuttle_cam_view.texture != view:
+		_shuttle_cam_view.texture = view
+	_shuttle_cam_panel.visible = true
+
+
+func hide_shuttle_cam() -> void:
+	_shuttle_cam_panel.visible = false
 
 
 # --- the end of the match ------------------------------------------------------

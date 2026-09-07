@@ -190,6 +190,28 @@ func _build_net() -> void:
 		_line_material
 	)
 
+	# The net is solid. Until now the shuttle flew straight through it, which is the
+	# one thing in badminton everybody can see happen.
+	var body := StaticBody3D.new()
+	body.name = "NetBody"
+	body.collision_layer = Shuttle.LAYER_WORLD
+	body.collision_mask = 0
+
+	# A shuttle hitting the net does not bounce off it. It stops and falls, which is
+	# what makes a net cord such a miserable way to lose a rally.
+	var deadening := PhysicsMaterial.new()
+	deadening.bounce = 0.02
+	deadening.friction = 1.0
+	body.physics_material_override = deadening
+
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(width, CourtSpec.NET_DEPTH, 0.02)
+	shape.shape = box
+	shape.position = Vector3(0.0, top - CourtSpec.NET_DEPTH * 0.5, 0.0)
+	body.add_child(shape)
+	add_child(body)
+
 	for dir in [1.0, -1.0]:
 		var post := MeshInstance3D.new()
 		post.name = "NetPost"

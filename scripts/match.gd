@@ -38,6 +38,14 @@ const RALLY_SHOT_CAP := 16
 ## A hard stop on a rally, in seconds. A backstop, not a design.
 const MAX_RALLY_SECONDS := 40.0
 
+## Where the line judge sits: the far corner, behind the back line and outside the
+## sideline, which is where one really sits.
+const LINE_JUDGE_SEAT := Vector3(-3.85, 0.0, 7.60)
+
+## How long the hall waits before the line judge's call goes up. Long enough for the
+## shuttle to have visibly landed, short enough that it still feels like a reaction.
+const LINE_JUDGE_DELAY := 0.45
+
 ## How badly a player can misread where a shot is going, in metres.
 const READING_ERROR := 0.32
 
@@ -106,6 +114,8 @@ var suspicion: Suspicion
 var board: Scoreboard
 
 var players: Array[Player] = []
+var line_judge: LineJudge
+var shuttle_cam: ShuttleCam
 var serving := Sides.Team.RED
 
 var _shots_this_rally := 0
@@ -115,6 +125,10 @@ var _shots_this_rally := 0
 var rally_left_alone := false
 
 var _rally_seconds := 0.0
+
+## Where the shuttle was on the previous physics tick, used to catch the exact moment
+## it passes the plane of the net.
+var _previous_shuttle_spot := Vector3.ZERO
 
 var _phase := Phase.PRE_MATCH
 var _shuttle: Shuttle
@@ -144,6 +158,15 @@ func _ready() -> void:
 	add_child(ui)
 
 	_build_players()
+
+	line_judge = LineJudge.new()
+	line_judge.name = "LineJudge"
+	line_judge.position = LINE_JUDGE_SEAT
+	add_child(line_judge)
+
+	shuttle_cam = ShuttleCam.new()
+	shuttle_cam.name = "ShuttleCam"
+	add_child(shuttle_cam)
 
 	suspicion = Suspicion.new()
 	suspicion.warning_issued.connect(_on_warning_issued)
@@ -213,6 +236,7 @@ func _start_rally() -> void:
 
 	_shots_this_rally = 0
 	_rally_seconds = 0.0
+	line_judge.silence()
 	rally = Rally.new(serving, true)
 
 	var from := Vector3(
@@ -237,7 +261,10 @@ func _physics_process(_delta: float) -> void:
 		return
 	# Only on the way down. A shuttle still climbing is on its way over the net.
 	if _shuttle.linear_velocity.y >= 0.0:
+		_watch_for_net_crossing()
 		return
+
+	_watch_for_net_crossing()
 
 	var receiving := Sides.opponent(rally.struck_by)
 
@@ -262,8 +289,40 @@ func _physics_process(_delta: float) -> void:
 	# far worse failure than a rally that ends oddly.
 	_rally_seconds += _delta
 	if _rally_seconds > MAX_RALLY_SECONDS:
+		# Most likely the shuttle is resting in the net and will never reach the
+		# floor on its own, so it is brought down where it is.
 		for player in players:
 			player.stand_off()
+		_shuttle.force_landing()
+
+
+## Notices the moment the shuttle passes the plane of the net, and whether it went
+## over the thing or merely past it.
+##
+## Solving for the exact crossing rather than checking the position each tick matters
+## for the same reason it did for the landing: a fast shuttle covers most of a metre
+## between ticks, and the net is two centimetres thick.
+func _watch_for_net_crossing() -> void:
+	var here := _shuttle.global_position
+	var there := _previous_shuttle_spot
+	_previous_shuttle_spot = here
+
+	if signf(here.z) == signf(there.z) or is_zero_approx(there.z):
+		return
+
+	var span := absf(there.z) + absf(here.z)
+	if is_zero_approx(span):
+		return
+	var crossing := absf(there.z) / span
+	var height := lerpf(there.y, here.y, crossing)
+	var across := lerpf(there.x, here.x, crossing)
+
+	# A badminton net stops 764 mm above the floor and ends at the posts, so getting
+	# to the other side underneath it or around the outside of it is perfectly
+	# possible — and a fault.
+	var net_bottom := CourtSpec.NET_HEIGHT_CENTRE - CourtSpec.NET_DEPTH
+	if height < net_bottom or absf(across) > CourtSpec.POST_X:
+		rally.went_over_the_net = false
 
 
 func _return_shot(player: Player) -> void:
@@ -292,6 +351,10 @@ func _hit(from: Vector3, target: Vector3, angle: float, striker: Sides.Team) -> 
 
 	_shuttle.launch(from, velocity)
 	rally.struck_by = striker
+	# Every shot has to get over the net on its own account, so the question is
+	# reopened each time the shuttle is struck.
+	rally.went_over_the_net = true
+	_previous_shuttle_spot = from
 	_shots_this_rally += 1
 	_direct_players(Sides.opponent(striker), target)
 	return true
@@ -382,6 +445,24 @@ func _on_shuttle_landed(point: Vector3) -> void:
 	_phase = Phase.AWAITING_CALL
 	ui.set_prompt("LEFT CLICK  in        RIGHT CLICK  out        L  let")
 
+	shuttle_cam.aim_at(point)
+	ui.show_shuttle_cam(shuttle_cam.texture())
+
+	# The line judge makes their mind up the moment it lands, but does not say so
+	# until a beat later. Deciding it now means an umpire who calls before the bubble
+	# goes up has still overruled them, rather than dodging the whole question by
+	# being quick.
+	rally.line_judge_said_in = line_judge.judge(rally)
+	rally.line_judge_called = true
+	_announce_line_judge()
+
+
+func _announce_line_judge() -> void:
+	await get_tree().create_timer(LINE_JUDGE_DELAY).timeout
+	if _phase != Phase.AWAITING_CALL or not is_instance_valid(line_judge):
+		return
+	line_judge.announce(rally.line_judge_said_in)
+
 
 func _make_call(id: StringName) -> void:
 	var call := CallBook.get_call(id)
@@ -389,6 +470,7 @@ func _make_call(id: StringName) -> void:
 		return
 
 	rally.record_call(call)
+	ui.hide_shuttle_cam()
 	var winner := rally.point_goes_to()
 
 	if winner != Sides.Team.NONE:

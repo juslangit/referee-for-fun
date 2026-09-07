@@ -12,12 +12,14 @@ func _ready() -> void:
 	arena._on_length_chosen(true)
 	arena._on_favour_chosen(Sides.Team.NONE)
 
-	print("%-4s %-6s %-7s %-28s %s" % ["#", "shots", "left it", "truth", "score"])
+	print("%-4s %-6s %-7s %-24s %-9s %-7s %s" % ["#", "shots", "left it", "truth", "judge", "agrees", "score"])
 
 	var shot_counts: Array[int] = []
 	var left_alone := 0
 	var out_calls := 0
 	var rallies := 0
+	var net_faults := 0
+	var judge_wrong := 0
 
 	while not arena.board.is_over and rallies < 60:
 		rallies += 1
@@ -40,10 +42,19 @@ func _ready() -> void:
 		if untouched:
 			left_alone += 1
 
+		if not rally.crossed_the_net:
+			net_faults += 1
+		if rally.line_judge_said_in != rally.was_in:
+			judge_wrong += 1
+
+		var truth_text := "IN THE NET" if not rally.crossed_the_net else "%s by %.3f m" % [
+			"IN" if rally.was_in else "OUT", absf(rally.margin)
+		]
 		arena._make_call(&"in" if rally.was_in else &"out")
-		print("%-4d %-6d %-7s %-28s %d-%d" % [
-			rallies, shots, "yes" if untouched else "",
-			"%s by %.3f m" % ["IN" if rally.was_in else "OUT", absf(rally.margin)],
+		print("%-4d %-6d %-7s %-24s %-9s %-7s %d-%d" % [
+			rallies, shots, "yes" if untouched else "", truth_text,
+			"IN" if rally.line_judge_said_in else "OUT",
+			"yes" if rally.echoes_line_judge() else "NO",
 			arena.board.points[Sides.Team.RED], arena.board.points[Sides.Team.BLUE],
 		])
 
@@ -58,6 +69,9 @@ func _ready() -> void:
 	])
 	print("%d landed out (%.0f%%), %d were left alone by the receiver" % [
 		out_calls, 100.0 * out_calls / maxf(1.0, float(rallies)), left_alone
+	])
+	print("%d landed in the net, line judge was wrong %d times (%.0f%%)" % [
+		net_faults, judge_wrong, 100.0 * judge_wrong / maxf(1.0, float(rallies))
 	])
 	print("game over: %s   RED %d — %d BLUE   (suspicion %.3f)" % [
 		"yes" if arena.board.is_over else "NO — it never ended",

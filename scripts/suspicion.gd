@@ -26,6 +26,21 @@ const IMMEDIATE_WEIGHT := 0.45
 ## Larger than the immediate cost, because the pattern is the damning part.
 const PATTERN_WEIGHT := 0.90
 
+## What a wrong call costs when the line judge said the same thing.
+##
+## Standing behind the official who is standing right there halves it. This is the
+## most useful thing the line judge does for a bent umpire: wait for them to get one
+## wrong, agree with them, and the blame is shared.
+const COVER_FROM_LINE_JUDGE := 0.5
+
+## What a wrong call costs when it contradicts the line judge. The hall has just
+## watched two officials disagree, and yours is the one that decided the rally.
+const OVERRULE_PENALTY := 1.6
+
+## What overruling the line judge costs even when the umpire turns out to be right.
+## Small, but never nothing — the hall cannot see that you were right.
+const OVERRULE_ON_ITS_OWN := 0.03
+
 ## How much trust one correct call wins back. Small on purpose: it takes a long run
 ## of honest calls to undo a bad one, so cheating has to be paced.
 const RECOVERY_PER_CORRECT_CALL := 0.012
@@ -78,6 +93,11 @@ func register(rally: Rally) -> float:
 	var verdict := rally.verdict()
 
 	if verdict == Rally.Verdict.CORRECT:
+		if rally.overrules_line_judge():
+			level = clampf(level + OVERRULE_ON_ITS_OWN, 0.0, REMOVAL_LEVEL)
+			level_changed.emit(level)
+			_settle_mood()
+			return OVERRULE_ON_ITS_OWN
 		_recover()
 		_settle_mood()
 		return 0.0
@@ -99,6 +119,12 @@ func register(rally: Rally) -> float:
 	var reinforcing := maxf(0.0, direction * lean)
 
 	var gain := visibility * (IMMEDIATE_WEIGHT + reinforcing * PATTERN_WEIGHT) * rally.call.severity
+
+	if rally.echoes_line_judge():
+		gain *= COVER_FROM_LINE_JUDGE
+	elif rally.overrules_line_judge():
+		gain = gain * OVERRULE_PENALTY + OVERRULE_ON_ITS_OWN
+
 	var target := level + gain
 
 	# Nobody is thrown off the court without being told once. A call outrageous

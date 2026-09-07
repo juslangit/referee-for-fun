@@ -168,6 +168,21 @@ func _check_for_landing() -> void:
 	landed.emit(landing_point)
 
 
+## Ends the flight where the shuttle currently is, whether or not it reached the
+## floor. Only for the case where it has come to rest against something — caught in
+## the net, most likely — because a rally that never finishes is worse than one that
+## finishes oddly.
+func force_landing() -> void:
+	if has_landed:
+		return
+	var tip := _cork_tip()
+	landing_point = Vector3(tip.x, floor_height, tip.z)
+	landing_speed = linear_velocity.length()
+	has_landed = true
+	freeze = true
+	landed.emit(landing_point)
+
+
 func _build_body() -> void:
 	var cork_material := StandardMaterial3D.new()
 	cork_material.albedo_color = Color(0.85, 0.80, 0.68)

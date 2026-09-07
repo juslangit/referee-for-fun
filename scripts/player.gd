@@ -13,6 +13,11 @@ extends Node3D
 const BODY_HEIGHT := 1.78
 const BODY_RADIUS := 0.22
 
+## People are drawn on their own visual layer so the line camera can leave them out.
+## A camera at knee height on the line spends most of its life looking at somebody's
+## legs, which is true to life and completely useless for judging a line.
+const PEOPLE_LAYER := 2
+
 ## Highest and lowest a shuttle can be and still be hit. The top of the range is an
 ## overhead smash; the bottom is a scrambling lift off the floor.
 const HIGHEST_STRIKE := 2.85
@@ -95,4 +100,5 @@ func _build_body() -> void:
 	material.albedo_color = Sides.colour(team)
 	material.roughness = 0.85
 	mesh.material_override = material
+	mesh.layers = PEOPLE_LAYER
 	add_child(mesh)

@@ -50,6 +50,27 @@ var margin := 0.0
 ## Whether the shuttle has landed yet.
 var is_settled := false
 
+## Whether the shuttle reached the far side legally.
+##
+## A shuttle that did not is a fault against the side that hit it, with the same
+## outcome as one landing out — and unlike a line call, there is not a person in the
+## hall who cannot see it.
+var crossed_the_net := true
+
+## Whether the shuttle actually went over the net on its way across.
+##
+## This is not the same question as whether it got to the other side. A badminton net
+## stops 764 mm above the floor and is only as wide as the court, so a shuttle can
+## quite easily arrive on the far side having gone underneath it or around the post.
+## Both are faults, and both look like nothing at all if the game is only checking
+## which half it landed in.
+##
+## It starts true and is only ever taken away, by whoever is watching the flight. The
+## other way round is a trap: anything that builds a rally without also running the
+## flight watcher — a test, a replay, a set piece — would silently have every shot
+## judged a net fault.
+var went_over_the_net := true
+
 ## Which side hit the shuttle. If it lands in, they win the rally.
 var struck_by := Sides.Team.NONE
 
@@ -61,6 +82,15 @@ var doubles := true
 ## The call the player made, once they have made one.
 var call: CallType = null
 
+# --- what the line judge said --------------------------------------------------
+
+## Whether the line judge in the corner gave a call on this rally.
+var line_judge_called := false
+
+## What they said. They are usually right, and least reliable exactly when it
+## matters most — on the shuttles that land within a couple of centimetres.
+var line_judge_said_in := false
+
 
 func _init(striker := Sides.Team.NONE, is_doubles := true) -> void:
 	struck_by = striker
@@ -70,9 +100,23 @@ func _init(striker := Sides.Team.NONE, is_doubles := true) -> void:
 ## Called the moment the shuttle lands. After this the truth is fixed.
 func record_landing(point: Vector3) -> void:
 	landing_point = point
+	is_settled = true
+
+	# Two ways to fail to get the shuttle over: come down on your own side, or reach
+	# the far side without going over the net at all. Either is a fault however far
+	# inside the lines it landed, and neither is something the hall would miss.
+	if struck_by == Sides.Team.NONE:
+		crossed_the_net = true
+	else:
+		crossed_the_net = went_over_the_net and Sides.half_containing(point.z) != struck_by
+
+	if not crossed_the_net:
+		was_in = false
+		margin = -BLATANT_MARGIN
+		return
+
 	was_in = CourtSpec.is_in(point, doubles)
 	margin = CourtSpec.margin(point, doubles)
-	is_settled = true
 
 
 ## Called when the player finally says something.
@@ -98,6 +142,25 @@ func rightful_winner() -> Sides.Team:
 	if not is_settled:
 		return Sides.Team.NONE
 	return struck_by if was_in else Sides.opponent(struck_by)
+
+
+## Whether the umpire has publicly contradicted the line judge.
+##
+## Doing this is conspicuous even when the umpire is right, because the hall has just
+## watched two officials disagree and only one of them can be believed.
+func overrules_line_judge() -> bool:
+	if call == null or not call.judges_the_landing or not line_judge_called:
+		return false
+	return call.asserts_in != line_judge_said_in
+
+
+## Whether the umpire simply said what the line judge said. A wrong call made this
+## way is a shared mistake rather than a suspicious one — the line judge is standing
+## right there having said the same thing.
+func echoes_line_judge() -> bool:
+	if call == null or not call.judges_the_landing or not line_judge_called:
+		return false
+	return call.asserts_in == line_judge_said_in
 
 
 func verdict() -> Verdict:
@@ -147,6 +210,13 @@ func changed_the_result() -> bool:
 func describe() -> String:
 	if not is_settled:
 		return "rally still in play"
+	if not crossed_the_net:
+		var how := "NEVER GOT OVER THE NET" if not went_over_the_net else "LANDED ON ITS OWN SIDE"
+		var said := ""
+		if call != null:
+			said = "  |  called %s -> %s" % [call.label, Verdict.keys()[verdict()]]
+		return "%s at (%.2f, %.2f)%s" % [how, landing_point.x, landing_point.z, said]
+
 	var text := "%s by %.3f m at (%.2f, %.2f)" % [
 		"IN" if was_in else "OUT",
 		absf(margin),
