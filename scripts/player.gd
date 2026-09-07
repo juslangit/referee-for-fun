@@ -102,17 +102,10 @@ func distance_to(point: Vector3) -> float:
 
 
 func _build_body() -> void:
-	var mesh := MeshInstance3D.new()
-	mesh.name = "Body"
-	var capsule := CapsuleMesh.new()
-	capsule.radius = BODY_RADIUS
-	capsule.height = BODY_HEIGHT
-	mesh.mesh = capsule
-	mesh.position = Vector3(0.0, BODY_HEIGHT * 0.5, 0.0)
+	# Where a modelled and animated character would go instead. Everything below is
+	# built from primitives by Figure; swapping in a real one means loading the scene
+	# here and driving it from the same position this node already has.
+	Figure.standing(self, Sides.colour(team), true)
 
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Sides.colour(team)
-	material.roughness = 0.85
-	mesh.material_override = material
-	mesh.layers = PEOPLE_LAYER
-	add_child(mesh)
+	# Facing across the net, towards whoever they are playing.
+	rotation.y = 0.0 if Sides.half_sign(team) > 0.0 else PI

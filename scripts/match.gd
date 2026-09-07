@@ -210,6 +210,11 @@ func _ready() -> void:
 	ui.match_requested.connect(_on_match_requested)
 	ui.continue_requested.connect(_on_continue_requested)
 	ui.career_restart_requested.connect(_on_career_restart_requested)
+	ui.new_career_requested.connect(_on_new_career_requested)
+	ui.career_screen_requested.connect(_on_career_screen_requested)
+	ui.resume_requested.connect(_on_resume_requested)
+	ui.walk_out_requested.connect(_on_walk_out_requested)
+	ui.quit_requested.connect(_on_quit_requested)
 	add_child(ui)
 
 	_build_players()
@@ -228,7 +233,8 @@ func _ready() -> void:
 	add_child(shuttle_cam)
 
 	career = Career.load_or_start()
-	ui.show_career(career)
+	court.stands.set_density(career.venue()["crowd"])
+	ui.show_main_menu(career)
 
 	suspicion = Suspicion.new()
 	suspicion.warning_issued.connect(_on_warning_issued)
@@ -241,11 +247,11 @@ func _ready() -> void:
 ## the difficulty: it decides how long the match is, whether anybody is helping,
 ## whether there is a camera, and how closely the hall is watching.
 func _on_match_requested() -> void:
-	ui.hide_career()
 	var venue := career.venue()
 	suspicion.scrutiny = venue["scrutiny"]
 	has_shuttle_cam = venue["shuttle_cam"]
 	_set_line_judges_present(venue["line_judges"])
+	court.stands.set_density(venue["crowd"])
 	_on_length_chosen(venue["quick"])
 
 
@@ -265,12 +271,54 @@ func _on_continue_requested() -> void:
 	get_tree().reload_current_scene()
 
 
+func _on_career_screen_requested() -> void:
+	ui.show_career(career)
+
+
+func _on_new_career_requested() -> void:
+	career = Career.start_again()
+	career.save()
+	court.stands.set_density(career.venue()["crowd"])
+	ui.show_career(career)
+
+
+func _on_quit_requested() -> void:
+	get_tree().quit()
+
+
+## Stops the match dead. The mouse goes back to the player, because a menu you cannot
+## click is not a menu.
+func _pause() -> void:
+	camera.set_active(false)
+	ui.show_pause_menu()
+	get_tree().paused = true
+
+
+func _on_resume_requested() -> void:
+	get_tree().paused = false
+	ui.hide_pause_menu()
+	camera.set_active(true)
+
+
+## Walking out is recorded exactly as being thrown off is. Leaving early would
+## otherwise be a way to escape a match that had gone badly, which would make the
+## suspicion you had built up worth nothing at all.
+func _on_walk_out_requested() -> void:
+	get_tree().paused = false
+	ui.hide_pause_menu()
+	_finish_match("YOU WALKED OUT", Color(0.96, 0.42, 0.36), true)
+
+
 func _on_career_restart_requested() -> void:
 	Career.start_again().save()
 	get_tree().reload_current_scene()
 
 
 func _on_length_chosen(quick: bool) -> void:
+	# A match is starting, however it was started. Putting this here rather than in
+	# the career screen's button means it holds for every route in — including the
+	# development scenes, which were leaving the menu sitting over the court.
+	ui.hide_career()
 	board = Scoreboard.new(quick)
 	board.game_won.connect(_on_game_won)
 	board.match_won.connect(_on_match_won)
@@ -305,6 +353,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if _phase == Phase.REMOVED:
+		return
+
+	if _is_key(event, KEY_ESCAPE):
+		_pause()
 		return
 
 	if _is_key(event, KEY_F):

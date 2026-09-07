@@ -88,16 +88,12 @@ func _build_body() -> void:
 	chair.layers = Player.PEOPLE_LAYER
 	add_child(chair)
 
-	var body := MeshInstance3D.new()
-	body.name = "Body"
-	var capsule := CapsuleMesh.new()
-	capsule.radius = BODY_RADIUS
-	capsule.height = BODY_HEIGHT
-	body.mesh = capsule
-	body.position = Vector3(0.0, 0.42 + BODY_HEIGHT * 0.5, 0.0)
-	body.material_override = _material(Color(0.93, 0.85, 0.30))
-	body.layers = Player.PEOPLE_LAYER
-	add_child(body)
+	var sitter := Node3D.new()
+	sitter.name = "Judge"
+	# Facing in towards the court they are watching.
+	sitter.rotation.y = PI if position.z > 0.0 else 0.0
+	add_child(sitter)
+	Figure.seated(sitter, Color(0.93, 0.85, 0.30))
 
 
 func _build_bubble() -> void:

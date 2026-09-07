@@ -42,8 +42,9 @@ const DAMAGE_FROM_REMOVAL := 0.35
 const LADDER := [
 	{
 		"name": "School hall",
-		"blurb": "Nobody is watching. There are no line judges and no camera.",
-		"line_judges": false,
+		"crowd": 0.18,
+		"blurb": "Two line judges and nothing else. No camera, and nobody much watching.",
+		"line_judges": true,
 		"shuttle_cam": false,
 		"quick": true,
 		"scrutiny": 0.65,
@@ -52,6 +53,7 @@ const LADDER := [
 	},
 	{
 		"name": "District championship",
+		"crowd": 0.35,
 		"blurb": "Two line judges now. Somebody is keeping score of more than the score.",
 		"line_judges": true,
 		"shuttle_cam": false,
@@ -62,6 +64,7 @@ const LADDER := [
 	},
 	{
 		"name": "State open",
+		"crowd": 0.55,
 		"blurb": "Full matches, best of three. Long enough for a pattern to show.",
 		"line_judges": true,
 		"shuttle_cam": false,
@@ -72,6 +75,7 @@ const LADDER := [
 	},
 	{
 		"name": "National championship",
+		"crowd": 0.8,
 		"blurb": "There is a camera on the line now, and everybody can see it too.",
 		"line_judges": true,
 		"shuttle_cam": true,
@@ -82,6 +86,7 @@ const LADDER := [
 	},
 	{
 		"name": "International final",
+		"crowd": 1.0,
 		"blurb": "Every call you make will be looked at again by somebody.",
 		"line_judges": true,
 		"shuttle_cam": true,

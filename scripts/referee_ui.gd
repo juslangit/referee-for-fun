@@ -14,6 +14,11 @@ signal punishment_chosen(id: StringName, team: Sides.Team)
 signal match_requested()
 signal career_restart_requested()
 signal continue_requested()
+signal new_career_requested()
+signal career_screen_requested()
+signal resume_requested()
+signal walk_out_requested()
+signal quit_requested()
 
 const TITLE_SIZE := 34
 const BUTTON_SIZE := 22
@@ -23,6 +28,9 @@ const PROMPT_SIZE := 17
 const REACTION_SIZE := 19
 const BANNER_SIZE := 24
 
+var _main_menu: Control
+var _main_menu_column: VBoxContainer
+var _pause_menu: Control
 var _career_panel: Control
 var _career_column: VBoxContainer
 var _ending_button: Button
@@ -47,6 +55,10 @@ var _banner_timer := 0.0
 
 func _ready() -> void:
 	layer = 10
+	# Keeps running while the game is paused, or nothing could unpause it.
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	_build_main_menu()
+	_build_pause_menu()
 	_build_career_panel()
 	_build_length_panel()
 	_build_pre_match()
@@ -56,6 +68,16 @@ func _ready() -> void:
 	_build_fault_panel()
 	_pre_match.visible = false
 	_length_panel.visible = false
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	# Escape closes the pause menu. It has to be handled here rather than in the
+	# match, because the match is paused and is not being given input at all.
+	if not _pause_menu.visible:
+		return
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		resume_requested.emit()
+		get_viewport().set_input_as_handled()
 
 
 func _process(delta: float) -> void:
@@ -74,6 +96,130 @@ func _tick(delta: float, timer: float, label: Label) -> float:
 
 
 # --- pre-match -----------------------------------------------------------------
+
+# --- the front of the game -----------------------------------------------------
+
+## The panels all share a shape: a dark sheet over the court with a column of things
+## in the middle of it. This builds that much, and the caller fills in the column.
+func _build_sheet(sheet_name: String, shade := Color(0.05, 0.06, 0.08, 0.95)) -> Array:
+	var sheet := Control.new()
+	sheet.name = sheet_name
+	sheet.set_anchors_preset(Control.PRESET_FULL_RECT)
+	sheet.visible = false
+	sheet.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(sheet)
+
+	var backdrop := ColorRect.new()
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.color = shade
+	sheet.add_child(backdrop)
+
+	var column := VBoxContainer.new()
+	column.set_anchors_preset(Control.PRESET_CENTER)
+	column.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	column.grow_vertical = Control.GROW_DIRECTION_BOTH
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_theme_constant_override("separation", 9)
+	sheet.add_child(column)
+
+	return [sheet, column]
+
+
+func _build_main_menu() -> void:
+	var built := _build_sheet("MainMenu", Color(0.04, 0.05, 0.07, 0.97))
+	_main_menu = built[0]
+	_main_menu_column = built[1]
+
+
+## The title screen. Whether there is a career to go back to decides what it offers.
+func show_main_menu(career: Career) -> void:
+	for child in _main_menu_column.get_children():
+		child.queue_free()
+
+	_main_menu_column.add_child(_make_label("REFEREE FOR FUN", TITLE_SIZE + 16, Color(0.96, 0.96, 0.94)))
+	_main_menu_column.add_child(_make_label(
+		"You are the umpire. The game knows the truth. You do not have to tell it.",
+		PROMPT_SIZE + 2, Color(0.62, 0.64, 0.68)
+	))
+	_main_menu_column.add_child(_gap(26))
+
+	var underway := career.matches_refereed > 0 and not career.is_over
+	if underway:
+		_main_menu_column.add_child(_centred(_make_wide_button(
+			"CONTINUE CAREER",
+			func() -> void:
+				_main_menu.visible = false
+				career_screen_requested.emit()
+		)))
+		_main_menu_column.add_child(_make_label(
+			"%s        reputation %d / 100" % [
+				career.venue()["name"], roundi(career.reputation * 100.0)
+			],
+			PROMPT_SIZE, Color(0.58, 0.60, 0.64)
+		))
+		_main_menu_column.add_child(_gap(6))
+
+	_main_menu_column.add_child(_centred(_make_wide_button(
+		"NEW CAREER" if underway or career.is_over else "START A CAREER",
+		func() -> void:
+			_main_menu.visible = false
+			new_career_requested.emit()
+	)))
+	_main_menu_column.add_child(_gap(6))
+	_main_menu_column.add_child(_centred(_make_wide_button("QUIT", func() -> void: quit_requested.emit())))
+
+	_main_menu.visible = true
+
+
+func _build_pause_menu() -> void:
+	var built := _build_sheet("PauseMenu", Color(0.04, 0.05, 0.07, 0.86))
+	_pause_menu = built[0]
+	var column: VBoxContainer = built[1]
+
+	column.add_child(_make_label("PAUSED", TITLE_SIZE, Color(0.96, 0.96, 0.94)))
+	column.add_child(_gap(22))
+	column.add_child(_centred(_make_wide_button("RESUME", func() -> void: resume_requested.emit())))
+	column.add_child(_gap(6))
+	column.add_child(_centred(_make_wide_button("WALK OUT", func() -> void: walk_out_requested.emit())))
+	column.add_child(_make_label(
+		"Walking out counts the same as being removed.",
+		PROMPT_SIZE - 1, Color(0.60, 0.55, 0.55)
+	))
+	column.add_child(_gap(6))
+	column.add_child(_centred(_make_wide_button("QUIT", func() -> void: quit_requested.emit())))
+
+
+func show_pause_menu() -> void:
+	# Whatever was still fading in the middle of the screen would otherwise sit
+	# straight across the RESUME button.
+	clear_messages()
+	_pause_menu.visible = true
+
+
+## Wipes the announcement, the crowd's line and the banner immediately.
+func clear_messages() -> void:
+	_message_label.text = ""
+	_reaction_label.text = ""
+	_banner_label.text = ""
+	_message_timer = 0.0
+	_reaction_timer = 0.0
+	_banner_timer = 0.0
+
+
+func hide_pause_menu() -> void:
+	_pause_menu.visible = false
+
+
+func is_paused_menu_open() -> bool:
+	return _pause_menu.visible
+
+
+func _centred(control: Control) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_child(control)
+	return row
+
 
 # --- the career ----------------------------------------------------------------
 
@@ -113,9 +259,9 @@ func show_career(career: Career) -> void:
 			PROMPT_SIZE + 2, Color(0.78, 0.78, 0.80)
 		))
 		_career_column.add_child(_gap(18))
-		_career_column.add_child(_make_wide_button("START AGAIN", func() -> void:
+		_career_column.add_child(_centred(_make_wide_button("START AGAIN", func() -> void:
 			career_restart_requested.emit()
-		))
+		)))
 		return
 
 	_career_column.add_child(_make_label("YOUR CAREER", TITLE_SIZE - 4, Color(0.95, 0.95, 0.93)))
@@ -297,11 +443,11 @@ func _build_hud() -> void:
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(hud)
 
+	# The score and the prompt sit on plates. White text over a lit green court is
+	# legible about half the time, which for the one line telling you the score is
+	# half the time too little.
 	_score_label = _make_label("", SCORE_SIZE, Color(0.96, 0.96, 0.94))
-	_score_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_score_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_score_label.position = Vector2(0, 26)
-	hud.add_child(_score_label)
+	hud.add_child(_plate_for(_score_label, Control.PRESET_CENTER_TOP, Vector2(0, 18)))
 
 	_message_label = _make_label("", MESSAGE_SIZE, Color(0.98, 0.94, 0.72))
 	_message_label.set_anchors_preset(Control.PRESET_CENTER)
@@ -311,10 +457,7 @@ func _build_hud() -> void:
 	hud.add_child(_message_label)
 
 	_prompt_label = _make_label("", PROMPT_SIZE, Color(0.88, 0.90, 0.93))
-	_prompt_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_prompt_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_prompt_label.position = Vector2(0, -66)
-	hud.add_child(_prompt_label)
+	hud.add_child(_plate_for(_prompt_label, Control.PRESET_CENTER_BOTTOM, Vector2(0, -34)))
 
 	# What the hall is doing. This is the only feedback the player ever gets about
 	# how much trouble they are in — there is no suspicion bar anywhere, on purpose.
@@ -547,6 +690,30 @@ func show_ending(headline: String, detail: String, tint := Color(0.96, 0.42, 0.3
 	_ending_headline.add_theme_color_override("font_color", tint)
 	_ending_detail.text = detail
 	_ending.visible = true
+
+
+## Wraps a label in a dark plate and anchors the pair where it belongs.
+func _plate_for(label: Label, preset: int, offset: Vector2, alpha := 0.55) -> PanelContainer:
+	var plate := PanelContainer.new()
+	plate.add_theme_stylebox_override("panel", _plate_style(alpha))
+	plate.set_anchors_preset(preset)
+	plate.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	plate.grow_vertical = Control.GROW_DIRECTION_BOTH
+	plate.position = offset
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.add_child(label)
+	return plate
+
+
+func _plate_style(alpha: float) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(0.05, 0.06, 0.08, alpha)
+	box.set_corner_radius_all(7)
+	box.content_margin_left = 20.0
+	box.content_margin_right = 20.0
+	box.content_margin_top = 7.0
+	box.content_margin_bottom = 7.0
+	return box
 
 
 func _make_label(text: String, size: int, colour: Color) -> Label:

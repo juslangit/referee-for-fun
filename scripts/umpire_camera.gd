@@ -57,11 +57,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not active:
 		return
 
-	# Escape lets go of the mouse so the window can be left. Clicking takes it back.
-	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		_set_looking(false)
-		return
-
+	# Escape belongs to the pause menu now, and pausing releases the mouse anyway.
 	if event is InputEventMouseButton and event.pressed and not _looking:
 		_set_looking(true)
 		return

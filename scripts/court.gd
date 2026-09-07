@@ -19,13 +19,16 @@ const CHAIR_OFFSET := 0.9
 
 ## The sports hall the court sits inside. Roughly the size of a real one — the
 ## ceiling matters, because a high clear can genuinely hit a low roof.
-const HALL_WIDTH := 20.0
+const HALL_WIDTH := 22.0
 const HALL_LENGTH := 26.0
 const HALL_HEIGHT := 9.0
 
 ## How long the net keeps wobbling after somebody catches it, and how far.
 const NET_SHAKE_SECONDS := 0.9
 const NET_SHAKE_AMPLITUDE := 0.055
+
+## The seating and the crowd in it.
+var stands: Stands
 
 var _net_parts: Array[MeshInstance3D] = []
 var _net_rest: Array[Vector3] = []
@@ -46,6 +49,7 @@ func _ready() -> void:
 	_build_materials()
 	_build_floor()
 	_build_hall()
+	_build_stands()
 	_build_lines()
 	_build_net()
 	_build_umpire_chair()
@@ -103,6 +107,13 @@ func _build_floor() -> void:
 	shape.position = Vector3(0.0, MAT_THICKNESS - 0.2, 0.0)
 	body.add_child(shape)
 	add_child(body)
+
+
+## The seating down both sides, and the people in it.
+func _build_stands() -> void:
+	stands = Stands.new()
+	stands.name = "Stands"
+	add_child(stands)
 
 
 ## Four walls and a roof. Nothing here is decorative — a badminton hall is a closed
