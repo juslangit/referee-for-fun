@@ -11,6 +11,9 @@ extends CanvasLayer
 signal length_chosen(quick: bool)
 signal favour_chosen(team: Sides.Team)
 signal punishment_chosen(id: StringName, team: Sides.Team)
+signal match_requested()
+signal career_restart_requested()
+signal continue_requested()
 
 const TITLE_SIZE := 34
 const BUTTON_SIZE := 22
@@ -20,6 +23,9 @@ const PROMPT_SIZE := 17
 const REACTION_SIZE := 19
 const BANNER_SIZE := 24
 
+var _career_panel: Control
+var _career_column: VBoxContainer
+var _ending_button: Button
 var _length_panel: Control
 var _pre_match: Control
 var _ending: Control
@@ -41,6 +47,7 @@ var _banner_timer := 0.0
 
 func _ready() -> void:
 	layer = 10
+	_build_career_panel()
 	_build_length_panel()
 	_build_pre_match()
 	_build_hud()
@@ -48,7 +55,7 @@ func _ready() -> void:
 	_build_shuttle_cam()
 	_build_fault_panel()
 	_pre_match.visible = false
-	_length_panel.visible = true
+	_length_panel.visible = false
 
 
 func _process(delta: float) -> void:
@@ -67,6 +74,104 @@ func _tick(delta: float, timer: float, label: Label) -> float:
 
 
 # --- pre-match -----------------------------------------------------------------
+
+# --- the career ----------------------------------------------------------------
+
+func _build_career_panel() -> void:
+	_career_panel = Control.new()
+	_career_panel.name = "CareerPanel"
+	_career_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_career_panel.visible = false
+	_career_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_career_panel)
+
+	var backdrop := ColorRect.new()
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.color = Color(0.05, 0.06, 0.08, 0.95)
+	_career_panel.add_child(backdrop)
+
+	_career_column = VBoxContainer.new()
+	_career_column.set_anchors_preset(Control.PRESET_CENTER)
+	_career_column.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_career_column.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_career_column.alignment = BoxContainer.ALIGNMENT_CENTER
+	_career_column.add_theme_constant_override("separation", 7)
+	_career_panel.add_child(_career_column)
+
+
+## Draws the ladder, with where you are on it and what that is worth.
+func show_career(career: Career) -> void:
+	for child in _career_column.get_children():
+		child.queue_free()
+
+	_career_panel.visible = true
+
+	if career.is_over:
+		_career_column.add_child(_make_label("YOUR CAREER IS OVER", TITLE_SIZE, Color(0.96, 0.42, 0.36)))
+		_career_column.add_child(_make_label(
+			"%d matches, thrown off %d of them." % [career.matches_refereed, career.times_removed],
+			PROMPT_SIZE + 2, Color(0.78, 0.78, 0.80)
+		))
+		_career_column.add_child(_gap(18))
+		_career_column.add_child(_make_wide_button("START AGAIN", func() -> void:
+			career_restart_requested.emit()
+		))
+		return
+
+	_career_column.add_child(_make_label("YOUR CAREER", TITLE_SIZE - 4, Color(0.95, 0.95, 0.93)))
+	_career_column.add_child(_gap(8))
+
+	for i in Career.LADDER.size():
+		var rung: Dictionary = Career.LADDER[i]
+		var text := "%s" % rung["name"]
+		var tint := Color(0.36, 0.38, 0.42)
+		if i < career.tier:
+			text = "%s        cleared" % rung["name"]
+			tint = Color(0.55, 0.62, 0.55)
+		elif i == career.tier:
+			text = "▸  %s" % rung["name"]
+			tint = Color(0.98, 0.94, 0.72)
+		_career_column.add_child(_make_label(text, PROMPT_SIZE + 3, tint))
+
+	_career_column.add_child(_gap(10))
+	_career_column.add_child(_make_label(
+		str(career.venue()["blurb"]), PROMPT_SIZE, Color(0.70, 0.72, 0.76)
+	))
+	_career_column.add_child(_make_label(
+		"Reputation %d / 100          %s" % [
+			roundi(career.reputation * 100.0),
+			"best of three to 21" if not career.venue()["quick"] else "one game to 11",
+		],
+		PROMPT_SIZE + 2,
+		Color(0.88, 0.90, 0.93)
+	))
+	_career_column.add_child(_gap(16))
+	# The button only reports the choice; the match decides what happens to the
+	# screen. Hiding it in here means the flow only works when a human clicks.
+	_career_column.add_child(_make_wide_button("REFEREE THIS MATCH", func() -> void:
+		match_requested.emit()
+	))
+
+
+func hide_career() -> void:
+	_career_panel.visible = false
+
+
+func _gap(height: int) -> Control:
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, height)
+	return spacer
+
+
+func _make_wide_button(text: String, on_press: Callable) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.custom_minimum_size = Vector2(300, 52)
+	button.add_theme_font_size_override("font_size", BUTTON_SIZE - 2)
+	button.pressed.connect(on_press)
+	var row := button
+	return row
+
 
 func _build_length_panel() -> void:
 	_length_panel = Control.new()
@@ -426,10 +531,18 @@ func _build_ending() -> void:
 	_ending_detail = _make_label("", PROMPT_SIZE + 2, Color(0.80, 0.80, 0.82))
 	column.add_child(_ending_detail)
 
+	column.add_child(_gap(18))
+	_ending_button = _make_wide_button("CONTINUE", func() -> void: continue_requested.emit())
+	var centred := HBoxContainer.new()
+	centred.alignment = BoxContainer.ALIGNMENT_CENTER
+	centred.add_child(_ending_button)
+	column.add_child(centred)
+
 
 ## The reckoning. Once the match is over the truth is finally allowed on screen —
 ## this is the only place in the whole game where that is true.
 func show_ending(headline: String, detail: String, tint := Color(0.96, 0.42, 0.36)) -> void:
+	_ending.visible = true
 	_ending_headline.text = headline
 	_ending_headline.add_theme_color_override("font_color", tint)
 	_ending_detail.text = detail

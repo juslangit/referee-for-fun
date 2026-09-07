@@ -111,7 +111,7 @@ const NET_MISHIT_CHANCE := 0.045
 ## no net play at all — which also meant nobody was ever close enough to the net to
 ## touch it or reach over it, so two of the four offences could never happen.
 const NET_SHOT_CHANCE := 0.18
-const NET_SHOT_NEAR := 0.35
+const NET_SHOT_NEAR := 0.70
 const NET_SHOT_FAR := 1.90
 
 enum Phase {
@@ -154,8 +154,16 @@ var suspicion: Suspicion
 var board: Scoreboard
 
 var players: Array[Player] = []
+## The career this match belongs to, and the venue it decides.
+var career: Career
+
+## Whether this venue has a camera on the line. School halls do not.
+var has_shuttle_cam := true
+
 var line_judges: Array[LineJudge] = []
 var shuttle_cam: ShuttleCam
+
+var _all_line_judges: Array[LineJudge] = []
 var serving := Sides.Team.RED
 
 var _shots_this_rally := 0
@@ -199,6 +207,9 @@ func _ready() -> void:
 	ui.length_chosen.connect(_on_length_chosen)
 	ui.favour_chosen.connect(_on_favour_chosen)
 	ui.punishment_chosen.connect(_on_punishment_chosen)
+	ui.match_requested.connect(_on_match_requested)
+	ui.continue_requested.connect(_on_continue_requested)
+	ui.career_restart_requested.connect(_on_career_restart_requested)
 	add_child(ui)
 
 	_build_players()
@@ -209,11 +220,15 @@ func _ready() -> void:
 		judge.watches = team
 		judge.position = LINE_JUDGE_SEATS[team]
 		add_child(judge)
-		line_judges.append(judge)
+		_all_line_judges.append(judge)
+	line_judges = _all_line_judges.duplicate()
 
 	shuttle_cam = ShuttleCam.new()
 	shuttle_cam.name = "ShuttleCam"
 	add_child(shuttle_cam)
+
+	career = Career.load_or_start()
+	ui.show_career(career)
 
 	suspicion = Suspicion.new()
 	suspicion.warning_issued.connect(_on_warning_issued)
@@ -221,6 +236,39 @@ func _ready() -> void:
 
 
 # --- the loop ------------------------------------------------------------------
+
+## Sets the match up for wherever on the ladder this umpire has got to. The venue is
+## the difficulty: it decides how long the match is, whether anybody is helping,
+## whether there is a camera, and how closely the hall is watching.
+func _on_match_requested() -> void:
+	ui.hide_career()
+	var venue := career.venue()
+	suspicion.scrutiny = venue["scrutiny"]
+	has_shuttle_cam = venue["shuttle_cam"]
+	_set_line_judges_present(venue["line_judges"])
+	_on_length_chosen(venue["quick"])
+
+
+func _set_line_judges_present(present: bool) -> void:
+	# Cleared rather than replaced with []: a bare empty array is untyped and will not
+	# assign to an Array[LineJudge], which failed silently enough that the school hall
+	# quietly kept its line judges.
+	line_judges.clear()
+	if present:
+		line_judges.assign(_all_line_judges)
+	for judge in _all_line_judges:
+		judge.visible = present
+		judge.silence()
+
+
+func _on_continue_requested() -> void:
+	get_tree().reload_current_scene()
+
+
+func _on_career_restart_requested() -> void:
+	Career.start_again().save()
+	get_tree().reload_current_scene()
+
 
 func _on_length_chosen(quick: bool) -> void:
 	board = Scoreboard.new(quick)
@@ -366,7 +414,8 @@ func _start_rally() -> void:
 	)
 	var target := _pick_target(Sides.half_sign(Sides.opponent(serving)))
 
-	if not _hit(from, target, _choose_angle(from), serving):
+	if not _hit_or_something_safer(from, target, serving):
+		push_warning("Could not serve at all from %v" % from)
 		return
 
 	_phase = Phase.IN_FLIGHT
@@ -469,7 +518,7 @@ func _return_shot(player: Player) -> void:
 
 	var from := _shuttle.global_position
 	var target := _pick_target(Sides.half_sign(Sides.opponent(player.team)))
-	if not _hit(from, target, _choose_angle(from), player.team):
+	if not _hit_or_something_safer(from, target, player.team):
 		return
 
 	if offence == Incident.Kind.DOUBLE_HIT:
@@ -480,6 +529,26 @@ func _return_shot(player: Player) -> void:
 		var again := _pick_target(Sides.half_sign(Sides.opponent(player.team)))
 		var here := _shuttle.global_position
 		_hit(here, again, _choose_angle(here), player.team)
+
+
+## Plays the shot that was wanted, or an easier one if that shot cannot be played.
+##
+## Some shots genuinely cannot be hit — a drop landing a few centimetres past the net
+## struck from the back of the court is asking for the shuttle to clear the tape and
+## then stop, and there is no speed at any angle that does both. A player who cannot
+## find the shot they wanted does not stand there holding the shuttle: they push
+## something safer into the middle. Without this the rally simply stopped, which left
+## the match waiting for a landing that was never going to come.
+func _hit_or_something_safer(from: Vector3, target: Vector3, striker: Sides.Team) -> bool:
+	if _hit(from, target, _choose_angle(from), striker):
+		return true
+
+	var into := Sides.half_sign(Sides.opponent(striker))
+	for attempt in 3:
+		var safe := Vector3(randf_range(-2.0, 2.0), 0.0, into * randf_range(3.0, 5.2))
+		if _hit(from, safe, _choose_angle(from), striker):
+			return true
+	return false
 
 
 ## Decides whether this stroke goes wrong, and in what way.
@@ -680,8 +749,9 @@ func _on_shuttle_landed(point: Vector3) -> void:
 	ui.set_prompt("LEFT CLICK  in     RIGHT CLICK  out     L  let     F  fault or card")
 
 	_awaiting_since = Time.get_ticks_msec()
-	shuttle_cam.aim_at(point)
-	ui.show_shuttle_cam(shuttle_cam.texture())
+	if has_shuttle_cam:
+		shuttle_cam.aim_at(point)
+		ui.show_shuttle_cam(shuttle_cam.texture())
 
 	# The line judge makes their mind up the moment it lands, but does not say so
 	# until a beat later. Deciding it now means an umpire who calls before the bubble
@@ -758,10 +828,24 @@ func _on_warning_issued() -> void:
 
 
 func _on_removed_from_match() -> void:
+	_finish_match("YOU HAVE BEEN REMOVED FROM THE MATCH", Color(0.96, 0.42, 0.36), true)
+
+
+## Closes the match out and folds it into the career. This is the only screen in the
+## game allowed to state the truth, because there is nothing left to judge.
+func _finish_match(headline: String, tint: Color, removed: bool) -> void:
 	_phase = Phase.REMOVED
 	camera.set_active(false)
+	ui.hide_shuttle_cam()
 	ui.set_prompt("")
-	ui.show_ending("YOU HAVE BEEN REMOVED FROM THE MATCH", _reckoning())
+
+	var detail := _reckoning()
+	if career != null:
+		var note := career.finish_match(suspicion.level, removed)
+		career.save()
+		detail += "\n\n%s\n\nReputation  %d / 100" % [note, roundi(career.reputation * 100.0)]
+
+	ui.show_ending(headline, detail, tint)
 
 
 ## The only place in the game where the truth is allowed on screen. The match is
@@ -803,10 +887,7 @@ func _on_game_won(team: Sides.Team) -> void:
 
 
 func _on_match_won(team: Sides.Team) -> void:
-	_phase = Phase.REMOVED
-	camera.set_active(false)
-	ui.set_prompt("")
-	ui.show_ending("%s WIN THE MATCH" % Sides.label(team), _reckoning(), Sides.colour(team))
+	_finish_match("%s WIN THE MATCH" % Sides.label(team), Sides.colour(team), false)
 
 
 # --- hitting the shuttle -------------------------------------------------------

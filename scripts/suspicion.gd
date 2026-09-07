@@ -89,6 +89,12 @@ enum Mood {
 	REMOVED,
 }
 
+## How closely this particular hall is watching. A school gym barely notices; an
+## international final examines everything. Everything suspicion charges is
+## multiplied by it, so the same lie is nearly free at the bottom of the ladder and
+## career-ending at the top.
+var scrutiny := 1.0
+
 var level := 0.0
 
 ## Which way your wrong calls lean. Negative favours RED, positive favours BLUE.
@@ -120,6 +126,7 @@ func register(rally: Rally) -> float:
 			_recover()
 			_settle_mood()
 			return 0.0
+		conspicuous *= scrutiny
 		level = clampf(level + conspicuous, 0.0, REMOVAL_LEVEL)
 		level_changed.emit(level)
 		_settle_mood()
@@ -148,7 +155,7 @@ func register(rally: Rally) -> float:
 	elif rally.overrules_line_judge():
 		gain = gain * OVERRULE_PENALTY + OVERRULE_ON_ITS_OWN
 
-	gain += dithering
+	gain = (gain + dithering) * scrutiny
 	var target := level + gain
 
 	# Nobody is thrown off the court without being told once. A call outrageous
@@ -196,7 +203,7 @@ func register_card(against: Sides.Team, red: bool) -> float:
 	var direction := 1.0 if Sides.opponent(against) == Sides.Team.BLUE else -1.0
 	var reinforcing := maxf(0.0, direction * lean)
 
-	var gain := seen * (IMMEDIATE_WEIGHT + reinforcing * PATTERN_WEIGHT) * weight
+	var gain := seen * (IMMEDIATE_WEIGHT + reinforcing * PATTERN_WEIGHT) * weight * scrutiny
 	var target := level + gain
 	if level < WARNING_LEVEL and target >= REMOVAL_LEVEL:
 		target = HELD_AT_WARNING
