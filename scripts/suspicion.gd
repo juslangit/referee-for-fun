@@ -41,6 +41,15 @@ const OVERRULE_PENALTY := 1.6
 ## Small, but never nothing — the hall cannot see that you were right.
 const OVERRULE_ON_ITS_OWN := 0.03
 
+## How long the umpire may take before the hall starts wondering what the delay is
+## for. Generous — a second or two to be sure of a close one is normal.
+const THINKING_TIME := 2.5
+
+## What each further second of standing there costs, and the most one call's worth of
+## dithering can cost on its own.
+const HESITATION_PER_SECOND := 0.02
+const MAX_HESITATION := 0.12
+
 ## How much trust one correct call wins back. Small on purpose: it takes a long run
 ## of honest calls to undo a bad one, so cheating has to be paced.
 const RECOVERY_PER_CORRECT_CALL := 0.012
@@ -92,15 +101,20 @@ func register(rally: Rally) -> float:
 
 	var verdict := rally.verdict()
 
+	var dithering := hesitation_cost(rally.seconds_to_call)
+
 	if verdict == Rally.Verdict.CORRECT:
+		var conspicuous := dithering
 		if rally.overrules_line_judge():
-			level = clampf(level + OVERRULE_ON_ITS_OWN, 0.0, REMOVAL_LEVEL)
-			level_changed.emit(level)
+			conspicuous += OVERRULE_ON_ITS_OWN
+		if conspicuous <= 0.0:
+			_recover()
 			_settle_mood()
-			return OVERRULE_ON_ITS_OWN
-		_recover()
+			return 0.0
+		level = clampf(level + conspicuous, 0.0, REMOVAL_LEVEL)
+		level_changed.emit(level)
 		_settle_mood()
-		return 0.0
+		return conspicuous
 
 	if verdict == Rally.Verdict.NO_CALL:
 		return 0.0
@@ -125,6 +139,7 @@ func register(rally: Rally) -> float:
 	elif rally.overrules_line_judge():
 		gain = gain * OVERRULE_PENALTY + OVERRULE_ON_ITS_OWN
 
+	gain += dithering
 	var target := level + gain
 
 	# Nobody is thrown off the court without being told once. A call outrageous
@@ -140,6 +155,18 @@ func register(rally: Rally) -> float:
 	level_changed.emit(level)
 	_settle_mood()
 	return gain
+
+
+## What standing there thinking about it costs.
+##
+## Nothing at all for the first couple of seconds, then a steady drip. It is capped,
+## because hesitation is a bad look rather than a crime — the aim is to make a long
+## silence uncomfortable, not to end careers with it.
+static func hesitation_cost(seconds: float) -> float:
+	var dithering := seconds - THINKING_TIME
+	if dithering <= 0.0:
+		return 0.0
+	return minf(dithering * HESITATION_PER_SECOND, MAX_HESITATION)
 
 
 func _recover() -> void:

@@ -19,15 +19,19 @@ extends Node3D
 const WIDTH := 384
 const HEIGHT := 216
 
-## How far back down the line the camera sits, and how low to the floor.
+## The closest the camera will ever sit to the shuttle, and how low to the floor.
 ##
-## Close enough that the shuttle is easy to find in the picture, which it was not at
-## three metres — a white shuttle against a white line at that range is impossible to
-## pick out. Moving nearer does not give the close calls away: what makes them hard
-## is that the camera is looking *along* the line, so a shuttle two centimetres off
-## it is a couple of pixels off it at any distance you like.
-const DISTANCE := 2.35
-const EYE_HEIGHT := 0.36
+## As close as it can get. The camera does not stay at this distance though: it backs
+## off only as far as it has to in order to keep the shuttle in the picture at all.
+## A shuttle sitting on the line gets the full close-up, and one that missed by a
+## metre gets viewed from further away — which costs nothing, because a shuttle a
+## metre out never needed magnifying to be obvious.
+const NEAREST := 0.90
+const EYE_HEIGHT := 0.28
+
+## How much of the frame's width the shuttle is kept inside when the camera has to
+## back away. Well short of the edge, so it is never half out of shot.
+const FRAMING := 0.60
 
 const FIELD_OF_VIEW := 32.0
 
@@ -54,6 +58,7 @@ func _ready() -> void:
 	camera.name = "LineCamera"
 	camera.fov = FIELD_OF_VIEW
 	camera.cull_mask = COURT_ONLY
+	camera.near = 0.03
 	camera.current = true
 	viewport.add_child(camera)
 
@@ -75,12 +80,19 @@ func aim_at(point: Vector3) -> void:
 		# Nearest a sideline: sit on that line, back towards the near end.
 		var line_x := CourtSpec.HALF_WIDTH_DOUBLES * signf(point.x)
 		var back := signf(point.z) if not is_zero_approx(point.z) else 1.0
-		eye = Vector3(line_x, EYE_HEIGHT, point.z + back * DISTANCE)
+		eye = Vector3(line_x, EYE_HEIGHT, point.z + back * _stand_off(point.x - line_x))
 	else:
 		# Nearest a back line: sit on that line, off to one side.
 		var line_z := CourtSpec.HALF_LENGTH * signf(point.z)
 		var side := signf(point.x) if not is_zero_approx(point.x) else 1.0
-		eye = Vector3(point.x + side * DISTANCE, EYE_HEIGHT, line_z)
+		eye = Vector3(point.x + side * _stand_off(point.z - line_z), EYE_HEIGHT, line_z)
 
 	camera.global_position = eye
 	camera.look_at(point + Vector3(0.0, 0.035, 0.0), Vector3.UP)
+
+
+## How far back the camera has to stand to keep a shuttle this far off the line
+## inside the frame. Never nearer than NEAREST, and never further than it must be.
+func _stand_off(offset_from_line: float) -> float:
+	var half_width := tan(deg_to_rad(FIELD_OF_VIEW) * 0.5) * (float(WIDTH) / float(HEIGHT))
+	return maxf(NEAREST, absf(offset_from_line) / maxf(0.01, half_width * FRAMING))

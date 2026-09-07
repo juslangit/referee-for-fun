@@ -29,6 +29,11 @@ const BUBBLE_SECONDS := 2.4
 const BODY_HEIGHT := 1.34
 const BODY_RADIUS := 0.24
 
+## Which half of the court this judge is responsible for. In a real match a line
+## judge has their own lines and says nothing about anybody else's, which is why the
+## two of them never end up contradicting each other in public.
+var watches := Sides.Team.NONE
+
 var _bubble: Node3D
 var _label: Label3D
 var _timer := 0.0

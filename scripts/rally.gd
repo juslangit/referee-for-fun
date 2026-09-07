@@ -82,6 +82,13 @@ var doubles := true
 ## The call the player made, once they have made one.
 var call: CallType = null
 
+## How long the umpire took over it, in seconds.
+##
+## A real umpire calls the instant the shuttle lands. Standing there thinking about
+## it is not neutral: the hall can see you doing it, and what it looks like you are
+## thinking about is which answer suits you.
+var seconds_to_call := 0.0
+
 # --- what the line judge said --------------------------------------------------
 
 ## Whether the line judge in the corner gave a call on this rally.

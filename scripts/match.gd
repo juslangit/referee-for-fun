@@ -38,9 +38,15 @@ const RALLY_SHOT_CAP := 16
 ## A hard stop on a rally, in seconds. A backstop, not a design.
 const MAX_RALLY_SECONDS := 40.0
 
-## Where the line judge sits: the far corner, behind the back line and outside the
-## sideline, which is where one really sits.
-const LINE_JUDGE_SEAT := Vector3(-3.85, 0.0, 7.60)
+## Where the line judges sit: the far corner at each end, behind the back line and
+## outside the sideline, which is where they really sit. Each of them watches one
+## half of the court and says nothing about the other, so the two of them can never
+## end up publicly contradicting each other — in a real match every judge has their
+## own lines.
+const LINE_JUDGE_SEATS := {
+	Sides.Team.BLUE: Vector3(-3.85, 0.0, 7.60),
+	Sides.Team.RED: Vector3(-3.85, 0.0, -7.60),
+}
 
 ## How long the hall waits before the line judge's call goes up. Long enough for the
 ## shuttle to have visibly landed, short enough that it still feels like a reaction.
@@ -114,7 +120,7 @@ var suspicion: Suspicion
 var board: Scoreboard
 
 var players: Array[Player] = []
-var line_judge: LineJudge
+var line_judges: Array[LineJudge] = []
 var shuttle_cam: ShuttleCam
 var serving := Sides.Team.RED
 
@@ -129,6 +135,9 @@ var _rally_seconds := 0.0
 ## Where the shuttle was on the previous physics tick, used to catch the exact moment
 ## it passes the plane of the net.
 var _previous_shuttle_spot := Vector3.ZERO
+
+## When the shuttle landed, so the game knows how long the umpire stood there.
+var _awaiting_since := 0
 
 var _phase := Phase.PRE_MATCH
 var _shuttle: Shuttle
@@ -159,10 +168,13 @@ func _ready() -> void:
 
 	_build_players()
 
-	line_judge = LineJudge.new()
-	line_judge.name = "LineJudge"
-	line_judge.position = LINE_JUDGE_SEAT
-	add_child(line_judge)
+	for team in LINE_JUDGE_SEATS:
+		var judge := LineJudge.new()
+		judge.name = "LineJudge%s" % Sides.label(team)
+		judge.watches = team
+		judge.position = LINE_JUDGE_SEATS[team]
+		add_child(judge)
+		line_judges.append(judge)
 
 	shuttle_cam = ShuttleCam.new()
 	shuttle_cam.name = "ShuttleCam"
@@ -236,7 +248,8 @@ func _start_rally() -> void:
 
 	_shots_this_rally = 0
 	_rally_seconds = 0.0
-	line_judge.silence()
+	for judge in line_judges:
+		judge.silence()
 	rally = Rally.new(serving, true)
 
 	var from := Vector3(
@@ -445,6 +458,7 @@ func _on_shuttle_landed(point: Vector3) -> void:
 	_phase = Phase.AWAITING_CALL
 	ui.set_prompt("LEFT CLICK  in        RIGHT CLICK  out        L  let")
 
+	_awaiting_since = Time.get_ticks_msec()
 	shuttle_cam.aim_at(point)
 	ui.show_shuttle_cam(shuttle_cam.texture())
 
@@ -452,16 +466,28 @@ func _on_shuttle_landed(point: Vector3) -> void:
 	# until a beat later. Deciding it now means an umpire who calls before the bubble
 	# goes up has still overruled them, rather than dodging the whole question by
 	# being quick.
-	rally.line_judge_said_in = line_judge.judge(rally)
-	rally.line_judge_called = true
-	_announce_line_judge()
+	var judge := _judge_watching(point)
+	if judge != null:
+		rally.line_judge_said_in = judge.judge(rally)
+		rally.line_judge_called = true
+		_announce_line_judge(judge)
 
 
-func _announce_line_judge() -> void:
+## Whichever line judge is responsible for the end the shuttle came down at. The
+## other one keeps out of it.
+func _judge_watching(point: Vector3) -> LineJudge:
+	var half := Sides.half_containing(point.z)
+	for judge in line_judges:
+		if judge.watches == half:
+			return judge
+	return null
+
+
+func _announce_line_judge(judge: LineJudge) -> void:
 	await get_tree().create_timer(LINE_JUDGE_DELAY).timeout
-	if _phase != Phase.AWAITING_CALL or not is_instance_valid(line_judge):
+	if _phase != Phase.AWAITING_CALL or not is_instance_valid(judge):
 		return
-	line_judge.announce(rally.line_judge_said_in)
+	judge.announce(rally.line_judge_said_in)
 
 
 func _make_call(id: StringName) -> void:
@@ -469,6 +495,7 @@ func _make_call(id: StringName) -> void:
 	if call == null:
 		return
 
+	rally.seconds_to_call = float(Time.get_ticks_msec() - _awaiting_since) / 1000.0
 	rally.record_call(call)
 	ui.hide_shuttle_cam()
 	var winner := rally.point_goes_to()
@@ -484,11 +511,17 @@ func _make_call(id: StringName) -> void:
 	# The hall makes up its mind about what it just saw. The player is told nothing
 	# except how the room reacted — which is the whole of the feedback they get.
 	suspicion.register(rally)
-	ui.react(Crowd.react_to_call(rally.visibility(), suspicion.mood))
+
+	# What the hall makes of it: the call itself, or the length of the silence before
+	# it. A slow clap for taking four seconds over a shuttle a metre out.
+	var reaction := Crowd.react_to_call(rally.visibility(), suspicion.mood)
+	if reaction.is_empty():
+		reaction = Crowd.react_to_delay(rally.seconds_to_call)
+	ui.react(reaction)
 
 	if print_truth_while_testing:
-		print("[truth, testing only] %s  |  suspicion %.3f lean %+.2f" % [
-			rally.describe(), suspicion.level, suspicion.lean
+		print("[truth, testing only] %s  |  took %.1fs  |  suspicion %.3f lean %+.2f" % [
+			rally.describe(), rally.seconds_to_call, suspicion.level, suspicion.lean
 		])
 
 	_enter_ready()

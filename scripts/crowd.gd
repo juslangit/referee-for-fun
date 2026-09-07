@@ -43,6 +43,15 @@ const HOSTILITY := [
 	"both benches are shouting at once",
 ]
 
+## What the hall does while the umpire stands there saying nothing.
+const IMPATIENCE := [
+	"somebody starts a slow clap",
+	"\"COME ON, REF!\"",
+	"the hall is waiting",
+	"a player spreads their arms at the chair",
+	"\"What is there to think about?\"",
+]
+
 ## Ambient pressure between rallies, once things have gone bad.
 const AMBIENT := {
 	Suspicion.Mood.MURMURING: [
@@ -83,6 +92,14 @@ static func react_to_call(visibility: float, mood: Suspicion.Mood) -> String:
 	if pointed:
 		return _pick(COMPLAINT)
 	return _pick(DOUBTFUL)
+
+
+## What the hall says about a call that took a while. Empty if it was quick enough
+## that nobody noticed.
+static func react_to_delay(seconds: float) -> String:
+	if Suspicion.hesitation_cost(seconds) <= 0.0:
+		return ""
+	return _pick(IMPATIENCE)
 
 
 ## Something for the hall to do between rallies, once it has stopped trusting you.

@@ -28,7 +28,7 @@ func _ready() -> void:
 	# Take the mouse away from the camera first, or a stray motion event will swing
 	# the view straight back to facing forwards.
 	arena.camera.active = false
-	arena.camera.look_at(arena.line_judge.global_position + Vector3(0.0, 1.5, 0.0), Vector3.UP)
+	arena.camera.look_at(arena.line_judges[0].global_position + Vector3(0.0, 1.5, 0.0), Vector3.UP)
 	arena.camera.fov = 55.0
 	for f in 4:
 		await get_tree().process_frame
