@@ -1,0 +1,14 @@
+# Godot 4+ engine files
+.godot/
+/android/
+
+# Exported builds
+build/
+*.dmg
+*.zip
+
+# Secrets
+.env
+
+# macOS
+.DS_Store
