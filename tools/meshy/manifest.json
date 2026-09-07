@@ -1,0 +1,14 @@
+{
+  "assets": {
+    "athlete_meshy": {
+      "preview": "01a07cc2-a2de-71f8-a489-9aa357c39ec4",
+      "refine": "01a07cc3-4b1c-7731-820b-0a340aaf9fb9",
+      "rig": "01a07cc6-21d2-7403-960d-aa3d29355993"
+    },
+    "shuttlecock": {
+      "preview": "01a07cbf-b8d6-76f9-abf6-c4a350e05dba",
+      "refine": "01a07cc0-7afb-7668-99a2-11907468b0e5"
+    }
+  },
+  "spent": 65
+}
