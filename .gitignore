@@ -13,7 +13,9 @@ build/
 # macOS
 .DS_Store
 
-# Debug screenshots, and the sidecar files Godot writes beside them.
+# Debug screenshots, and the sidecar files Godot writes beside them. The dev scenes
+# write into dev/shots/; the pictures are output, not source.
+dev/shots/
 _shot.png
 _shot_*.png
 _shot_*.png.import

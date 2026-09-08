@@ -17,7 +17,10 @@ Badminton first. Volleyball second.
 ## Folders
 | Folder | Contents |
 |---|---|
-| `scenes/` | Godot scenes — court, umpire chair, match |
-| `scripts/` | GDScript — rally simulation, call system, suspicion |
-| `assets/` | Models and audio |
-| `ui/` | Menus, scoreboard, HUD |
+| `scenes/` | `match.tscn` — the one scene the game runs. Everything else is built in code. |
+| `scripts/` | All the GDScript: the rally, the calls, suspicion, the hall, the interface. |
+| `assets/` | Models, audio and interface art, filed by where each came from. |
+| `tools/` | Scripts that *make* assets — Blender, Meshy and the sound synthesiser. Not shipped. |
+| `dev/` | Scenes that look at the game rather than being part of it. See `dev/README.md`. |
+
+Nothing lives in the project root except this file, `CREDITS.md` and `project.godot`.
