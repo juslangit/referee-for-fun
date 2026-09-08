@@ -17,6 +17,8 @@ signal sport_chosen(id: StringName)
 signal settings_requested()
 signal main_menu_requested()
 signal look_speed_changed(radians_per_pixel: float)
+signal teaching_requested()
+signal teaching_finished()
 signal career_restart_requested()
 signal continue_requested()
 signal new_career_requested()
@@ -228,6 +230,10 @@ func show_main_menu(career: Career) -> void:
 	)))
 	_main_menu_column.add_child(_gap(6))
 	_main_menu_column.add_child(_centred(_make_wide_button(
+		"HOW TO REFEREE", func() -> void: teaching_requested.emit()
+	)))
+	_main_menu_column.add_child(_gap(6))
+	_main_menu_column.add_child(_centred(_make_wide_button(
 		"SETTINGS", func() -> void: settings_requested.emit()
 	)))
 	_main_menu_column.add_child(_gap(6))
@@ -348,6 +354,191 @@ func show_sport_menu() -> void:
 
 func hide_sport_menu() -> void:
 	_sport_menu.visible = false
+
+
+# --- teaching -------------------------------------------------------------------
+
+## What the game never told anybody.
+##
+## Everything this game asks of you is invisible unless somebody says it out loud. It
+## wants you to spot a carry, which is a hesitation in a stroke lasting a fifth of a
+## second; it wants you to know that a shuttle failing to cross the net is called OUT
+## however far inside the lines it lands; and it wants all of that from a player who may
+## never have watched a badminton match, let alone refereed one.
+##
+## Until this screen existed the entire instruction was a single line of key bindings.
+## Luqman could not tell whether the game was scoring him unfairly or whether he was
+## simply missing things — and it turned out to be both, which is exactly the confusion
+## that not explaining yourself produces.
+const LESSONS := [
+	{
+		"title": "THE JOB",
+		"body": "You are the umpire, and you never leave the chair.\n\n"
+			+ "The game plays a real rally and records exactly where the shuttle came "
+			+ "down, to the millimetre. Nobody else in the building will say what "
+			+ "happened. You will.\n\n"
+			+ "You can tell the truth. Nothing here requires you to.",
+		"keys": [
+			["SPACE", "whistle the rally in"],
+			["LEFT CLICK", "in"],
+			["RIGHT CLICK", "out"],
+			["L", "let — play it again"],
+			["F", "a fault, or a card"],
+			["ESC", "pause"],
+		],
+	},
+	{
+		"title": "IN AND OUT",
+		"art": "res://assets/ui/court_map.png",
+		"body": "Green is the court. A shuttle landing anywhere on it is IN — including "
+			+ "on a line, because the lines belong to the court. Red is outside it.\n\n"
+			+ "The narrow strips down each side are in play too. This is doubles.\n\n"
+			+ "And the one that catches people out: a shuttle that never gets over the "
+			+ "net is a fault against whoever hit it. Call OUT — however far inside the "
+			+ "lines it landed.",
+	},
+	{
+		"title": "THE FOUR FAULTS",
+		"body": "Press F, then point at whoever did it.\n\n"
+			+ "NET TOUCH   the net shakes. Somebody was touching it with the shuttle "
+			+ "still live.\n\n"
+			+ "CARRY   the shuttle hesitates on the racket instead of leaving it "
+			+ "cleanly. Easy to miss. That is the point of it.\n\n"
+			+ "DOUBLE HIT   the same side strikes it twice in a row.\n\n"
+			+ "OBSTRUCTION   a player reaches over the net.\n\n"
+			+ "Missing one is not free. If the point then goes to the side that cheated, "
+			+ "the hall saw what you did not.",
+	},
+	{
+		"title": "WHO IS WATCHING",
+		"body": "Two line judges sit at opposite corners. They call their own lines, and "
+			+ "on the close ones they are wrong about as often as a coin. Agree with a "
+			+ "mistake and it is shared with an official in plain sight. Overrule them "
+			+ "and the hall has just watched two officials disagree, with only your call "
+			+ "left standing.\n\n"
+			+ "The shuttle cam shows you the landing from directly overhead once it is "
+			+ "down.\n\n"
+			+ "There is no suspicion meter anywhere in this game, and there never will "
+			+ "be. The only thing that tells you how much trouble you are in is the "
+			+ "room: how it sounds, and whether it comes out of its seat.",
+	},
+]
+
+var _lesson := 0
+var _teaching: Control
+var _lesson_buttons: HBoxContainer
+
+
+func show_teaching() -> void:
+	if _hud != null:
+		_hud.visible = false
+	_lesson = 0
+	_draw_lesson()
+	_teaching.visible = true
+
+
+func hide_teaching() -> void:
+	if _teaching != null:
+		_teaching.visible = false
+
+
+func _draw_lesson() -> void:
+	if _teaching != null:
+		_teaching.queue_free()
+	var built := _build_sheet("Teaching", Color(0.03, 0.04, 0.06, 0.66))
+	_teaching = built[0]
+	var column: VBoxContainer = built[1]
+
+	# The page goes inside a scroll view rather than being trimmed to fit. Tuning the
+	# picture and the type until it happened to fit a 900-pixel window worked twice and
+	# broke twice, and it would break again on somebody else's screen — a page whose only
+	# job is to be read must not be able to put its own title above the top edge.
+	var card := column.get_parent()
+	card.remove_child(column)
+
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 12)
+	card.add_child(stack)
+
+	var scroller := ScrollContainer.new()
+	scroller.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroller.custom_minimum_size = Vector2(
+		720, minf(660.0, get_viewport().get_visible_rect().size.y * 0.66))
+	stack.add_child(scroller)
+	scroller.add_child(column)
+	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	# The buttons live outside the scroll view. Inside it, NEXT sat below the fold on the
+	# longer pages and the reader had to scroll to find out there was a next page.
+	_lesson_buttons = HBoxContainer.new()
+	_lesson_buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	_lesson_buttons.add_theme_constant_override("separation", 14)
+	stack.add_child(_lesson_buttons)
+	# Sized to fit a 900-pixel-tall window with the buttons still on screen. The first
+	# attempt ran off both ends of the display: the title was above the top edge and GOT
+	# IT was below the bottom one, which on a page whose whole job is to be read is not a
+	# small mistake.
+	column.custom_minimum_size = Vector2(700, 0)
+
+	var lesson: Dictionary = LESSONS[_lesson]
+	column.add_child(_make_label(lesson["title"], TITLE_SIZE, UiTheme.CHALK))
+	column.add_child(_gap(4))
+	column.add_child(_make_label(
+		"%d of %d" % [_lesson + 1, LESSONS.size()], UiTheme.SMALL, UiTheme.MUTED))
+	column.add_child(_gap(14))
+
+	if lesson.has("art") and ResourceLoader.exists(lesson["art"]):
+		var picture := TextureRect.new()
+		picture.texture = load(lesson["art"])
+		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		picture.custom_minimum_size = Vector2(520, 288)
+		column.add_child(picture)
+		column.add_child(_gap(14))
+
+	var body := _make_label(lesson["body"], UiTheme.SMALL, UiTheme.CHALK)
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.custom_minimum_size = Vector2(660, 0)
+	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	column.add_child(body)
+
+	if lesson.has("keys"):
+		column.add_child(_gap(14))
+		for pair in lesson["keys"]:
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 20)
+			var key := _make_label(pair[0], UiTheme.SMALL, UiTheme.ACCENT)
+			key.custom_minimum_size = Vector2(200, 0)
+			key.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			row.add_child(key)
+			var meaning := _make_label(pair[1], UiTheme.SMALL, UiTheme.MUTED)
+			meaning.custom_minimum_size = Vector2(420, 0)
+			meaning.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			row.add_child(meaning)
+			column.add_child(row)
+
+	var buttons := _lesson_buttons
+	if _lesson > 0:
+		var back := Button.new()
+		back.text = "BACK"
+		back.custom_minimum_size = Vector2(200, UiTheme.BUTTON_HEIGHT)
+		back.pressed.connect(func() -> void:
+			_lesson -= 1
+			_draw_lesson()
+			_teaching.visible = true)
+		buttons.add_child(back)
+
+	var onward := Button.new()
+	onward.text = "NEXT" if _lesson < LESSONS.size() - 1 else "GOT IT"
+	onward.custom_minimum_size = Vector2(280, UiTheme.BUTTON_HEIGHT)
+	onward.pressed.connect(func() -> void:
+		if _lesson < LESSONS.size() - 1:
+			_lesson += 1
+			_draw_lesson()
+			_teaching.visible = true
+		else:
+			teaching_finished.emit())
+	buttons.add_child(onward)
 
 
 # --- settings -------------------------------------------------------------------
@@ -591,6 +782,7 @@ func hide_menus() -> void:
 		_hud.visible = true
 	hide_sport_menu()
 	hide_settings()
+	hide_teaching()
 	_main_menu.visible = false
 	_career_panel.visible = false
 	_pause_menu.visible = false

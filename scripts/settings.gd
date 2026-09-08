@@ -28,6 +28,11 @@ const SENSITIVITY_MAX := 0.0055
 
 var fullscreen := false
 
+## Whether the player has been shown how to referee. Kept with the settings rather than
+## with the career, because it is a fact about the person at the keyboard: starting a
+## second career does not make you forget what a carry is.
+var taught := false
+
 
 static func load_or_default() -> Settings:
 	var settings := Settings.new()
@@ -39,6 +44,7 @@ static func load_or_default() -> Settings:
 	settings.effects = file.get_value("audio", "effects", settings.effects)
 	settings.sensitivity = file.get_value("look", "sensitivity", settings.sensitivity)
 	settings.fullscreen = file.get_value("window", "fullscreen", settings.fullscreen)
+	settings.taught = file.get_value("player", "taught", settings.taught)
 	return settings
 
 
@@ -49,6 +55,7 @@ func save() -> void:
 	file.set_value("audio", "effects", effects)
 	file.set_value("look", "sensitivity", sensitivity)
 	file.set_value("window", "fullscreen", fullscreen)
+	file.set_value("player", "taught", taught)
 	file.save(PATH)
 
 

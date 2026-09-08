@@ -174,6 +174,10 @@ var sound: Sound
 var settings: Settings
 var menu_camera: MenuCamera
 
+## Whether the lesson was opened on the way into a match, or from the title screen. It
+## decides where GOT IT leads.
+var _teaching_leads_to_play := false
+
 var _all_line_judges: Array[LineJudge] = []
 var serving := Sides.Team.RED
 
@@ -237,6 +241,8 @@ func _ready() -> void:
 	ui.settings_requested.connect(_on_settings_requested)
 	ui.main_menu_requested.connect(_on_main_menu_requested)
 	ui.look_speed_changed.connect(_on_look_speed_changed)
+	ui.teaching_requested.connect(_on_teaching_requested)
+	ui.teaching_finished.connect(_on_teaching_finished)
 	add_child(ui)
 
 	_build_players()
@@ -319,7 +325,31 @@ func _on_sport_chosen(id: StringName) -> void:
 	ui.hide_sport_menu()
 	if id != &"badminton":
 		return
+	# Somebody who has never been told what a carry looks like cannot referee one, so
+	# the first time through they are told before they are asked to. Once only: it is
+	# remembered against the player, not against the career.
+	if not settings.taught:
+		_teaching_leads_to_play = true
+		_on_teaching_requested()
+		return
 	_on_career_screen_requested()
+
+
+func _on_teaching_requested() -> void:
+	ui.hide_menus()
+	_menu_view()
+	ui.show_teaching()
+
+
+func _on_teaching_finished() -> void:
+	ui.hide_teaching()
+	settings.taught = true
+	settings.save()
+	if _teaching_leads_to_play:
+		_teaching_leads_to_play = false
+		_on_career_screen_requested()
+	else:
+		_on_main_menu_requested()
 
 
 func _on_settings_requested() -> void:
