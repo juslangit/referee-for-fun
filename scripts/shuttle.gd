@@ -54,7 +54,7 @@ var landing_point := Vector3.ZERO
 var landing_speed := 0.0
 
 ## Height of the surface the shuttle will land on — the top of the court mat.
-var floor_height := Court.MAT_THICKNESS
+var floor_height := Court.SURFACE_Y
 
 var _drag_factor := 0.0
 var _previous_tip := Vector3.ZERO
@@ -183,6 +183,15 @@ func force_landing() -> void:
 	landed.emit(landing_point)
 
 
+## The layer the shuttle is drawn on.
+##
+## Stated here rather than left to default, because the overhead camera draws this layer
+## and nothing else, and the shuttle is the one thing that camera exists to show. It has
+## already been culled out of its own picture once, by a loader that helpfully put
+## everything it touched on the people layer.
+const COURT_LAYER := 1
+
+
 func _build_body() -> void:
 	# A modelled shuttlecock if it was downloaded, and the cork-and-skirt built out of
 	# primitives below if it was not.
@@ -190,6 +199,7 @@ func _build_body() -> void:
 	if model != null:
 		model.name = "Shuttlecock"
 		add_child(model)
+		_draw_on_court_layer()
 		return
 
 	var cork_material := StandardMaterial3D.new()
@@ -219,6 +229,18 @@ func _build_body() -> void:
 	skirt.rotation = Vector3(deg_to_rad(-90.0), 0.0, 0.0)
 	skirt.material_override = skirt_material
 	add_child(skirt)
+
+	_draw_on_court_layer()
+
+
+## Forces every visible part of the shuttle onto the court layer, whatever a loader may
+## have decided on the way in. Belt and braces, and cheap: this is the one object in the
+## game that must never be missing from the overhead camera.
+func _draw_on_court_layer(node: Node = self) -> void:
+	if node is VisualInstance3D:
+		(node as VisualInstance3D).layers = COURT_LAYER
+	for child in node.get_children():
+		_draw_on_court_layer(child)
 
 
 func _build_collision() -> void:

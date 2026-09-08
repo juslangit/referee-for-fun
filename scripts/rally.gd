@@ -65,6 +65,15 @@ var is_settled := false
 ## hall who cannot see it.
 var crossed_the_net := true
 
+## Whether the shuttle came down between the lines, as a matter of pure geometry and
+## nothing else. Kept separately from `was_in`, which also folds in whether the shuttle
+## got over the net at all — an umpire can describe the landing perfectly and still be
+## wrong, and the game has to be able to tell that apart from an invention.
+var landed_inside_lines := false
+
+## How plainly it showed that the shuttle never made it over. Nought to one.
+var crossing_visibility := 0.0
+
 ## Whether the shuttle actually went over the net on its way across.
 ##
 ## This is not the same question as whether it got to the other side. A badminton net
@@ -133,13 +142,29 @@ func record_landing(point: Vector3) -> void:
 	else:
 		crossed_the_net = went_over_the_net and Sides.half_containing(point.z) != struck_by
 
+	landed_inside_lines = CourtSpec.is_in(point, doubles)
+
 	if not crossed_the_net:
 		was_in = false
 		margin = -BLATANT_MARGIN
+		crossing_visibility = _how_plain_the_failure_was(point)
 		return
 
 	was_in = CourtSpec.is_in(point, doubles)
 	margin = CourtSpec.margin(point, doubles)
+
+
+## How obvious it was that the shuttle never got over.
+##
+## A shuttle that drops two metres back on the striker's own side is something the whole
+## hall watched happen. One that catches the tape and falls back twenty centimetres is
+## the same fault and nothing like as plain. A shuttle that went *under* the net is the
+## least visible of the three: it lands on the right side of the court looking perfectly
+## ordinary, and only somebody watching the tape saw it pass beneath.
+func _how_plain_the_failure_was(point: Vector3) -> float:
+	if not went_over_the_net:
+		return 0.35
+	return clampf(0.40 + absf(point.z) / 2.0 * 0.60, 0.0, 1.0)
 
 
 ## Called when the player finally says something. A fault has to name a side; a line
@@ -236,6 +261,17 @@ func visibility() -> float:
 			# offence, not the line — the shuttle really was where you said it was.
 			if call.asserts_in == was_in:
 				return incident.visibility
+
+			# The same thing again for a shuttle that never got over the net. It is a
+			# fault, so the truth is "out" whatever the lines say, and `margin` is set
+			# to a blatant value to make the scoring come out right. But `margin` is
+			# also what this function reads to decide how obvious a lie was — so an
+			# umpire who looked at the floor, saw the shuttle land between the lines and
+			# said so was billed for the most flagrant lie the game can price, every
+			# time. What they actually got wrong was the flight, not the landing, and
+			# that is worth exactly as much as the failure to cross was visible.
+			if not crossed_the_net and call.asserts_in == landed_inside_lines:
+				return maxf(crossing_visibility, incident.visibility)
 
 			return maxf(clampf(absf(margin) / BLATANT_MARGIN, 0.0, 1.0), incident.visibility)
 		Verdict.UNVERIFIABLE:

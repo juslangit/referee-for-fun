@@ -16,8 +16,6 @@ const EYE_HEIGHT := 2.32
 const CHAIR_OFFSET := 0.9
 
 ## How high the hall lights hang, and how bright each one is.
-const LIGHT_HEIGHT := 7.4
-const LIGHT_ENERGY := 1.7
 
 ## Where a serve is struck from, and how high.
 const SERVE_DISTANCE := 3.0
@@ -62,7 +60,17 @@ const LINE_JUDGE_DELAY := 0.45
 ## How often a stroke goes wrong in some way other than missing the court. Rolled per
 ## stroke, so with rallies running to six or seven shots this is roughly a third of
 ## rallies having something in them.
-const INCIDENT_CHANCE := 0.07
+## The chance of an offence, rolled on every stroke — not once per rally.
+##
+## That distinction is the whole of it. At seven percent a stroke and six and a half
+## strokes to a rally, two rallies in five contained a fault, and roughly half of those
+## mark an honest umpire wrong for not spotting it. An umpire who called every line
+## correctly was being booed inside ten rallies, which is what Luqman found and what
+## sent me looking here.
+##
+## A carry or a double hit is a notable event in a real match, not something that
+## happens twice a game. At this figure about one rally in twelve has an offence in it.
+const INCIDENT_CHANCE := 0.012
 
 ## How long the shuttle sits on the racket when a player carries it, and how long
 ## after a first stroke the same side gets a second one in.
@@ -199,6 +207,8 @@ func _ready() -> void:
 	camera.name = "UmpireCamera"
 	camera.position = Vector3(CourtSpec.HALF_WIDTH_DOUBLES + CHAIR_OFFSET, EYE_HEIGHT, 0.0)
 	camera.fov = 82.0
+	# Everything but the chair the umpire is sitting in.
+	camera.cull_mask = camera.cull_mask & ~Court.CHAIR_LAYER
 	camera.current = true
 	add_child(camera)
 
@@ -251,6 +261,9 @@ func _on_match_requested() -> void:
 	suspicion.scrutiny = venue["scrutiny"]
 	has_shuttle_cam = venue["shuttle_cam"]
 	_set_line_judges_present(venue["line_judges"])
+	# Dressed before the crowd is counted, because dressing the hall rebuilds the
+	# seating and everybody in it, and a density set before that is thrown away.
+	court.dress(venue["dressing"])
 	court.stands.set_density(venue["crowd"])
 	_on_length_chosen(venue["quick"])
 
@@ -343,7 +356,6 @@ func _build_players() -> void:
 		player.name = "Player%d" % i
 		# One of the four builds each, so the court holds four people rather than one
 		# person standing in four places.
-		player.look = i
 		add_child(player)
 		player.setup(Sides.half_containing(home.z), home)
 		players.append(player)
@@ -467,7 +479,7 @@ func _start_rally() -> void:
 		SERVE_HEIGHT,
 		Sides.half_sign(serving) * SERVE_DISTANCE
 	)
-	var target := _pick_target(Sides.half_sign(Sides.opponent(serving)))
+	var target := _pick_serve_target(Sides.half_sign(Sides.opponent(serving)))
 
 	if not _hit_or_something_safer(from, target, serving):
 		push_warning("Could not serve at all from %v" % from)
@@ -671,7 +683,7 @@ func _hit(from: Vector3, target: Vector3, angle: float, striker: Sides.Team) -> 
 	var mishit := randf() < NET_MISHIT_CHANCE
 
 	for attempt in 4:
-		var candidate := ShotSolver.solve(from, target, attempt_angle, Court.MAT_THICKNESS)
+		var candidate := ShotSolver.solve(from, target, attempt_angle, Court.SURFACE_Y)
 		if candidate == Vector3.ZERO:
 			attempt_angle += 9.0
 			continue
@@ -822,9 +834,24 @@ func _on_shuttle_landed(point: Vector3) -> void:
 		_announce_line_judge(judge)
 
 
-## Whichever line judge is responsible for the end the shuttle came down at. The
-## other one keeps out of it.
+## Whichever line judge is responsible for the end the shuttle came down at, if this is
+## a rally for a line judge to have an opinion about at all.
+##
+## A line judge watches lines and nothing else, so they say nothing about a shuttle that
+## never got over the net. That one is not a line call at all: a shuttle that fails to
+## cross is recorded as `was_in = false` with a blatant margin, because for scoring
+## purposes it is as good as out — so the line judge was announcing OUT, at the top of
+## their voice, about a shuttle that had plainly landed well inside the lines.
+##
+## They do still call the line when an offence has happened, which is what a real line
+## judge does: they signal what they saw on their line and the umpire's fault call
+## overrides it. Silencing them there was a mistake with a consequence I did not see —
+## agreeing with a line judge halves what a wrong call costs, so muting them on exactly
+## the rallies where an honest umpire is most likely to be marked wrong quietly stripped
+## away the cover the whole system was balanced around.
 func _judge_watching(point: Vector3) -> LineJudge:
+	if rally == null or not rally.crossed_the_net:
+		return null
 	var half := Sides.half_containing(point.z)
 	for judge in line_judges:
 		if judge.watches == half:
@@ -952,9 +979,22 @@ func _react_to_call(winner: Sides.Team) -> void:
 		elif winner != Sides.Team.NONE and player.team == winner:
 			player.celebrate()
 
+	# The hall reacts too: the stands come up out of their seats and, at the venues
+	# that have photographers in them, a scatter of flashes goes off. Both are things
+	# the umpire catches out of the corner of their eye while wondering whether they
+	# have got away with it.
+	if winner != Sides.Team.NONE:
+		court.stands.cheer()
+		if court.venue != null:
+			court.venue.flash()
+
 
 func _update_score() -> void:
 	ui.set_score(board, serving)
+	# The hanging board says the same thing as the HUD, so the hall and the umpire
+	# never disagree about the score.
+	if court.venue != null:
+		court.venue.set_score(board.points[Sides.Team.RED], board.points[Sides.Team.BLUE])
 
 
 func _on_game_won(team: Sides.Team) -> void:
@@ -981,6 +1021,30 @@ func serve(from: Vector3, target: Vector3, angle := 36.0, striker := Sides.Team.
 		return null
 	_phase = Phase.IN_FLIGHT
 	return _shuttle
+
+
+## Where a serve is aimed: safely inside the service court, and nowhere near a line.
+##
+## A serve is not judged by the same boundary as a rally shot. In doubles it has to land
+## short of the long service line at 5.94 m, not the back line at 6.70 — so a serve
+## dropping in the 76 cm between them is a fault, and this game scored it as good,
+## because the serve was aimed with the same picker as every other shot and then judged
+## with `CourtSpec.is_in`. An umpire who knows badminton called it out and was told they
+## were lying.
+##
+## Service faults are deliberately outside this game's scope: judging one properly needs
+## the racket head, the server's waist and their feet all modelled, and none of that
+## exists. So rather than judge serves by a rule the player is never told about, the
+## server simply does not play the shot — every serve lands comfortably inside its box,
+## and the calls worth making come later in the rally, where the boundary really is the
+## back line.
+func _pick_serve_target(half: float) -> Vector3:
+	return Vector3(
+		randf_range(-2.35, 2.35),
+		0.0,
+		half * randf_range(CourtSpec.SHORT_SERVICE_LINE + 0.55,
+			CourtSpec.LONG_SERVICE_LINE_DOUBLES - 0.45)
+	)
 
 
 ## Picks where the shuttle is aimed, in the half given by `half` (+1 or -1 along Z).
@@ -1037,42 +1101,11 @@ func _is_key(event: InputEvent, keycode: Key) -> bool:
 
 # --- the hall ------------------------------------------------------------------
 
+## The hall used to be lit from here: a key light, a grid of six lamps and a world
+## environment, all fixed. That moved into Venue when the career ladder started
+## changing what the hall looks like — a school hall lit flatly from above and an arena
+## lit as a dark bowl with the court burning in the middle are the same code with
+## different numbers, and having two owners of the lighting meant two of everything,
+## with the brighter one winning. There is nothing left to do here.
 func _build_environment() -> void:
-	# A sports hall is lit from above by a grid of lamps, not by the sun. The sun
-	# here is only doing one job: casting a single clean shadow direction so the net
-	# and the posts sit on the floor instead of floating over it.
-	var key := DirectionalLight3D.new()
-	key.name = "KeyLight"
-	key.rotation = Vector3(deg_to_rad(-62.0), deg_to_rad(28.0), 0.0)
-	key.light_energy = 0.55
-	key.shadow_enabled = true
-	add_child(key)
-
-	_build_hall_lights()
-
-	var environment := Environment.new()
-	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color(0.07, 0.08, 0.10)
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = Color(0.55, 0.58, 0.62)
-	environment.ambient_light_energy = 0.30
-	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-
-	var world := WorldEnvironment.new()
-	world.name = "WorldEnvironment"
-	world.environment = environment
-	add_child(world)
-
-
-## The overhead lamp grid, two rows down the length of the hall.
-func _build_hall_lights() -> void:
-	for x in [-2.6, 2.6]:
-		for z in [-4.6, 0.0, 4.6]:
-			var lamp := OmniLight3D.new()
-			lamp.name = "HallLight"
-			lamp.position = Vector3(x, LIGHT_HEIGHT, z)
-			lamp.light_energy = LIGHT_ENERGY
-			lamp.omni_range = 22.0
-			lamp.omni_attenuation = 0.6
-			lamp.light_color = Color(1.0, 0.98, 0.93)
-			add_child(lamp)
+	pass
