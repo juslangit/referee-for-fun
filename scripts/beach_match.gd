@@ -17,6 +17,8 @@ extends Node3D
 ## exactly the problem badminton had, and solved the same way.
 
 enum Phase {
+	## In the menus. Nothing is being refereed yet.
+	MENU,
 	## Waiting for the referee to whistle the serve.
 	READY,
 	## The ball is up.
@@ -106,7 +108,7 @@ var serving := Sides.Team.RED
 var favoured := Sides.Team.NONE
 var pressure := Pressure.new()
 
-var _phase := Phase.READY
+var _phase := Phase.MENU
 var _ball: Ball
 var _beat := Beat.SERVE
 var _possession := Sides.Team.NONE
@@ -146,24 +148,28 @@ func _ready() -> void:
 	ui.name = "UI"
 	add_child(ui)
 	ui.hide_menus()
+	_connect_menus()
 
 	sound = Sound.new()
 	sound.name = "Sound"
 	add_child(sound)
 
+	suspicion.warning_issued.connect(func() -> void:
+		ui.show_banner("THE TOURNAMENT REFEREE HAS BEEN CALLED")
+		ui.react("the referee delegate walks over and sits down by the post", 5.0))
+
 	suspicion.removed_from_match.connect(func() -> void:
 		# Without this the phase never leaves AWAITING_CALL — _enter_ready refuses to
 		# arm the next rally once the referee is gone, and the same landing gets judged
 		# again and again.
-		_phase = Phase.REMOVED
-		ui.set_prompt("")
-		ui.show_banner("YOU HAVE BEEN TAKEN OFF THE MATCH"))
+		_finish("TAKEN OFF THE MATCH", Color(0.96, 0.42, 0.36), true))
 
-	board = Scoreboard.new(true)
 	career = Career.load_or_start()
+	# The sport is written into the save before the hand-off, but a beach scene run
+	# straight from the editor has never been through the menu.
 	career.sport = Career.BEACH
-	suspicion.scrutiny = career.venue()["scrutiny"]
-	_enter_ready()
+	board = Scoreboard.new(true)
+	ui.show_career(career)
 
 
 func _build_camera() -> void:
@@ -220,6 +226,124 @@ func _build_players() -> void:
 			player.setup(team, Vector3(
 				(1.0 if i == 0 else -1.0) * 1.9, 0.0, side * (3.2 if i == 0 else 5.6)))
 			players.append(player)
+
+
+# --- the front of the match -----------------------------------------------------
+#
+# The badminton scene owns the title screen, the sport menu, the settings and the
+# lesson, because that is where the game starts. Once beach volleyball has been chosen
+# the sport is a different scene, so the screens that belong to a *match* — the career
+# ladder, the briefing, the ending, the pause — are wired up again here against the
+# same RefereeUI. Nothing is duplicated but the wiring: every screen itself is shared.
+
+func _connect_menus() -> void:
+	ui.match_requested.connect(_on_match_requested)
+	ui.briefing_acknowledged.connect(_on_briefing_acknowledged)
+	ui.favour_chosen.connect(_on_favour_chosen)
+	ui.continue_requested.connect(func() -> void: get_tree().reload_current_scene())
+	ui.career_screen_requested.connect(func() -> void: ui.show_career(career))
+	ui.new_career_requested.connect(func() -> void:
+		career = Career.start_again()
+		career.sport = Career.BEACH
+		career.save()
+		ui.show_career(career))
+	ui.career_restart_requested.connect(func() -> void:
+		career = Career.start_again()
+		career.sport = Career.BEACH
+		career.save()
+		ui.show_career(career))
+	ui.resume_requested.connect(func() -> void:
+		get_tree().paused = false
+		ui.hide_pause_menu()
+		camera.set_active(true))
+	ui.walk_out_requested.connect(func() -> void:
+		get_tree().paused = false
+		_finish("YOU WALKED OFF", Color(0.85, 0.62, 0.32), true))
+	# Back to the front of the game, which lives in the badminton scene.
+	ui.main_menu_requested.connect(func() -> void:
+		get_tree().paused = false
+		get_tree().change_scene_to_file("res://scenes/match.tscn"))
+	ui.quit_requested.connect(func() -> void: get_tree().quit())
+
+
+func _on_match_requested() -> void:
+	var venue := career.venue()
+	suspicion.scrutiny = venue["scrutiny"]
+	board = Scoreboard.new(venue["quick"])
+	board.game_won.connect(func(_team: Sides.Team) -> void: ui.set_score(board, serving))
+	board.match_won.connect(_on_match_won)
+
+	ui.hide_menus()
+	ui.hide_career()
+	camera.set_active(true)
+
+	pressure = Pressure.for_match(career)
+	if pressure.exists():
+		ui.show_briefing(pressure)
+	else:
+		ui.show_favour_choice()
+
+
+func _on_briefing_acknowledged() -> void:
+	ui.hide_briefing()
+	ui.show_favour_choice(pressure.ask)
+
+
+func _on_favour_chosen(team: Sides.Team) -> void:
+	favoured = team
+	ui.hide_pre_match()
+	_enter_ready()
+
+
+func _on_match_won(team: Sides.Team) -> void:
+	_finish("%s WIN" % Sides.label(team), Sides.colour(team), false)
+
+
+## Closes the match out and folds it into the career. The only screen in the game
+## allowed to state the truth, because there is nothing left to judge.
+func _finish(headline: String, tint: Color, removed: bool) -> void:
+	if _phase == Phase.REMOVED:
+		return
+	_phase = Phase.REMOVED
+	camera.set_active(false)
+	ui.set_prompt("")
+
+	var detail := _reckoning()
+	var pressures: Array = []
+	if pressure.exists():
+		pressure.resolve(board, suspicion)
+		pressures.append(pressure)
+
+	var note := career.finish_match(suspicion.level, removed, pressures)
+	career.remember_grudge(
+		String(Pressure.NAMES.pick_random()),
+		suspicion.wrong_calls, suspicion.stolen_rallies, suspicion.lean)
+	career.save()
+	detail += "\n\n%s\n\nReputation  %d / 100" % [note, roundi(career.reputation * 100.0)]
+
+	ui.show_ending(headline, detail, tint)
+
+
+func _reckoning() -> String:
+	var lines := []
+	lines.append("%d wrong calls, %d of which decided the rally." % [
+		suspicion.wrong_calls, suspicion.stolen_rallies])
+
+	if absf(suspicion.lean) < 0.15:
+		lines.append("They went both ways. You were not bent. You were just bad at this.")
+	else:
+		var helped := Sides.Team.BLUE if suspicion.lean > 0.0 else Sides.Team.RED
+		lines.append("Almost every one of them helped %s." % Sides.label(helped))
+		if helped == favoured:
+			lines.append("Which is who you wanted to win. Everyone worked that out before you did.")
+		else:
+			lines.append("Which is not even who you wanted to win.")
+
+	lines.append("")
+	lines.append("Final score  RED %d — %d BLUE      sets  %d — %d" % [
+		board.points[Sides.Team.RED], board.points[Sides.Team.BLUE],
+		board.games[Sides.Team.RED], board.games[Sides.Team.BLUE]])
+	return "\n".join(lines)
 
 
 # --- the rally ------------------------------------------------------------------
@@ -534,8 +658,15 @@ func _enter_ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _phase == Phase.REMOVED:
+	if _phase == Phase.REMOVED or _phase == Phase.MENU:
 		return
+
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		camera.set_active(false)
+		ui.show_pause_menu()
+		get_tree().paused = true
+		return
+
 	match _phase:
 		Phase.READY:
 			if event is InputEventKey and event.pressed and event.keycode == KEY_SPACE:

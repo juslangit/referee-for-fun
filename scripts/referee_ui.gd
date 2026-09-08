@@ -54,6 +54,9 @@ var _hud: Control
 const SPORTS := [
 	{"id": &"badminton", "name": "Badminton", "art": "res://assets/ui/card_badminton.png",
 		"tint": Color(0.16, 0.44, 0.30), "ready": true},
+	{"id": &"beach", "name": "Beach Volleyball",
+		"art": "res://assets/ui/sport_beachvolleyball.png",
+		"tint": Color(0.78, 0.52, 0.20), "ready": true},
 	{"id": &"volleyball", "name": "Volleyball", "art": "res://assets/ui/sport_volleyball.png",
 		"tint": Color(0.44, 0.24, 0.52), "ready": false},
 	{"id": &"tennis", "name": "Tennis", "art": "res://assets/ui/sport_tennis.png",
@@ -271,7 +274,7 @@ func _build_sport_menu() -> void:
 	column.add_child(_make_label("WHICH SPORT?", TITLE_SIZE, UiTheme.CHALK))
 	column.add_child(_gap(6))
 	column.add_child(_make_label(
-		"Badminton is the one that is finished. The others are on their way.",
+		"Two of them are ready. The rest are on their way.",
 		PROMPT_SIZE, UiTheme.MUTED
 	))
 	column.add_child(_gap(22))

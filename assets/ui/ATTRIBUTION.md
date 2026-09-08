@@ -11,4 +11,5 @@ game rendered by `_card.gd`, and it is ours.
 - **sport_basketball.png** — from Basketball pictogram.svg by Thadius856 (SVG conversion) &amp; Parutakupiu (original image) (Public domain)
 - **sport_tabletennis.png** — from Table tennis pictogram.svg by Thadius856 (SVG conversion) &amp; Parutakupiu (original image) (Public domain)
 - **sport_tennis.png** — from Tennis pictogram.svg by Thadius856 (SVG conversion) &amp; Parutakupiu (original image) (Public domain)
+- **sport_beachvolleyball.png** — from Volleyball (beach) pictogram.svg on Wikimedia Commons (Public domain)
 - **sport_volleyball.png** — from Volleyball (indoor) pictogram.svg by Original: Parutakupiu Vector:  Thadius856 (Public domain)

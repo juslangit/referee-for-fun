@@ -321,6 +321,10 @@ func _ready() -> void:
 	camera.sensitivity = settings.sensitivity
 
 	career = Career.load_or_start()
+	# This scene is badminton, whatever sport the save was last left on. Without this a
+	# player coming back from the beach would find the badminton hall offering them the
+	# world tour, because `venue()` reads whichever ladder the career is pointed at.
+	career.sport = Career.BADMINTON
 	court.stands.set_density(career.venue()["crowd"])
 	_menu_view()
 	ui.show_main_menu(career)
@@ -377,8 +381,21 @@ func _on_play_requested() -> void:
 ## screen exists and it should not need this function rewritten.
 func _on_sport_chosen(id: StringName) -> void:
 	ui.hide_sport_menu()
+
+	# Beach volleyball is a different court, a different ball and a different rulebook,
+	# so it is a different scene. The career goes with it: one official, one reputation,
+	# and a ladder each — so the sport is written down before the hand-off and the beach
+	# match reads it back rather than being told.
+	if id == &"beach":
+		career.sport = Career.BEACH
+		career.save()
+		get_tree().change_scene_to_file("res://scenes/beach.tscn")
+		return
+
 	if id != &"badminton":
 		return
+	career.sport = Career.BADMINTON
+	career.save()
 	# Somebody who has never been told what a carry looks like cannot referee one, so
 	# the first time through they are told before they are asked to. Once only: it is
 	# remembered against the player, not against the career.

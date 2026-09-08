@@ -12,6 +12,15 @@ func _ready() -> void:
 	arena.print_truth_while_testing = false
 	add_child(arena)
 	await get_tree().physics_frame
+	# In through the front of the match, the way a player does: the career screen now
+	# comes up first, so nothing is ready until it has been asked for.
+	arena.career = Career.new()
+	arena.career.sport = Career.BEACH
+	arena.ui.match_requested.emit()
+	await get_tree().process_frame
+	arena._on_favour_chosen(Sides.Team.NONE)
+	for f in 3:
+		await get_tree().process_frame
 
 	var judged := 0
 	var landed_in := 0
