@@ -78,48 +78,51 @@ func silence() -> void:
 
 func _build_body() -> void:
 	# Seated, so shorter than the players, and in a kit that is nobody's team colour.
-	var chair := MeshInstance3D.new()
-	chair.name = "Chair"
-	var seat := BoxMesh.new()
-	seat.size = Vector3(0.5, 0.42, 0.5)
-	chair.mesh = seat
-	chair.position = Vector3(0.55, 0.21, 0.0)
-	chair.material_override = _material(Color(0.32, 0.30, 0.28))
-	chair.layers = Player.PEOPLE_LAYER
-	add_child(chair)
+	# A real folding chair, which is what a line judge actually sits on. Under them
+	# rather than beside them: it used to stand half a metre to one side, which was
+	# invisible while they were a box and absurd the moment they were a man with a
+	# seated pose, sitting in mid air next to his own chair.
+	var real := Props.node(Props.FOLDING_CHAIR, 0.88)
+	if real != null:
+		real.rotation.y = atan2(-position.x, -position.z)
+		_set_layer(real, Player.PEOPLE_LAYER)
+		add_child(real)
+	else:
+		var chair := MeshInstance3D.new()
+		chair.name = "Chair"
+		var seat := BoxMesh.new()
+		seat.size = Vector3(0.5, 0.42, 0.5)
+		chair.mesh = seat
+		chair.position = Vector3(0.0, 0.21, 0.0)
+		chair.material_override = _material(Color(0.32, 0.30, 0.28))
+		chair.layers = Player.PEOPLE_LAYER
+		add_child(chair)
 
 	var sitter := Node3D.new()
 	sitter.name = "Judge"
-	# Facing in towards the court they are watching.
-	sitter.rotation.y = PI if position.z > 0.0 else 0.0
+	# Turned to face the middle of the court, which is a different angle for each of the
+	# four corners a judge can be sat in. Choosing between a half turn and none was fine
+	# while they sat square behind a baseline, and put both of them looking at a wall
+	# once they were moved to diagonally opposite corners.
+	sitter.rotation.y = atan2(-position.x, -position.z)
 	add_child(sitter)
 
-	# The forged spectator carries a seated clip, so the line judges finally sit down —
-	# which is what they do for the whole of a real match. Every model before this one
-	# was a standing figure that could not be posed, so they had to stand beside their
-	# chair instead.
-	var seated_model := Models.spectator()
-	if seated_model != null:
-		sitter.add_child(seated_model)
-		var seated_player := Models.animator(seated_model)
-		var seated_clip := Models.clip_named(seated_player, ["sit"])
-		if seated_player != null and not seated_clip.is_empty():
-			Models.make_looping(seated_player, seated_clip)
-			seated_player.play(seated_clip)
+	# The official carries a seated clip, so the line judges sit down — which is what
+	# they do for the whole of a real match. Every model before this one was a standing
+	# figure that could not be posed, so they had to stand beside their chair instead.
+	var model := Models.official()
+	if model == null:
+		Figure.seated(sitter, Color(0.93, 0.85, 0.30))
 		return
 
-	# Failing that, the downloaded official, who stands.
-	var model := Models.official()
-	if model != null:
-		sitter.add_child(model)
-		var animator := Models.animator(model)
-		var idle := Models.clip_named(animator, ["idle", "stand"])
-		if animator != null and not idle.is_empty():
-			Models.make_looping(animator, idle)
-			animator.play(idle)
+	sitter.add_child(model)
+	var animator := Models.animator(model)
+	var clip := Models.clip_named(animator, ["sit", "idle", "stand"])
+	if animator != null and not clip.is_empty():
+		Models.make_looping(animator, clip)
+		animator.play(clip)
+	if not Models.is_forged(model):
 		_settle_when_posed(model)
-	else:
-		Figure.seated(sitter, Color(0.93, 0.85, 0.30))
 
 
 ## Sized a frame later, once the skeleton has posed. See Player for why.
@@ -159,6 +162,15 @@ func _build_bubble() -> void:
 	_label.render_priority = 2
 	_label.layers = Player.PEOPLE_LAYER
 	_bubble.add_child(_label)
+
+
+## Everything the line judge owns is drawn on the people layer, so the line camera can
+## leave it out along with the people.
+func _set_layer(node: Node, layer: int) -> void:
+	if node is VisualInstance3D:
+		(node as VisualInstance3D).layers = layer
+	for child in node.get_children():
+		_set_layer(child, layer)
 
 
 func _material(colour: Color) -> StandardMaterial3D:
