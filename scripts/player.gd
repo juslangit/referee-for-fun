@@ -58,9 +58,6 @@ var _destination := Vector3.ZERO
 var _lunge_left := 0.0
 var _lunge_spot := Vector3.ZERO
 
-## Which of the four builds this player is.
-var look := 0
-
 ## The clips on the forged character, and which one is playing.
 var _animator: AnimationPlayer
 var _clip := ""
@@ -197,10 +194,13 @@ func _physics_process(delta: float) -> void:
 	if _animator != null:
 		_play("run" if running else ("ready" if chasing else "idle"))
 
-	# Facing the way they are running.
+	# Facing the way they are running. The Meshy characters look down their own +Z, so
+	# the angle is the heading itself — measured off the rig's headfront bone rather
+	# than assumed, because the last two models faced the other way and everybody spent
+	# the match running backwards.
 	var heading := moved - here
 	if heading.length() > 0.0005:
-		rotation.y = atan2(heading.x, heading.y) + PI
+		rotation.y = atan2(heading.x, heading.y)
 
 
 ## Go after the shuttle, to the spot they believe it will land.
@@ -246,7 +246,7 @@ func _build_body() -> void:
 	# A real athlete if the downloaded assets are there, and the boxes in figure.gd
 	# if they are not. The fallback is not decoration: a game that will not start
 	# because a model is missing is worse than a game with a box in it.
-	var model := Models.player(Sides.colour(team), look)
+	var model := Models.player(team)
 	if model != null:
 		add_child(model)
 		_figure = model
@@ -263,4 +263,4 @@ func _build_body() -> void:
 		Figure.standing(self, Sides.colour(team), true)
 
 	# Facing across the net, towards whoever they are playing.
-	rotation.y = 0.0 if Sides.half_sign(team) > 0.0 else PI
+	rotation.y = PI if Sides.half_sign(team) > 0.0 else 0.0

@@ -5,10 +5,25 @@
       "refine": "01a07cc3-4b1c-7731-820b-0a340aaf9fb9",
       "rig": "01a07cc6-21d2-7403-960d-aa3d29355993"
     },
+    "official": {
+      "preview": "01a07cdf-2a2f-76ab-b82a-a7641fcacc67",
+      "refine": "01a07ced-7287-7160-8d96-1b4a0e384cdb",
+      "rig": "01a07cf6-0a1f-77d6-9eb7-3c4c6a7c2e88"
+    },
+    "player_blue": {
+      "preview": "01a07ccf-c624-737e-9be8-f4e0775d4f77",
+      "refine": "01a07cd0-8aad-7385-8f2f-e1ad5e0909ca",
+      "rig": "01a07cd4-20ee-73fa-bbf1-12bddbb7f6b3"
+    },
+    "player_red": {
+      "preview": "01a07cd4-b468-73ee-bb61-1baa859ea3c5",
+      "refine": "01a07cd7-2051-73ad-89ef-48eef6a6bae2",
+      "rig": "01a07cde-a183-740b-8403-22338af793f7"
+    },
     "shuttlecock": {
       "preview": "01a07cbf-b8d6-76f9-abf6-c4a350e05dba",
       "refine": "01a07cc0-7afb-7668-99a2-11907468b0e5"
     }
   },
-  "spent": 65
+  "spent": 170
 }
