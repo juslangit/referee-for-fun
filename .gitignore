@@ -13,9 +13,10 @@ build/
 # macOS
 .DS_Store
 
-# Debug screenshots
+# Debug screenshots, and the sidecar files Godot writes beside them.
 _shot.png
 _shot_*.png
+_shot_*.png.import
 
 # Downloaded Sketchfab models. Large binaries; fetch them with the sketchfab CLI —
 # the uids are in CREDITS.md. The characters under assets/characters/ are NOT
@@ -23,3 +24,20 @@ _shot_*.png
 assets/sketchfab/**/*.glb
 assets/sketchfab/**/*.gltf
 assets/sketchfab/**/*.bin
+
+# Meshy models. Only the finished <name>_animated.glb is kept — that is the one the
+# game loads, and the one holding the thirteen badminton clips authored by
+# tools/meshy/rig_clips.py, which is work that cannot be downloaded again.
+#
+# Everything else here is either a Meshy intermediate (the raw mesh, the rigged mesh,
+# the free walk and run) or a texture beside it, and comes to about 240 MB. Every task
+# id is recorded in tools/meshy/manifest.json, so they can be fetched again with
+# tools/meshy/meshy.py rather than carried in the history for ever.
+assets/meshy/*
+!assets/meshy/*/
+assets/meshy/*/*
+!assets/meshy/*/*_animated.glb
+!assets/meshy/*/*_animated.glb.import
+
+# Python bytecode from the tool scripts.
+__pycache__/
