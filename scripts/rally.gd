@@ -114,6 +114,16 @@ var call_against := Sides.Team.NONE
 ## thinking about is which answer suits you.
 var seconds_to_call := 0.0
 
+## Which side, if either, was standing in the wrong service court when this rally was
+## served. Copied off the match at the whistle, so a rally always knows what was wrong
+## with the way it started.
+##
+## Unlike everything else recorded here, this one was never hidden. It stood on the
+## court in front of the umpire for the whole of the ready phase, which is why the
+## game is allowed to charge for missing it.
+var service_court_error := Sides.Team.NONE
+
+
 # --- what the line judge said --------------------------------------------------
 
 ## Whether the line judge in the corner gave a call on this rally.

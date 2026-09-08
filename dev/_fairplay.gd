@@ -21,6 +21,12 @@ func _ready() -> void:
 	var with_offence := 0
 	var strokes := 0
 	var reasons := {}
+	# Where the suspicion came from, so a number that looks bad can be read rather than
+	# argued about. This harness runs far slower than real time, so without accounting
+	# for it separately the game's hesitation charge — which is measured on the wall
+	# clock — turns up in the total and looks like a rules bug.
+	var dithered := 0.0
+	var missed_courts := 0
 	for frame in 60000:
 		await get_tree().process_frame
 		if arena._phase == arena.Phase.READY:
@@ -30,6 +36,8 @@ func _ready() -> void:
 			continue
 
 		var rally: Rally = arena.rally
+		if arena.service_error != Sides.Team.NONE:
+			missed_courts += 1
 		var landed_inside := CourtSpec.is_in(rally.landing_point, rally.doubles)
 		strokes += arena._shots_this_rally
 		if rally.incident.happened():
@@ -51,6 +59,7 @@ func _ready() -> void:
 		else:
 			arena._make_call(&"in" if landed_inside else &"out")
 		judged += 1
+		dithered += Suspicion.hesitation_cost(rally.seconds_to_call) * arena.suspicion.scrutiny
 
 		if rally.verdict() == Rally.Verdict.WRONG:
 			wrong += 1
@@ -75,6 +84,12 @@ func _ready() -> void:
 	print("scored WRONG:   %d  (%.0f%%)" % [wrong, 100.0 * float(wrong) / maxf(1.0, float(judged))])
 	print("suspicion:      %.3f   (warning at %.2f, removed at %.2f)" % [
 		arena.suspicion.level, Suspicion.WARNING_LEVEL, Suspicion.REMOVAL_LEVEL])
+	print("   of which the harness's own slowness (hesitation):   %.3f" % dithered)
+	print("   service court errors it sat through:                %d, costing %.3f" % [
+		missed_courts, missed_courts * Suspicion.MISSED_SERVICE_COURT * arena.suspicion.scrutiny])
+	print("   left over, which is what the rules actually charged: %.3f" % (
+		arena.suspicion.level - dithered
+		- missed_courts * Suspicion.MISSED_SERVICE_COURT * arena.suspicion.scrutiny))
 	for why in reasons:
 		print("   %-58s %d" % [why, reasons[why]])
 	get_tree().quit()

@@ -59,6 +59,23 @@ const RED_CARD_VISIBILITY := 0.95
 const YELLOW_CARD_SEVERITY := 1.2
 const RED_CARD_SEVERITY := 1.9
 
+## What it costs to stop the match for a service court error that was not there, and
+## what it costs to sit through one that was.
+##
+## Neither of these leans. A service court error decides nothing — the error is
+## corrected and the existing score stands — so there is no team it can be used to
+## help, and pricing it as though there were would make the game accuse an umpire of
+## corruption for what is only ever inattention. **This is the one call in the book
+## that can make you look incompetent and cannot make you look bought.**
+##
+## Stopping the match for nothing costs more than missing one, because the whole hall
+## watched you halt a serve and point at somebody who was standing exactly where they
+## were supposed to be. Missing one is priced lightly: the player has to hold the score
+## and the rule in their head at once, and an honest umpire who is simply slow to
+## notice should not be run out of the game for it.
+const FALSE_SERVICE_COURT := 0.16
+const MISSED_SERVICE_COURT := 0.05
+
 ## How much trust one correct call wins back. Small on purpose: it takes a long run
 ## of honest calls to undo a bad one, so cheating has to be paced.
 const RECOVERY_PER_CORRECT_CALL := 0.012
@@ -221,6 +238,36 @@ func register_review(rally: Rally, overturned: bool) -> float:
 
 	level = clampf(target, 0.0, REMOVAL_LEVEL)
 	lean = clampf(lean + _direction_favoured(rally) * 0.5, -1.0, 1.0)
+	level_changed.emit(level)
+	_settle_mood()
+	return gain
+
+
+## The umpire's word about where somebody was standing.
+##
+## `claimed` is whether they said anything; `real` is whether there was anything to say.
+## Getting it right is the job and wins back the same small amount as any other correct
+## call. Getting it wrong costs, either way round.
+func register_service_court(real: bool, claimed: bool) -> float:
+	if is_removed:
+		return 0.0
+
+	if claimed and real:
+		_recover()
+		_settle_mood()
+		return -RECOVERY_PER_CORRECT_CALL
+
+	if claimed:
+		# Said there was one when there was not. That is a wrong call and is counted as
+		# one, even though it took nothing off anybody.
+		wrong_calls += 1
+
+	var gain := (FALSE_SERVICE_COURT if claimed else MISSED_SERVICE_COURT) * scrutiny
+	var target := level + gain
+	if level < WARNING_LEVEL and target >= REMOVAL_LEVEL:
+		target = HELD_AT_WARNING
+
+	level = clampf(target, 0.0, REMOVAL_LEVEL)
 	level_changed.emit(level)
 	_settle_mood()
 	return gain

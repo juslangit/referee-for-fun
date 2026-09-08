@@ -143,6 +143,19 @@ enum Phase {
 ## trusting the umpire.
 const AMBIENT_CHANCE := 0.45
 
+## How often somebody lines up in the wrong service court.
+##
+## Low, because unlike a line call this one is not a matter of opinion — it is standing
+## in plain sight for the whole of the ready phase, and an umpire who is looking will
+## always see it. What makes it hard is remembering that the court is decided by the
+## *score*: even means the right-hand box, odd means the left. A player who has not
+## worked that out will miss every one of them, which is why the lesson now says so.
+const SERVICE_COURT_ERROR_CHANCE := 0.06
+
+## Of those, how many are the server standing wrong rather than the receiving pair.
+## Weighted towards the server because that is the plainer of the two to see.
+const SERVER_AT_FAULT := 0.6
+
 ## While developing, the truth of each rally is printed to the console. This must be
 ## off before anyone plays it — the player learning where the shuttle really landed
 ## would remove the only interesting decision in the game.
@@ -206,6 +219,20 @@ var _all_line_judges: Array[LineJudge] = []
 var serving := Sides.Team.RED
 
 var _shots_this_rally := 0
+
+## Which service court this serve is coming from, decided when the players line up
+## rather than when the whistle goes — the umpire has to be able to look at the court
+## and disagree with it before anything is served.
+var _serve_court := 1.0
+
+## Which side, if either, is standing in the wrong service court right now. This is the
+## truth behind the WRONG COURT call, and unlike every other truth in this game it is
+## visible on screen the whole time: the player is not guessing, they are looking.
+var service_error := Sides.Team.NONE
+
+## Whether the umpire has already dealt with it, either by stopping the serve or by
+## correcting it afterwards. Stops one error being called twice.
+var _service_error_handled := false
 
 ## Whether the shuttle that just landed was left to drop rather than chased. Set as
 ## each shot is directed, so by the time it lands it describes the final shot.
@@ -543,6 +570,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		_open_fault_panel()
 		return
 
+	# The service court call is the only thing in the game that can be said at two
+	# different moments, and the moment is the whole of the difference. Before the
+	# whistle you have stopped it in time and the serve is taken again; afterwards you
+	# have discovered it late, and Law 12.2 is blunt about that — the error is
+	# corrected and the existing score stands.
+	if _is_key(event, KEY_W) and (_phase == Phase.READY or _phase == Phase.AWAITING_CALL):
+		_call_service_court(_phase == Phase.READY)
+		return
+
 	match _phase:
 		Phase.READY:
 			if event.is_action_pressed(&"ui_accept") or _is_key(event, KEY_SPACE):
@@ -555,6 +591,52 @@ func _unhandled_input(event: InputEvent) -> void:
 					_make_call(&"out")
 			elif _is_key(event, KEY_L):
 				_make_call(&"let")
+
+
+## "Service court error." The one call in this game that decides nothing.
+##
+## Whatever the umpire says, nobody wins or loses a point: under Law 12.2 the error is
+## corrected and the existing score stands. What changes is only whether the serve is
+## taken again — stopped before the whistle it is, discovered afterwards it is not,
+## because by then the rally has been played and the score it produced is the score.
+##
+## So this call cannot be used to help anybody, and a bent umpire gets nothing out of
+## it. It is purely a test of whether the person in the chair is paying attention, and
+## it is the only call in the game whose truth was on screen all along: the four of
+## them stand there in their boxes for as long as you care to look.
+func _call_service_court(in_time: bool) -> void:
+	if _service_error_handled:
+		return
+	_service_error_handled = true
+
+	var real := service_error != Sides.Team.NONE
+	suspicion.register_service_court(real, true)
+
+	# The announcement is the same either way. The umpire says what the umpire says;
+	# the game does not lean over and tell the player whether they were right, here or
+	# anywhere else. The hall's reaction is the only answer they get.
+	if in_time:
+		ui.announce("SERVICE COURT ERROR   ·   TAKE THE SERVE AGAIN", Color(0.95, 0.90, 0.60))
+		# A whistle stops play. There is no play to stop once the rally is over, so the
+		# late version is said rather than blown.
+		sound.whistle()
+	else:
+		ui.announce("SERVICE COURT ERROR   ·   CORRECTED, SCORE STANDS", Color(0.95, 0.90, 0.60))
+
+	if real:
+		ui.react("a coach nods; somebody had noticed that too", 3.4)
+	else:
+		ui.react("the players look at each other, and then at you", 4.0)
+
+	if not in_time:
+		# Nothing to move: the rally is over and the next one lines up from scratch.
+		return
+
+	# Stopped in time, so put them where they should have been and let the umpire
+	# whistle again. Doing this even when there was no error is deliberate — an umpire
+	# who stops the match for nothing still has to stand there and restart it.
+	service_error = Sides.Team.NONE
+	_stand_for_serve(_serve_court)
 
 
 ## Between rallies there is no rally to fault anybody over, so only misconduct is on
@@ -622,11 +704,33 @@ func _enter_ready() -> void:
 		return
 	_phase = Phase.READY
 	_update_score()
-	ui.set_prompt("SPACE  whistle to start the rally            F  cards")
+
+	# Everybody takes up position now, before the whistle, so there is something to
+	# look at in the gap between rallies. It used to happen inside _start_rally, which
+	# meant the four of them snapped into place and the serve went in the same frame.
+	_set_up_the_serve()
+	ui.set_prompt("SPACE  whistle          W  service court          F  cards")
 
 	# The hall gets on with having an opinion whether or not anything just happened.
 	if randf() < AMBIENT_CHANCE:
 		ui.react(Crowd.ambient(suspicion.mood), 3.2)
+
+
+## Lines the four of them up for the next serve, and decides whether one of them gets
+## it wrong. Called at the top of the ready phase, so the mistake is on the court and
+## visible for as long as the umpire cares to look at it.
+func _set_up_the_serve() -> void:
+	_serve_court = service_court(serving)
+	service_error = Sides.Team.NONE
+	_service_error_handled = false
+
+	if randf() < SERVICE_COURT_ERROR_CHANCE:
+		# Either the server serves from the wrong box, or the wrong one of the
+		# receiving pair stands ready to take it. Both are service court errors and
+		# both are Law 12.1; the second is the harder of the two to spot.
+		service_error = serving if randf() < SERVER_AT_FAULT else Sides.opponent(serving)
+
+	_stand_for_serve(_serve_court, service_error)
 
 
 func _start_rally() -> void:
@@ -635,18 +739,21 @@ func _start_rally() -> void:
 	for judge in line_judges:
 		judge.silence()
 	rally = Rally.new(serving, true)
+	rally.service_court_error = service_error
 
-	# Which half of their own court the server stands in, and therefore which box the
-	# serve has to land in. Everybody moves to suit before the whistle.
-	var court := service_court(serving)
-	_stand_for_serve(court)
+	# The serve leaves from wherever the server is actually standing, and goes to the
+	# box diagonally opposite *that* — so a server in the wrong court serves the whole
+	# rally across the wrong diagonal, which is what makes the error worth spotting.
+	var court := _serve_court
+	var served_from := -court if service_error == serving else court
 
 	var from := Vector3(
-		court * randf_range(0.65, 1.55),
+		served_from * randf_range(0.65, 1.55),
 		SERVE_HEIGHT,
 		Sides.half_sign(serving) * SERVE_DISTANCE
 	)
-	var target := _pick_serve_target(Sides.half_sign(Sides.opponent(serving)), -court)
+	var target := _pick_serve_target(
+		Sides.half_sign(Sides.opponent(serving)), -served_from)
 
 	if not _hit_or_something_safer(from, target, serving):
 		push_warning("Could not serve at all from %v" % from)
@@ -987,7 +1094,7 @@ func _on_shuttle_landed(point: Vector3) -> void:
 	rally.record_landing(point)
 	sound.landing(point)
 	_phase = Phase.AWAITING_CALL
-	ui.set_prompt("LEFT CLICK  in     RIGHT CLICK  out     L  let     F  fault or card")
+	ui.set_prompt("LEFT CLICK  in    RIGHT CLICK  out    L  let    W  service court    F  fault or card")
 
 	_awaiting_since = Time.get_ticks_msec()
 	if has_shuttle_cam:
@@ -1056,6 +1163,14 @@ func _make_call(id: StringName, against := Sides.Team.NONE) -> void:
 	# push an umpire past the warning that the call itself should have given them first.
 	suspicion.register(rally)
 	_weigh_the_debt()
+
+	# And whether somebody spent the whole rally in the wrong box without the umpire
+	# ever saying so. Charged after the call itself, and lightly: this is inattention
+	# rather than dishonesty, and it takes nothing off anybody.
+	if rally.service_court_error != Sides.Team.NONE and not _service_error_handled:
+		_service_error_handled = true
+		suspicion.register_service_court(true, false)
+		ui.react("somebody in the stands is pointing at the service courts", 4.0)
 
 	# Now, before the point is given, whoever it was taken from gets to ask. This is the
 	# only moment in the game where the truth is put on a screen, and the umpire has to
@@ -1345,12 +1460,18 @@ func service_court(team: Sides.Team) -> float:
 ## their score dictates, the receiver diagonally opposite, and both partners behind and
 ## across. Before this everybody simply stood at the same four spots every rally, which
 ## meant the serve came from wherever the server happened to be.
-func _stand_for_serve(court: float) -> void:
+func _stand_for_serve(court: float, mistaken := Sides.Team.NONE) -> void:
 	for team in [Sides.Team.RED, Sides.Team.BLUE]:
 		var side := Sides.half_sign(team)
 		# The pair whose court this is: the server serves from `court`, the receiver
 		# stands in the box the serve is coming to, which is the opposite sign.
 		var front := court if team == serving else -court
+		# Unless this is the side getting it wrong, in which case the pair of them are
+		# simply the other way round. That is exactly what a service court error looks
+		# like from the chair: nobody is doing anything strange, they are just stood in
+		# each other's boxes.
+		if team == mistaken:
+			front = -front
 		var placed := 0
 		for player in players:
 			if player.team != team:

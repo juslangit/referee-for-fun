@@ -458,6 +458,7 @@ const LESSONS := [
 			["LEFT CLICK", "in"],
 			["RIGHT CLICK", "out"],
 			["L", "let — play it again"],
+			["W", "service court error"],
 			["F", "a fault, or a card"],
 			["ESC", "pause"],
 		],
@@ -483,6 +484,25 @@ const LESSONS := [
 			+ "OBSTRUCTION   a player reaches over the net.\n\n"
 			+ "Missing one is not free. If the point then goes to the side that cheated, "
 			+ "the hall saw what you did not.",
+	},
+	{
+		"title": "THE SERVICE COURTS",
+		"body": "Before every serve, look at where the four of them are standing.\n\n"
+			+ "The server's own score decides which box they serve from. An EVEN score "
+			+ "— nought, two, four — and they serve from their RIGHT-hand court. An ODD "
+			+ "score, and they serve from their LEFT. The receiver stands diagonally "
+			+ "opposite them, and the two partners keep out of it.\n\n"
+			+ "The quick way to see it from the chair: server and receiver should be "
+			+ "DIAGONAL — one of them near you, one of them away from you. If the two of "
+			+ "them are level with each other, somebody is in the wrong box, and the "
+			+ "server's score tells you which.\n\n"
+			+ "When somebody gets that wrong, press W.\n\n"
+			+ "Say it before you whistle and the serve is simply taken again. Say it "
+			+ "after the rally and it is too late to undo anything: the error is "
+			+ "corrected and the score stands, exactly as the law has it.\n\n"
+			+ "This one cannot win anybody a point, which makes it the only call here "
+			+ "you have nothing to gain by lying about — and the only one whose answer "
+			+ "was in front of you the whole time, if you were looking.",
 	},
 	{
 		"title": "WHO IS WATCHING",

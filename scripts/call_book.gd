@@ -97,10 +97,21 @@ static func all() -> Array:
 #                    Deliberately left out: it needs the serve itself modelled, down
 #                    to where the racket is relative to the server's waist, and none
 #                    of that exists yet.
-#   wrong court    — serving from or receiving in the wrong service court, which needs
-#                    service rotation tracked first.
 #
-# Yellow and red cards are not in this book on purpose. A card is not a judgement
+# Two things the umpire can say are deliberately not in this book.
+#
+# The service court error is one, and it is built — see Arena._call_service_court. It
+# is not a call in the sense this file means, because it decides nothing: under Law
+# 12.2 the error is corrected and the existing score stands, so there is no Outcome to
+# give it. A rally that had one still has to be judged on the line afterwards like any
+# other, which is exactly why it cannot *be* the rally's call. It lives outside the
+# book and is priced by Suspicion.register_service_court instead.
+#
+# Yellow and red cards are the other, and for the opposite reason. A card is not a judgement
 # about anything that happened — it is a punishment the umpire simply decides to
 # hand out — so it has no truth to be checked against and does not belong among the
 # calls. Match issues them directly.
+#
+# So the rule for this file is narrower than "everything an umpire can say": a call
+# belongs here when it has both a truth to be checked against and a verdict on the
+# rally. A service court error has the first and not the second; a card has neither.
