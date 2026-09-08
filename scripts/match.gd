@@ -170,6 +170,7 @@ var has_shuttle_cam := true
 
 var line_judges: Array[LineJudge] = []
 var shuttle_cam: ShuttleCam
+var sound: Sound
 
 var _all_line_judges: Array[LineJudge] = []
 var serving := Sides.Team.RED
@@ -242,6 +243,10 @@ func _ready() -> void:
 	shuttle_cam.name = "ShuttleCam"
 	add_child(shuttle_cam)
 
+	sound = Sound.new()
+	sound.name = "Sound"
+	add_child(sound)
+
 	career = Career.load_or_start()
 	court.stands.set_density(career.venue()["crowd"])
 	ui.show_main_menu(career)
@@ -249,6 +254,9 @@ func _ready() -> void:
 	suspicion = Suspicion.new()
 	suspicion.warning_issued.connect(_on_warning_issued)
 	suspicion.removed_from_match.connect(_on_removed_from_match)
+	# The room's mood follows the umpire's standing without either of them being shown
+	# a number. This is the only wire between suspicion and what the player can hear.
+	suspicion.level_changed.connect(sound.set_mood)
 
 
 # --- the loop ------------------------------------------------------------------
@@ -485,6 +493,7 @@ func _start_rally() -> void:
 		push_warning("Could not serve at all from %v" % from)
 		return
 
+	sound.whistle()
 	_phase = Phase.IN_FLIGHT
 	ui.set_prompt("watch it")
 
@@ -572,7 +581,9 @@ func _return_shot(player: Player) -> void:
 	player.stand_off()
 	# Overhead if the shuttle is up around head height, which is what decides whether
 	# the animation plays a smash or a groundstroke.
-	player.swing(_shuttle.global_position.y > 1.95)
+	var overhead := _shuttle.global_position.y > 1.95
+	player.swing(overhead)
+	sound.strike(_shuttle.global_position, overhead)
 
 	var offence := _roll_for_offence(player)
 
@@ -815,6 +826,7 @@ func _choose_angle(from: Vector3) -> float:
 
 func _on_shuttle_landed(point: Vector3) -> void:
 	rally.record_landing(point)
+	sound.landing(point)
 	_phase = Phase.AWAITING_CALL
 	ui.set_prompt("LEFT CLICK  in     RIGHT CLICK  out     L  let     F  fault or card")
 
@@ -987,6 +999,13 @@ func _react_to_call(winner: Sides.Team) -> void:
 		court.stands.cheer()
 		if court.venue != null:
 			court.venue.flash()
+
+	# A groan every time the hall catches something, and applause only sometimes —
+	# a room that claps every single point stops meaning anything by the third game.
+	if robbed != Sides.Team.NONE:
+		sound.react(false)
+	elif winner != Sides.Team.NONE and randf() < 0.45:
+		sound.react(true)
 
 
 func _update_score() -> void:
