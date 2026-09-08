@@ -600,21 +600,23 @@ func _enter_ready() -> void:
 
 
 func _start_rally() -> void:
-	for player in players:
-		player.go_home()
-
 	_shots_this_rally = 0
 	_rally_seconds = 0.0
 	for judge in line_judges:
 		judge.silence()
 	rally = Rally.new(serving, true)
 
+	# Which half of their own court the server stands in, and therefore which box the
+	# serve has to land in. Everybody moves to suit before the whistle.
+	var court := service_court(serving)
+	_stand_for_serve(court)
+
 	var from := Vector3(
-		randf_range(-1.6, 1.6),
+		court * randf_range(0.65, 1.55),
 		SERVE_HEIGHT,
 		Sides.half_sign(serving) * SERVE_DISTANCE
 	)
-	var target := _pick_serve_target(Sides.half_sign(Sides.opponent(serving)))
+	var target := _pick_serve_target(Sides.half_sign(Sides.opponent(serving)), -court)
 
 	if not _hit_or_something_safer(from, target, serving):
 		push_warning("Could not serve at all from %v" % from)
@@ -1229,6 +1231,49 @@ func serve(from: Vector3, target: Vector3, angle := 36.0, striker := Sides.Team.
 	return _shuttle
 
 
+## Which service court the serving side is serving from, as a sign along X.
+##
+## The rule is the whole of doubles service rotation and it is one line: serve from the
+## right when your score is even, from the left when it is odd. Everything else — who
+## serves, who receives, which players have swapped sides — follows from it, which is
+## why a real umpire tracks the score and the court together and why an umpire who has
+## lost the score cannot referee the serve at all.
+##
+## Right and left are from the server's own view, facing the net. RED defends the -Z half
+## and so faces +Z, which puts their right hand towards -X; BLUE faces the other way and
+## theirs is +X. Getting this backwards is invisible in a screenshot and obvious the
+## moment somebody who plays the sport watches a serve cross the wrong diagonal.
+func service_court(team: Sides.Team) -> float:
+	var right := -1.0 if team == Sides.Team.RED else 1.0
+	if board == null:
+		return right
+	var even: bool = int(board.points.get(team, 0)) % 2 == 0
+	return right if even else -right
+
+
+## Puts the four of them where the rules say they stand: the server in the service court
+## their score dictates, the receiver diagonally opposite, and both partners behind and
+## across. Before this everybody simply stood at the same four spots every rally, which
+## meant the serve came from wherever the server happened to be.
+func _stand_for_serve(court: float) -> void:
+	for team in [Sides.Team.RED, Sides.Team.BLUE]:
+		var side := Sides.half_sign(team)
+		# The pair whose court this is: the server serves from `court`, the receiver
+		# stands in the box the serve is coming to, which is the opposite sign.
+		var front := court if team == serving else -court
+		var placed := 0
+		for player in players:
+			if player.team != team:
+				continue
+			if placed == 0:
+				player.home = Vector3(front * 1.15, 0.0, side * 2.35)
+			else:
+				player.home = Vector3(-front * 1.30, 0.0, side * 4.70)
+			placed += 1
+	for player in players:
+		player.go_home()
+
+
 ## Where a serve is aimed: safely inside the service court, and nowhere near a line.
 ##
 ## A serve is not judged by the same boundary as a rally shot. In doubles it has to land
@@ -1244,9 +1289,9 @@ func serve(from: Vector3, target: Vector3, angle := 36.0, striker := Sides.Team.
 ## server simply does not play the shot — every serve lands comfortably inside its box,
 ## and the calls worth making come later in the rally, where the boundary really is the
 ## back line.
-func _pick_serve_target(half: float) -> Vector3:
+func _pick_serve_target(half: float, court: float) -> Vector3:
 	return Vector3(
-		randf_range(-2.35, 2.35),
+		court * randf_range(0.40, 2.45),
 		0.0,
 		half * randf_range(CourtSpec.SHORT_SERVICE_LINE + 0.55,
 			CourtSpec.LONG_SERVICE_LINE_DOUBLES - 0.45)
