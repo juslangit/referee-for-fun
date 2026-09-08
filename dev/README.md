@@ -24,6 +24,7 @@ The ones worth keeping in mind:
 | `_menus` | The three front-of-game screens. |
 | `_seat`, `_layout`, `_close` | The hall from the chair, from above, and up close. `TIER=0..2` picks the venue. |
 | `_card`, `_courtmap` | Regenerate the artwork in `assets/ui/`. |
+| `_vbposes` | The six volleyball clips, one character each, held at the moment that matters. The poses are authored blind as numbers in a Python file, so this is the only way to find out whether "both arms locked in front" produced that. |
 | `_beachflow` | Can a player reach a beach rally from the menu? Checks the sport card is there and playable, then drives the beach scene from the career screen to a call pressing only what a player can press. |
 | `_sportshot` | The sport menu, now that more than one card is lit. |
 | `_beachplay` | Beach volleyball's fair-play check: plays a match calling everything truthfully — line, touch and faults — and reports what the game charged for it. Must be zero. |

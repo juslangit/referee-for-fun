@@ -113,6 +113,15 @@ var _ball: Ball
 var _beat := Beat.SERVE
 var _possession := Sides.Team.NONE
 var _aim := Vector3.ZERO
+
+## Who is doing what with this possession.
+##
+## Beach volleyball's three touches are shared between two people in a fixed pattern:
+## whoever digs the ball up does *not* set it, and then attacks the set their partner
+## puts up for them. So the pair swap roles constantly, and which of them is at the net
+## at the end of a rally depends on who happened to be nearest at the start of it.
+var _digger: Player
+var _setter: Player
 var _rally_seconds := 0.0
 var _awaiting_since := 0
 
@@ -215,6 +224,18 @@ func _build_sky() -> void:
 	add_child(world)
 
 
+## Where a pair stands when the ball is not their problem: one up at the net, one deep.
+## Beach is played as a diagonal, so they are on opposite sides of the court as well as
+## at different depths.
+const NET_BASE := Vector3(1.7, 0.0, 2.9)
+const DEEP_BASE := Vector3(-1.7, 0.0, 5.8)
+
+## How fast they cover sand. Slower than a badminton court on purpose — running in dry
+## sand is the hardest thing about this sport, and a player who glides across it at
+## badminton speed looks wrong even to somebody who has never played.
+const SAND_SPEED := 3.4
+
+
 func _build_players() -> void:
 	for team in [Sides.Team.RED, Sides.Team.BLUE]:
 		var side := Sides.half_sign(team)
@@ -222,10 +243,56 @@ func _build_players() -> void:
 			var player := Player.new()
 			player.name = "%s%d" % [Sides.label(team), i]
 			player.volleyball = true
+			player.speed = SAND_SPEED
+			# A volleyball player reaches a lot further than a badminton player does:
+			# two arms, a jump, and no racket to be precise with.
+			player.reach = 1.35
 			add_child(player)
-			player.setup(team, Vector3(
-				(1.0 if i == 0 else -1.0) * 1.9, 0.0, side * (3.2 if i == 0 else 5.6)))
+			var base: Vector3 = NET_BASE if i == 0 else DEEP_BASE
+			player.setup(team, Vector3(base.x, 0.0, side * base.z))
 			players.append(player)
+
+
+## The two players on one side.
+func _pair(team: Sides.Team) -> Array[Player]:
+	var found: Array[Player] = []
+	for player in players:
+		if player.team == team:
+			found.append(player)
+	return found
+
+
+## Whichever of a pair is closest to a spot — which is who would go for it.
+func _nearest(team: Sides.Team, to: Vector3) -> Player:
+	var best: Player = null
+	var closest := 1e9
+	for player in _pair(team):
+		var gap := player.distance_to(to)
+		if gap < closest:
+			closest = gap
+			best = player
+	return best
+
+
+func _partner(team: Sides.Team, of: Player) -> Player:
+	for player in _pair(team):
+		if player != of:
+			return player
+	return of
+
+
+## Sends the defending pair to meet an attack: one up to block it, one back to dig it.
+##
+## The block is the reason the touch call exists, so the blocker has to actually be
+## under the ball as it crosses. They go to the net at the attacker's shoulder rather
+## than to where the ball is aimed, because that is what a blocker does — they take away
+## the line and let their partner cover the rest.
+func _meet_the_attack(defending: Sides.Team, from: Vector3, target: Vector3) -> void:
+	var side := Sides.half_sign(defending)
+	var blocker := _nearest(defending, Vector3(from.x, 0.0, side * 1.1))
+	blocker.chase(Vector3(clampf(from.x, -2.8, 2.8), 0.0, side * 1.1))
+	_partner(defending, blocker).chase(Vector3(
+		clampf(target.x, -3.2, 3.2), 0.0, side * clampf(absf(target.z), 3.4, 7.2)))
 
 
 # --- the front of the match -----------------------------------------------------
@@ -375,6 +442,11 @@ func start_rally() -> void:
 	target.z = Sides.half_sign(Sides.opponent(serving)) * randf_range(
 		2.8, BeachSpec.HALF_LENGTH - 0.55)
 	_send_over(from, target, SERVE_ANGLES)
+	# The receiving pair read the serve and one of them goes to meet it.
+	var receiver := _nearest(Sides.opponent(serving), target)
+	receiver.chase(target)
+	_partner(Sides.opponent(serving), receiver).chase(
+		_set_point(Sides.opponent(serving)))
 	_phase = Phase.IN_PLAY
 	sound.whistle()
 	ui.set_prompt("watch it")
@@ -522,11 +594,23 @@ func _take_the_next_contact() -> void:
 			_possession = Sides.opponent(_possession)
 			rally.contacts = 1
 			_beat = Beat.DIG
-			_send(Vector3(here.x, DIG_HEIGHT, here.z), _set_point(_possession), DIG_ANGLE)
+			# Whoever got to it digs, and their partner comes in to set.
+			_digger = _nearest(_possession, here)
+			_setter = _partner(_possession, _digger)
+			_digger.dig()
+			var to_the_setter := _set_point(_possession)
+			_setter.chase(to_the_setter)
+			_send(Vector3(here.x, DIG_HEIGHT, here.z), to_the_setter, DIG_ANGLE)
 		Beat.DIG:
 			rally.contacts = 2
 			_beat = Beat.SET
-			_send(Vector3(here.x, SET_HEIGHT, here.z), _attack_point(_possession), SET_ANGLE)
+			# The setter puts it up and the digger comes forward to hit it.
+			if _setter != null:
+				_setter.set_the_ball()
+			var to_the_hitter := _attack_point(_possession)
+			if _digger != null:
+				_digger.chase(to_the_hitter)
+			_send(Vector3(here.x, SET_HEIGHT, here.z), to_the_hitter, SET_ANGLE)
 		Beat.SET:
 			rally.contacts = 3
 			_beat = Beat.ATTACK
@@ -576,6 +660,9 @@ func _attack(from: Vector3) -> void:
 	# An attack is struck from above the tape, so it goes over at almost any angle —
 	# but a ball spiked from a metre behind the net still has to clear it, and the
 	# steeper alternatives are the roll shot and the lob a real player would use.
+	if _digger != null:
+		_digger.spike()
+	_meet_the_attack(against, from, target)
 	_send_over(from, target, [ATTACK_ANGLE, 6.0, 16.0, 28.0])
 
 
@@ -588,6 +675,10 @@ func _on_ball_landed(point: Vector3) -> void:
 		# It never got as far as an attack — a serve that came straight down.
 		rally.struck_by = serving
 		rally.receiving = Sides.opponent(serving)
+	for player in players:
+		player.go_home()
+	_digger = null
+	_setter = null
 	_phase = Phase.AWAITING_CALL
 	_awaiting_since = Time.get_ticks_msec()
 	ui.set_prompt("LEFT CLICK  in    RIGHT CLICK  out    T  touch    F  fault")

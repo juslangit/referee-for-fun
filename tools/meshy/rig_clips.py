@@ -10,6 +10,10 @@ authored here, on Meshy's own rig, and the result is one file with everything in
 
 Reads  assets/meshy/<name>/<name>_rigged.glb  (plus _walking and _running)
 Writes assets/meshy/<name>/<name>_animated.glb
+
+Both sports' clips go into that one file. Badminton's are named for the shot; beach
+volleyball's all begin `vb_`, so the two can share a character without arguing over
+the word "serve".
 """
 
 import math
@@ -24,7 +28,21 @@ PROJECT = os.path.dirname(os.path.dirname(HERE))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-from badminton_clips import BONES, CLIPS, FPS, MOVE  # noqa: E402
+from badminton_clips import BONES, FPS, MOVE  # noqa: E402
+from badminton_clips import CLIPS as BADMINTON_CLIPS  # noqa: E402
+from volleyball_clips import CLIPS as VOLLEYBALL_CLIPS  # noqa: E402
+
+# Both sports go into one character.
+#
+# The same two athletes play badminton and beach volleyball, and a second exported file
+# per sport would mean two copies of a seven-megabyte mesh to keep in step. The
+# volleyball clips are all prefixed `vb_`, so nothing collides — which matters most for
+# the word "serve", which both sports have and mean completely different things by.
+CLIPS = dict(BADMINTON_CLIPS)
+for _name, _clip in VOLLEYBALL_CLIPS.items():
+    if _name in CLIPS:
+        raise SystemExit(f"clip name {_name} is claimed by both sports")
+    CLIPS[_name] = _clip
 
 
 def curves(action):

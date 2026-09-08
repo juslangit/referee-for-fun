@@ -69,7 +69,7 @@ var _clip := ""
 var _one_shot := false
 
 ## Clips that run until something else interrupts them, as opposed to shots.
-const LOOPING := ["idle", "ready", "run", "walk", "tired", "argue"]
+const LOOPING := ["idle", "ready", "run", "walk", "tired", "argue", "vb_ready"]
 
 ## The figure and the racket in its hand.
 var _figure: Node3D
@@ -152,6 +152,36 @@ func swing(overhead := false) -> void:
 		_play("smash", true)
 	else:
 		_play("forehand" if randf() < 0.65 else "backhand", true)
+
+
+# --- volleyball ------------------------------------------------------------------
+#
+# The three touches of a rally, plus the block. They are one-shot clips like the
+# badminton shots, and they carry the vb_ prefix so that the two sports can live in one
+# exported character without arguing over the word "serve".
+
+## The first touch: the ball is dug up off the sand, forearms together, low.
+func dig() -> void:
+	_play("vb_dig", true)
+
+
+## The second: put up for somebody else to hit. Not called `set`, which is a keyword.
+func set_the_ball() -> void:
+	_play("vb_set", true)
+
+
+## The third, and the only one anybody watches.
+func spike() -> void:
+	_play("vb_spike", true)
+
+
+## Both arms up over the net, which is where the touch call is decided.
+func block() -> void:
+	_play("vb_block", true)
+
+
+func serve_the_ball() -> void:
+	_play("vb_serve", true)
 
 
 ## Winning the point.
