@@ -893,6 +893,16 @@ func hide_career() -> void:
 ## Clears every front-of-game screen. Called wherever a match begins, so that no
 ## route in can leave a menu sitting over the court — which each of these panels has
 ## managed to do in turn.
+## Shows or hides the score bug and the prompts.
+##
+## `hide_menus` turns the HUD on, because it is what a match beginning calls. A scene
+## that opens *into* a menu has to say so, or it draws a 0-0 score over the career
+## ladder before a ball has been served.
+func show_hud(shown: bool) -> void:
+	if _hud != null:
+		_hud.visible = shown
+
+
 func hide_menus() -> void:
 	if _hud != null:
 		_hud.visible = true

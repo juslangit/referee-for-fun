@@ -156,7 +156,9 @@ func _ready() -> void:
 	ui = RefereeUI.new()
 	ui.name = "UI"
 	add_child(ui)
-	ui.hide_menus()
+	# Not hide_menus() — that is what a match *beginning* calls, and it turns the score
+	# bug on. This scene opens into the career ladder, with nothing yet to score.
+	ui.show_hud(false)
 	_connect_menus()
 
 	sound = Sound.new()
@@ -342,8 +344,11 @@ func _on_match_requested() -> void:
 
 	ui.hide_menus()
 	ui.hide_career()
-	camera.set_active(true)
 
+	# The camera does NOT take the mouse here. Two more screens come before the first
+	# serve — the briefing and the favour question — and taking the chair captures the
+	# cursor, which left both of them showing buttons that could not be clicked. The
+	# referee sits down in _on_favour_chosen, once there is nothing left to press.
 	pressure = Pressure.for_match(career)
 	if pressure.exists():
 		ui.show_briefing(pressure)
@@ -359,6 +364,7 @@ func _on_briefing_acknowledged() -> void:
 func _on_favour_chosen(team: Sides.Team) -> void:
 	favoured = team
 	ui.hide_pre_match()
+	camera.set_active(true)
 	_enter_ready()
 
 
