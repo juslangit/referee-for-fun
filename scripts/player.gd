@@ -48,6 +48,11 @@ const SWING_SWEEP := 2.3
 
 var team := Sides.Team.NONE
 
+## Whether this athlete plays a sport with a racket in it. Beach volleyball players
+## carry nothing, and a volleyball player holding a badminton racket is a funnier bug
+## than it is a small one.
+var volleyball := false
+
 ## Where they stand when the shuttle is not their problem.
 var home := Vector3.ZERO
 
@@ -91,8 +96,16 @@ func _settle_when_posed(model: Node3D) -> void:
 	if not is_instance_valid(model):
 		return
 	Models.settle(model)
-	Models.dress_player(model)
-	_racket = model.get_meta("racket", null)
+	Models.dress_player(model, not volleyball)
+	_take_up_racket(model)
+
+
+## Picks up the racket, if this sport has one. Asking for the meta unconditionally is
+## an error rather than a null once nobody is carrying anything.
+func _take_up_racket(model: Node3D) -> void:
+	if not model.has_meta("racket"):
+		return
+	_racket = model.get_meta("racket")
 	if _racket != null:
 		_racket_rest = _racket.rotation
 
@@ -252,10 +265,8 @@ func _build_body() -> void:
 		_figure = model
 		if Models.is_forged(model):
 			# Already the right size and the right way up. Dress it and go.
-			Models.dress_player(model)
-			_racket = model.get_meta("racket", null)
-			if _racket != null:
-				_racket_rest = _racket.rotation
+			Models.dress_player(model, not volleyball)
+			_take_up_racket(model)
 			_set_up_clips(model)
 		else:
 			_settle_when_posed(model)

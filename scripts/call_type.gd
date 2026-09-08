@@ -48,6 +48,14 @@ var asserts_in := false
 ## incident instead of its landing point, and they have to name a side.
 var judges_conduct := false
 
+## Whether this call is a claim that the ball was touched on its way out of court.
+##
+## Beach volleyball's own kind of claim, and unlike a line call there is nothing to
+## point a camera at afterwards: the question is whether four fingers and a ball
+## occupied the same centimetre for a thousandth of a second. It is the closest thing
+## in either sport to a truth only the official can possibly hold.
+var judges_the_touch := false
+
 ## Which offence it claims. Only meaningful when judges_conduct is true.
 var claims := Incident.Kind.NONE
 

@@ -24,6 +24,11 @@ The ones worth keeping in mind:
 | `_menus` | The three front-of-game screens. |
 | `_seat`, `_layout`, `_close` | The hall from the chair, from above, and up close. `TIER=0..2` picks the venue. |
 | `_card`, `_courtmap` | Regenerate the artwork in `assets/ui/`. |
+| `_beachplay` | Beach volleyball's fair-play check: plays a match calling everything truthfully — line, touch and faults — and reports what the game charged for it. Must be zero. |
+| `_ballaim` | Does the volleyball land where it was aimed? The beach answer to `_aimcheck`. |
+| `_beachlook`, `_beachshot` | The sand court empty, and the match in progress from the stand. |
+| `_serveheight` | How high a beach serve is when it reaches the net, per angle and depth. Written to answer why thirteen of the first seventeen rallies buried themselves in the tape. |
+| `_sports` | One reputation, a ladder each: does a bad match at one sport follow you to another, does each ladder stay its own, and does a save from before the second sport still open? |
 | `_rotation` | Does the serve come from the right service court and cross the right diagonal? 400 serves, 50 per score per side. |
 | `_pressure` | The four reasons to lie: how often each turns up, what it does to a career, whether a grudge follows you into the next match, and — the one that matters — whether an honest umpire is still able to climb. |
 | `_wrongcourt` | The service court error: is the mistake actually on the floor, do the two moments do the two different things the law says, can it ever move the score (it must not), and does watching for it cost nothing while ignoring it costs a little? |

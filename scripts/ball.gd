@@ -55,6 +55,18 @@ func _ready() -> void:
 	mass = MASS
 	gravity_scale = 1.0
 	continuous_cd = true
+	# The only drag on this ball is the one modelled below.
+	#
+	# Godot combines a body's own damping with the world's `default_linear_damp`, which
+	# is 0.1 out of the box, and the solver that aims every shot knows nothing about it.
+	# On a shuttlecock that is invisible — its own drag is so violent that a tenth of a
+	# unit either way changes nothing — but a volleyball has six times the terminal
+	# velocity and stays up for two seconds, and the unmodelled damping was taking a
+	# metre and a quarter off a serve aimed at the end line. Against 60 mm of tape.
+	linear_damp_mode = RigidBody3D.DAMP_MODE_REPLACE
+	linear_damp = 0.0
+	angular_damp_mode = RigidBody3D.DAMP_MODE_REPLACE
+	angular_damp = 0.0
 	contact_monitor = false
 	can_sleep = false
 	# Drag balances gravity at terminal velocity: k v² = m g.

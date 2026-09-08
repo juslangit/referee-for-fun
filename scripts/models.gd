@@ -122,7 +122,9 @@ static func _load_ready(path: String) -> Node3D:
 ## model, and so do not scale with it — measured while fitting, the bib sat at a fixed
 ## height and set a floor the fit could never get under. Every player came out about
 ## 1.4 m tall no matter what scale the model was given.
-static func dress_player(figure: Node3D) -> void:
+## `armed` is whether they carry a racket. Beach volleyball players do not, and a
+## volleyball player holding a badminton racket is a funnier bug than it is a small one.
+static func dress_player(figure: Node3D, armed := true) -> void:
 	if figure == null:
 		return
 	# A bib, not a tint. Recolouring does not work: the kit is painted into the texture,
@@ -130,7 +132,8 @@ static func dress_player(figure: Node3D) -> void:
 	# players do not need one — one of them is dressed in blue and the other in red.
 	if not figure.get_meta("kitted", false):
 		_add_bib(figure, figure.get_meta("bib_colour", Color.WHITE))
-	_hold_racket(figure)
+	if armed:
+		_hold_racket(figure)
 
 
 ## Puts a racket in the player's right hand, on the bone, so it moves with the arm.

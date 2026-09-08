@@ -14,6 +14,47 @@ extends RefCounted
 ## speed whose flight lands the right distance away. Slower than a formula, but
 ## quadratic drag has no tidy closed form and this stays honest to the real flight.
 
+## What is being flown.
+##
+## The solver was written for a shuttlecock and had its terminal velocity and its cork
+## tip written into the arithmetic. A volleyball needs the same search over a different
+## projectile: six times the terminal velocity, and a contact point that hangs straight
+## below the centre rather than leading along the direction of travel. So the two
+## properties that differ are passed in, and both default to the shuttle — badminton's
+## every call site is unchanged, and its aim is unchanged with it.
+class Flight:
+	extends RefCounted
+
+	## The speed at which drag balances gravity, which is the whole of the drag model.
+	var terminal_velocity := Shuttle.TERMINAL_VELOCITY
+
+	## How far the point that touches the floor sits from the centre of the object.
+	var contact_offset := Shuttle.CORK_TIP_OFFSET
+
+	## Whether that point leads along the direction of travel, as a shuttle's cork
+	## does, or hangs straight below, as a ball's underside does.
+	var contact_leads := true
+
+	func _init(terminal := Shuttle.TERMINAL_VELOCITY,
+			offset := Shuttle.CORK_TIP_OFFSET, leads := true) -> void:
+		terminal_velocity = terminal
+		contact_offset = offset
+		contact_leads = leads
+
+	## Where the floor-touching point is, given a centre and a direction of travel.
+	func contact(position: Vector2, velocity: Vector2) -> Vector2:
+		if not contact_leads:
+			return position - Vector2(0.0, contact_offset)
+		if velocity.length_squared() <= 0.0:
+			return position
+		return position + velocity.normalized() * contact_offset
+
+
+## The volleyball, for the beach match to hand in.
+static func ball_flight() -> Flight:
+	return Flight.new(Ball.TERMINAL_VELOCITY, Ball.RADIUS, false)
+
+
 ## Speeds worth searching between, in m/s. The upper end is well past a smash.
 const MIN_SPEED := 1.0
 const MAX_SPEED := 140.0
@@ -38,7 +79,10 @@ static func _step() -> float:
 ## smash, a high angle is a clear or a lift. Two different angles will usually both
 ## reach the same spot — which is what lets the same target be attacked in
 ## completely different ways.
-static func solve(from: Vector3, target: Vector3, launch_angle_deg: float, floor_height := 0.0) -> Vector3:
+static func solve(from: Vector3, target: Vector3, launch_angle_deg: float,
+		floor_height := 0.0, flight: Flight = null) -> Vector3:
+	if flight == null:
+		flight = Flight.new()
 	var flat := Vector2(target.x - from.x, target.z - from.z)
 	var distance := flat.length()
 	if distance < 0.001:
@@ -47,7 +91,7 @@ static func solve(from: Vector3, target: Vector3, launch_angle_deg: float, floor
 	var height := from.y - floor_height
 	var angle := deg_to_rad(launch_angle_deg)
 
-	var speed := _search_speed(distance, height, angle)
+	var speed := _search_speed(distance, height, angle, flight)
 	if speed <= 0.0:
 		return Vector3.ZERO
 
@@ -62,15 +106,18 @@ static func solve(from: Vector3, target: Vector3, launch_angle_deg: float, floor
 ## Narrows in on the launch speed that carries the shuttle exactly `distance` before
 ## it reaches the floor. Range grows with speed, so a straightforward halving search
 ## finds it.
-static func _search_speed(distance: float, height: float, angle: float) -> float:
-	if _range_for(MAX_SPEED, height, angle) < distance:
+static func _search_speed(distance: float, height: float, angle: float,
+		flight: Flight = null) -> float:
+	if flight == null:
+		flight = Flight.new()
+	if _range_for(MAX_SPEED, height, angle, flight) < distance:
 		return -1.0
 
 	var low := MIN_SPEED
 	var high := MAX_SPEED
 	for i in SEARCH_STEPS:
 		var middle := (low + high) * 0.5
-		if _range_for(middle, height, angle) < distance:
+		if _range_for(middle, height, angle, flight) < distance:
 			low = middle
 		else:
 			high = middle
@@ -83,14 +130,17 @@ static func _search_speed(distance: float, height: float, angle: float) -> float
 ## and the same rule that it is the tip of the cork which touches down, not the
 ## middle of the shuttle. Any of those left out shows up straight away as a shot
 ## that lands tens of centimetres from where it was aimed.
-static func _range_for(speed: float, height: float, angle: float) -> float:
+static func _range_for(speed: float, height: float, angle: float,
+		flight: Flight = null) -> float:
+	if flight == null:
+		flight = Flight.new()
 	var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
-	var drag := gravity / (Shuttle.TERMINAL_VELOCITY * Shuttle.TERMINAL_VELOCITY)
+	var drag := gravity / (flight.terminal_velocity * flight.terminal_velocity)
 	var step := _step()
 
 	var position := Vector2(0.0, height)
 	var velocity := Vector2(cos(angle), sin(angle)) * speed
-	var tip := _cork_tip_of(position, velocity)
+	var tip := flight.contact(position, velocity)
 	var previous_tip := tip
 
 	# A shuttle is spent long before this, so the cap only guards against a shot
@@ -101,7 +151,7 @@ static func _range_for(speed: float, height: float, angle: float) -> float:
 		var acceleration := Vector2(0.0, -gravity) - velocity * velocity.length() * drag
 		velocity += acceleration * step
 		position += velocity * step
-		tip = _cork_tip_of(position, velocity)
+		tip = flight.contact(position, velocity)
 		time += step
 
 	if tip.y > 0.0:
@@ -121,9 +171,12 @@ static func _range_for(speed: float, height: float, angle: float) -> float:
 ## lofted drop, but the shuttle does not travel in a straight line — it arcs, and on
 ## a gentle shot the arc has already begun falling by the time it reaches the net.
 ## The only honest way to know is to fly it and look.
-static func height_after(start_height: float, speed: float, angle_deg: float, along: float) -> float:
+static func height_after(start_height: float, speed: float, angle_deg: float,
+		along: float, flight: Flight = null) -> float:
+	if flight == null:
+		flight = Flight.new()
 	var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
-	var drag := gravity / (Shuttle.TERMINAL_VELOCITY * Shuttle.TERMINAL_VELOCITY)
+	var drag := gravity / (flight.terminal_velocity * flight.terminal_velocity)
 	var step := _step()
 	var angle := deg_to_rad(angle_deg)
 

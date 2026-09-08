@@ -133,16 +133,49 @@ var stolen_rallies := 0
 
 ## Feeds one completed call in, and returns how much suspicion it cost.
 func register(rally: Rally) -> float:
+	if rally == null:
+		return 0.0
+	return register_judgement(
+		rally.verdict() as int,
+		rally.visibility(),
+		_direction_favoured(rally),
+		rally.call.severity if rally.call != null else 1.0,
+		rally.seconds_to_call,
+		rally.echoes_line_judge(),
+		rally.overrules_line_judge(),
+		rally.changed_the_result())
+
+
+## The same, for a sport whose rally is not a badminton rally.
+##
+## Everything below is written in terms of five numbers — was the call wrong, how
+## plainly, which way it leaned, how serious a kind of call it was, and how long the
+## official took — and not one of them is about shuttlecocks. Beach volleyball works out
+## its own five and hands them over.
+##
+## This split replaced a worse idea. The beach match used to build a fake badminton
+## rally and pass that in, which looked tidy and was not: Suspicion does not read a
+## rally, it *asks* one whether the call was right, and a fake badminton rally answers
+## that question with badminton's rules. A beach referee who called every touch
+## correctly was being charged for it.
+func register_judgement(
+	verdict: int,
+	visibility: float,
+	direction: float,
+	severity: float,
+	seconds_to_call: float,
+	echoes_line_judge := false,
+	overrules_line_judge := false,
+	changed_the_result := false
+) -> float:
 	if is_removed:
 		return 0.0
 
-	var verdict := rally.verdict()
-
-	var dithering := hesitation_cost(rally.seconds_to_call)
+	var dithering := hesitation_cost(seconds_to_call)
 
 	if verdict == Rally.Verdict.CORRECT:
 		var conspicuous := dithering
-		if rally.overrules_line_judge():
+		if overrules_line_judge:
 			conspicuous += OVERRULE_ON_ITS_OWN
 		if conspicuous <= 0.0:
 			_recover()
@@ -157,33 +190,30 @@ func register(rally: Rally) -> float:
 	if verdict == Rally.Verdict.NO_CALL:
 		return 0.0
 
-	var visibility := rally.visibility()
 	if visibility <= 0.0:
 		return 0.0
 
 	wrong_calls += 1
-	if rally.changed_the_result():
+	if changed_the_result:
 		stolen_rallies += 1
 
-	# Which way this particular call leaned, and whether that is the same way the
-	# umpire has been leaning all match.
-	var direction := _direction_favoured(rally)
+	# Whether this call leans the same way the official has been leaning all match.
 	var reinforcing := maxf(0.0, direction * lean)
 
-	var gain := visibility * (IMMEDIATE_WEIGHT + reinforcing * PATTERN_WEIGHT) * rally.call.severity
+	var gain := visibility * (IMMEDIATE_WEIGHT + reinforcing * PATTERN_WEIGHT) * severity
 
-	if rally.echoes_line_judge():
+	if echoes_line_judge:
 		gain *= COVER_FROM_LINE_JUDGE
-	elif rally.overrules_line_judge():
+	elif overrules_line_judge:
 		gain = gain * OVERRULE_PENALTY + OVERRULE_ON_ITS_OWN
 
 	gain = (gain + dithering) * scrutiny
 	var target := level + gain
 
-	# Nobody is thrown off the court without being told once. A call outrageous
-	# enough to clear the whole scale in one go still stops at the warning, so the
-	# umpire always gets their one clear chance to referee straight — and the
-	# removal, when it comes, is for what they did *after* being told.
+	# Nobody is thrown off the court without being told once. A call outrageous enough
+	# to clear the whole scale in one go still stops at the warning, so the official
+	# always gets their one clear chance — and the removal, when it comes, is for what
+	# they did *after* being told.
 	if level < WARNING_LEVEL and target >= REMOVAL_LEVEL:
 		target = HELD_AT_WARNING
 
