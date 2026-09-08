@@ -20,13 +20,22 @@ signal resume_requested()
 signal walk_out_requested()
 signal quit_requested()
 
-const TITLE_SIZE := 34
-const BUTTON_SIZE := 22
-const SCORE_SIZE := 30
-const MESSAGE_SIZE := 40
-const PROMPT_SIZE := 17
-const REACTION_SIZE := 19
-const BANNER_SIZE := 24
+## Sizes live in UiTheme so the whole interface grows together. It used to be a list
+## of numbers here, each one adjusted separately, which is how it ended up too small to
+## read from where the player is actually sitting.
+const TITLE_SIZE := UiTheme.TITLE
+const BUTTON_SIZE := UiTheme.HEADING
+const SCORE_SIZE := UiTheme.TITLE
+const MESSAGE_SIZE := UiTheme.HUGE
+const PROMPT_SIZE := UiTheme.BODY
+const REACTION_SIZE := UiTheme.BODY
+const BANNER_SIZE := UiTheme.HEADING
+
+## Everything is parented to this rather than to the layer, because a Theme travels
+## down a Control tree and a CanvasLayer is not a Control. One assignment here styles
+## every button, label and panel in the game.
+var _root: Control
+var _hud: Control
 
 var _main_menu: Control
 var _main_menu_column: VBoxContainer
@@ -39,7 +48,10 @@ var _pre_match: Control
 var _ending: Control
 var _ending_headline: Label
 var _ending_detail: Label
-var _score_label: Label
+var _score_points: Label
+var _score_games: Label
+var _serve_red: Label
+var _serve_blue: Label
 var _prompt_label: Label
 var _message_label: Label
 var _reaction_label: Label
@@ -57,6 +69,14 @@ func _ready() -> void:
 	layer = 10
 	# Keeps running while the game is paused, or nothing could unpause it.
 	process_mode = Node.PROCESS_MODE_ALWAYS
+
+	_root = Control.new()
+	_root.name = "Screen"
+	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.theme = UiTheme.build()
+	add_child(_root)
+
 	_build_main_menu()
 	_build_pause_menu()
 	_build_career_panel()
@@ -101,38 +121,50 @@ func _tick(delta: float, timer: float, label: Label) -> float:
 
 ## The panels all share a shape: a dark sheet over the court with a column of things
 ## in the middle of it. This builds that much, and the caller fills in the column.
-func _build_sheet(sheet_name: String, shade := Color(0.05, 0.06, 0.08, 0.95)) -> Array:
+func _build_sheet(sheet_name: String, shade := Color(0.03, 0.04, 0.06, 0.72)) -> Array:
 	var sheet := Control.new()
 	sheet.name = sheet_name
 	sheet.set_anchors_preset(Control.PRESET_FULL_RECT)
 	sheet.visible = false
 	sheet.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(sheet)
+	_root.add_child(sheet)
 
 	var backdrop := ColorRect.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	backdrop.color = shade
 	sheet.add_child(backdrop)
 
+	# The contents sit on a card rather than floating on the dimmed court. A broadcast
+	# graphic is always a solid shape with an edge on it; text alone over a photograph
+	# is what a placeholder looks like.
+	var card := PanelContainer.new()
+	card.set_anchors_preset(Control.PRESET_CENTER)
+	card.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	card.grow_vertical = Control.GROW_DIRECTION_BOTH
+	sheet.add_child(card)
+
 	var column := VBoxContainer.new()
-	column.set_anchors_preset(Control.PRESET_CENTER)
-	column.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	column.grow_vertical = Control.GROW_DIRECTION_BOTH
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
-	column.add_theme_constant_override("separation", 9)
-	sheet.add_child(column)
+	column.add_theme_constant_override("separation", 16)
+	column.custom_minimum_size = Vector2(UiTheme.BUTTON_WIDTH + 90, 0)
+	card.add_child(column)
 
 	return [sheet, column]
 
 
 func _build_main_menu() -> void:
-	var built := _build_sheet("MainMenu", Color(0.04, 0.05, 0.07, 0.97))
+	var built := _build_sheet("MainMenu", Color(0.03, 0.04, 0.06, 0.70))
 	_main_menu = built[0]
 	_main_menu_column = built[1]
 
 
 ## The title screen. Whether there is a career to go back to decides what it offers.
+##
+## The score bug goes away with it. It is a broadcast graphic for a match in progress,
+## and leaving it up over the title read as though a game were already running.
 func show_main_menu(career: Career) -> void:
+	if _hud != null:
+		_hud.visible = false
 	for child in _main_menu_column.get_children():
 		child.queue_free()
 
@@ -229,7 +261,7 @@ func _build_career_panel() -> void:
 	_career_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_career_panel.visible = false
 	_career_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(_career_panel)
+	_root.add_child(_career_panel)
 
 	var backdrop := ColorRect.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -307,6 +339,8 @@ func hide_career() -> void:
 ## route in can leave a menu sitting over the court — which each of these panels has
 ## managed to do in turn.
 func hide_menus() -> void:
+	if _hud != null:
+		_hud.visible = true
 	_main_menu.visible = false
 	_career_panel.visible = false
 	_pause_menu.visible = false
@@ -322,8 +356,7 @@ func _gap(height: int) -> Control:
 func _make_wide_button(text: String, on_press: Callable) -> Button:
 	var button := Button.new()
 	button.text = text
-	button.custom_minimum_size = Vector2(300, 52)
-	button.add_theme_font_size_override("font_size", BUTTON_SIZE - 2)
+	button.custom_minimum_size = Vector2(UiTheme.BUTTON_WIDTH, UiTheme.BUTTON_HEIGHT)
 	button.pressed.connect(on_press)
 	var row := button
 	return row
@@ -334,11 +367,11 @@ func _build_length_panel() -> void:
 	_length_panel.name = "MatchLength"
 	_length_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_length_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(_length_panel)
+	_root.add_child(_length_panel)
 
 	var backdrop := ColorRect.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	backdrop.color = Color(0.05, 0.06, 0.08, 0.94)
+	backdrop.color = Color(0.03, 0.04, 0.06, 0.74)
 	_length_panel.add_child(backdrop)
 
 	var column := VBoxContainer.new()
@@ -373,7 +406,6 @@ func _make_length_button(text: String, quick: bool) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size = Vector2(210, 66)
-	button.add_theme_font_size_override("font_size", BUTTON_SIZE - 4)
 	# The button only reports the choice. Which screen comes next is the match's
 	# decision, not this file's — otherwise the flow only works when a human clicks.
 	button.pressed.connect(func() -> void: length_chosen.emit(quick))
@@ -385,11 +417,11 @@ func _build_pre_match() -> void:
 	_pre_match.name = "PreMatch"
 	_pre_match.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_pre_match.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(_pre_match)
+	_root.add_child(_pre_match)
 
 	var backdrop := ColorRect.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	backdrop.color = Color(0.05, 0.06, 0.08, 0.94)
+	backdrop.color = Color(0.03, 0.04, 0.06, 0.74)
 	_pre_match.add_child(backdrop)
 
 	var column := VBoxContainer.new()
@@ -424,7 +456,6 @@ func _make_choice_button(team: Sides.Team) -> Button:
 	var button := Button.new()
 	button.text = "  %s  " % Sides.label(team)
 	button.custom_minimum_size = Vector2(150, 52)
-	button.add_theme_font_size_override("font_size", BUTTON_SIZE)
 	button.add_theme_color_override("font_color", Sides.colour(team))
 	button.pressed.connect(func() -> void: favour_chosen.emit(team))
 	return button
@@ -448,16 +479,16 @@ func hide_pre_match() -> void:
 
 func _build_hud() -> void:
 	var hud := Control.new()
+	_hud = hud
 	hud.name = "Hud"
 	hud.set_anchors_preset(Control.PRESET_FULL_RECT)
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(hud)
+	_root.add_child(hud)
 
 	# The score and the prompt sit on plates. White text over a lit green court is
 	# legible about half the time, which for the one line telling you the score is
 	# half the time too little.
-	_score_label = _make_label("", SCORE_SIZE, Color(0.96, 0.96, 0.94))
-	hud.add_child(_plate_for(_score_label, Control.PRESET_CENTER_TOP, Vector2(0, 18)))
+	hud.add_child(_build_scorebug())
 
 	_message_label = _make_label("", MESSAGE_SIZE, Color(0.98, 0.94, 0.72))
 	_message_label.set_anchors_preset(Control.PRESET_CENTER)
@@ -484,16 +515,67 @@ func _build_hud() -> void:
 	hud.add_child(_banner_label)
 
 
+## The score bug at the top of the screen, the way a broadcast does it: a block of each
+## team's colour with their name in it, the points between them in the largest type on
+## screen, and a lit dot over whoever is serving.
+##
+## Who is serving matters more here than in most sports and was previously a bullet
+## character in a run of text. In badminton the server decides which service court the
+## rally starts from, so an umpire who has lost track of it cannot judge a service
+## fault at all.
+func _build_scorebug() -> PanelContainer:
+	var bug := PanelContainer.new()
+	bug.name = "ScoreBug"
+	bug.add_theme_stylebox_override("panel", UiTheme.plate(UiTheme.ACCENT, 0.86))
+	bug.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	bug.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	bug.position = Vector2(0, 22)
+	bug.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 18)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	bug.add_child(row)
+
+	_serve_red = _serve_dot()
+	row.add_child(_serve_red)
+	row.add_child(_team_block("RED", UiTheme.RED))
+
+	_score_points = _make_label("0  -  0", UiTheme.HUGE, UiTheme.CHALK)
+	row.add_child(_score_points)
+
+	row.add_child(_team_block("BLUE", UiTheme.BLUE))
+	_serve_blue = _serve_dot()
+	row.add_child(_serve_blue)
+
+	_score_games = _make_label("", UiTheme.SMALL, UiTheme.MUTED)
+	_score_games.custom_minimum_size = Vector2(140, 0)
+	row.add_child(_score_games)
+	return bug
+
+
+func _team_block(name: String, colour: Color) -> PanelContainer:
+	var block := PanelContainer.new()
+	block.add_theme_stylebox_override("panel", UiTheme.block(colour))
+	var label := _make_label(name, UiTheme.HEADING, Color.WHITE)
+	block.add_child(label)
+	return block
+
+
+func _serve_dot() -> Label:
+	var dot := _make_label("", UiTheme.HEADING, UiTheme.ACCENT)
+	dot.custom_minimum_size = Vector2(26, 0)
+	return dot
+
+
 func set_score(board: Scoreboard, serving: Sides.Team) -> void:
-	var red_mark := "•" if serving == Sides.Team.RED else " "
-	var blue_mark := "•" if serving == Sides.Team.BLUE else " "
-	var games := ""
-	if board.games_needed > 1:
-		games = "        games  %d — %d" % [
-			board.games[Sides.Team.RED], board.games[Sides.Team.BLUE]
-		]
-	_score_label.text = "%s RED  %d  —  %d  BLUE %s%s" % [
-		red_mark, board.points[Sides.Team.RED], board.points[Sides.Team.BLUE], blue_mark, games
+	_score_points.text = "%d  -  %d" % [
+		board.points[Sides.Team.RED], board.points[Sides.Team.BLUE]
+	]
+	_serve_red.text = "\u25cf" if serving == Sides.Team.RED else ""
+	_serve_blue.text = "\u25cf" if serving == Sides.Team.BLUE else ""
+	_score_games.text = "" if board.games_needed <= 1 else "GAMES  %d - %d" % [
+		board.games[Sides.Team.RED], board.games[Sides.Team.BLUE]
 	]
 
 
@@ -536,7 +618,7 @@ func _build_fault_panel() -> void:
 	_fault_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_fault_panel.visible = false
 	_fault_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(_fault_panel)
+	_root.add_child(_fault_panel)
 
 	var backdrop := ColorRect.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -586,15 +668,14 @@ func _make_accusation_row(label: String, id: StringName, tint: Color) -> HBoxCon
 	row.add_theme_constant_override("separation", 10)
 
 	var name_label := _make_label(label, PROMPT_SIZE + 3, tint)
-	name_label.custom_minimum_size = Vector2(220, 40)
+	name_label.custom_minimum_size = Vector2(320, 58)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(name_label)
 
 	for team in [Sides.Team.BLUE, Sides.Team.RED]:
 		var button := Button.new()
 		button.text = Sides.label(team)
-		button.custom_minimum_size = Vector2(110, 40)
-		button.add_theme_font_size_override("font_size", BUTTON_SIZE - 5)
+		button.custom_minimum_size = Vector2(170, 58)
 		button.add_theme_color_override("font_color", Sides.colour(team))
 		button.pressed.connect(func() -> void: punishment_chosen.emit(id, team))
 		row.add_child(button)
@@ -622,7 +703,7 @@ func _build_shuttle_cam() -> void:
 	_shuttle_cam_panel.custom_minimum_size = Vector2(ShuttleCam.WIDTH, ShuttleCam.HEIGHT + 24)
 	_shuttle_cam_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_shuttle_cam_panel.visible = false
-	add_child(_shuttle_cam_panel)
+	_root.add_child(_shuttle_cam_panel)
 
 	var frame := ColorRect.new()
 	frame.color = Color(0.04, 0.05, 0.06, 0.9)
@@ -663,7 +744,7 @@ func _build_ending() -> void:
 	_ending.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_ending.visible = false
 	_ending.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(_ending)
+	_root.add_child(_ending)
 
 	var backdrop := ColorRect.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -703,9 +784,9 @@ func show_ending(headline: String, detail: String, tint := Color(0.96, 0.42, 0.3
 
 
 ## Wraps a label in a dark plate and anchors the pair where it belongs.
-func _plate_for(label: Label, preset: int, offset: Vector2, alpha := 0.55) -> PanelContainer:
+func _plate_for(label: Label, preset: int, offset: Vector2, alpha := 0.80) -> PanelContainer:
 	var plate := PanelContainer.new()
-	plate.add_theme_stylebox_override("panel", _plate_style(alpha))
+	plate.add_theme_stylebox_override("panel", UiTheme.plate(UiTheme.ACCENT, alpha))
 	plate.set_anchors_preset(preset)
 	plate.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	plate.grow_vertical = Control.GROW_DIRECTION_BOTH
@@ -713,17 +794,6 @@ func _plate_for(label: Label, preset: int, offset: Vector2, alpha := 0.55) -> Pa
 	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plate.add_child(label)
 	return plate
-
-
-func _plate_style(alpha: float) -> StyleBoxFlat:
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color(0.05, 0.06, 0.08, alpha)
-	box.set_corner_radius_all(7)
-	box.content_margin_left = 20.0
-	box.content_margin_right = 20.0
-	box.content_margin_top = 7.0
-	box.content_margin_bottom = 7.0
-	return box
 
 
 func _make_label(text: String, size: int, colour: Color) -> Label:
