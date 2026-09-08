@@ -82,6 +82,7 @@ var _ending_headline: Label
 var _ending_detail: Label
 var _score_points: Label
 var _score_games: Label
+var _score_reviews: Label
 var _serve_red: Label
 var _serve_blue: Label
 var _prompt_label: Label
@@ -111,6 +112,7 @@ func _ready() -> void:
 
 	_build_main_menu()
 	_build_sport_menu()
+	_build_review()
 	_build_pause_menu()
 	_build_career_panel()
 	_build_length_panel()
@@ -356,6 +358,68 @@ func hide_sport_menu() -> void:
 	_sport_menu.visible = false
 
 
+# --- the review ------------------------------------------------------------------
+
+## The Hawk-Eye panel: the one place the game shows the player what really happened.
+##
+## Everything else here is built on never telling them. The rule is stated at the top of
+## this file and it holds — but a review is not the game confessing, it is the hall
+## finding out, and the umpire is simply in the room when it does. That is the whole
+## point of the feature: the truth arriving in public, at a size nobody can argue with,
+## whether or not the umpire wanted it.
+var _review: Control
+var _review_headline: Label
+var _review_note: Label
+var _review_view: TextureRect
+var _review_verdict: Label
+
+
+func _build_review() -> void:
+	var built := _build_sheet("Review", Color(0.02, 0.03, 0.05, 0.66))
+	_review = built[0]
+	var column: VBoxContainer = built[1]
+
+	_review_headline = _make_label("", TITLE_SIZE, UiTheme.ACCENT)
+	column.add_child(_review_headline)
+	_review_note = _make_label("", UiTheme.SMALL, UiTheme.MUTED)
+	column.add_child(_review_note)
+	column.add_child(_gap(16))
+
+	_review_view = TextureRect.new()
+	_review_view.custom_minimum_size = Vector2(400, 400)
+	_review_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_review_view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	column.add_child(_centred(_review_view))
+
+	column.add_child(_gap(16))
+	_review_verdict = _make_label("", UiTheme.HEADING, UiTheme.CHALK)
+	column.add_child(_review_verdict)
+
+
+## Opens the review. The verdict is deliberately not filled in yet — the pause between
+## the challenge and the answer is the whole of the drama, and an umpire who has just
+## lied should have to sit through it.
+func show_review(team: Sides.Team, reviews_left: int, view: Texture2D) -> void:
+	_review_headline.text = "CHALLENGE  ·  %s" % Sides.label(team)
+	_review_headline.add_theme_color_override("font_color", Sides.colour(team))
+	_review_note.text = "%s has %d review%s left" % [
+		Sides.label(team), reviews_left, "" if reviews_left == 1 else "s"]
+	_review_view.texture = view
+	_review_verdict.text = "reviewing…"
+	_review_verdict.add_theme_color_override("font_color", UiTheme.MUTED)
+	_review.visible = true
+
+
+func set_review_verdict(text: String, tint: Color) -> void:
+	_review_verdict.text = text
+	_review_verdict.add_theme_color_override("font_color", tint)
+
+
+func hide_review() -> void:
+	if _review != null:
+		_review.visible = false
+
+
 # --- teaching -------------------------------------------------------------------
 
 ## What the game never told anybody.
@@ -418,6 +482,11 @@ const LESSONS := [
 			+ "left standing.\n\n"
 			+ "The shuttle cam shows you the landing from directly overhead once it is "
 			+ "down.\n\n"
+			+ "At the bigger tournaments the players can challenge you. Each side gets "
+			+ "two reviews a game, and a successful one is handed back. The hall watches "
+			+ "the landing on a screen and then everybody knows — including about the "
+			+ "close ones you were relying on nobody being sure about. Being caught that "
+			+ "way costs far more than the same call going unchallenged.\n\n"
 			+ "There is no suspicion meter anywhere in this game, and there never will "
 			+ "be. The only thing that tells you how much trouble you are in is the "
 			+ "room: how it sounds, and whether it comes out of its seat.",
@@ -993,6 +1062,13 @@ func _build_scorebug() -> PanelContainer:
 	_score_games = _make_label("", UiTheme.SMALL, UiTheme.MUTED)
 	_score_games.custom_minimum_size = Vector2(140, 0)
 	row.add_child(_score_games)
+
+	# How many reviews each side still holds. Shown because it is the whole of the
+	# threat: an umpire who cannot see that RED has two challenges left does not know
+	# whether the next close call is worth lying about.
+	_score_reviews = _make_label("", UiTheme.SMALL, UiTheme.MUTED)
+	_score_reviews.custom_minimum_size = Vector2(210, 0)
+	row.add_child(_score_reviews)
 	return bug
 
 
@@ -1019,6 +1095,21 @@ func set_score(board: Scoreboard, serving: Sides.Team) -> void:
 	_score_games.text = "" if board.games_needed <= 1 else "GAMES  %d - %d" % [
 		board.games[Sides.Team.RED], board.games[Sides.Team.BLUE]
 	]
+
+
+## The reviews each side has left, or nothing at all at the venues without Hawk-Eye —
+## where the absence is itself information, because it means nobody can check you.
+func set_reviews(red: int, blue: int, enabled: bool) -> void:
+	if not enabled:
+		_score_reviews.text = ""
+		return
+	_score_reviews.text = "REVIEWS  %s   %s" % [_review_dots(red), _review_dots(blue)]
+
+
+## Filled for a review still held, hollow for one spent. Read at a glance and in the same
+## order as the score bug itself: red on the left, blue on the right.
+func _review_dots(left: int) -> String:
+	return "\u25cf".repeat(left) + "\u25cb".repeat(maxi(0, Challenge.PER_GAME - left))
 
 
 func set_prompt(text: String) -> void:

@@ -173,6 +173,54 @@ func register(rally: Rally) -> float:
 	return gain
 
 
+## What being caught on a review costs, on top of what the wrong call already cost.
+##
+## Deliberately heavy, and with a floor. Everything else in this system is priced by how
+## visible the mistake was, because an umpire can hide behind a shuttle that was only two
+## centimetres out — nobody in the hall can be sure. A review removes that. The landing
+## has been put on a screen at a size nobody can argue with, so the two-centimetre lie and
+## the blatant one are now equally undeniable; what still differs is how brazen it looks.
+##
+## At the national championship (scrutiny 1.25) a narrow lie caught on review costs about
+## 0.38 and a flagrant one about 0.94. One of the latter puts an umpire at the warning by
+## itself, which is the intended weight: the hall has watched you do it.
+const CAUGHT_ON_REVIEW := 0.30
+const CAUGHT_PER_VISIBILITY := 0.45
+
+## And what surviving one is worth. Small — being right is the job, not an achievement —
+## but it is the only thing in the game that buys trust back faster than time does.
+const VINDICATED := 0.05
+
+
+## Folds a review's outcome into the umpire's standing. Called after register(), which has
+## already priced the call itself.
+func register_review(rally: Rally, overturned: bool) -> float:
+	if is_removed:
+		return 0.0
+
+	if not overturned:
+		# The hall asked, and the answer was that the umpire was right. Nothing is proved
+		# about the rest of the match, but the room settles.
+		level = maxf(0.0, level - VINDICATED)
+		lean = move_toward(lean, 0.0, LEAN_FADE_PER_CORRECT_CALL)
+		level_changed.emit(level)
+		_settle_mood()
+		return -VINDICATED
+
+	var gain := (CAUGHT_ON_REVIEW + rally.visibility() * CAUGHT_PER_VISIBILITY) * scrutiny
+	var target := level + gain
+
+	# The same mercy as anywhere else: nobody is removed without having been told once.
+	if level < WARNING_LEVEL and target >= REMOVAL_LEVEL:
+		target = HELD_AT_WARNING
+
+	level = clampf(target, 0.0, REMOVAL_LEVEL)
+	lean = clampf(lean + _direction_favoured(rally) * 0.5, -1.0, 1.0)
+	level_changed.emit(level)
+	_settle_mood()
+	return gain
+
+
 ## What standing there thinking about it costs.
 ##
 ## Nothing at all for the first couple of seconds, then a steady drip. It is capped,

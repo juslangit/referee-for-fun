@@ -105,6 +105,31 @@ static func react_to_call(visibility: float, mood: Suspicion.Mood) -> String:
 
 ## What the hall says about a call that took a while. Empty if it was quick enough
 ## that nobody noticed.
+## What the hall says once a review has answered the question for it.
+##
+## These are the only crowd lines in the game allowed to be certain about anything. Every
+## other line is careful never to say whether the shuttle was in or out (see D-009) —
+## because the crowd saying so would hand the player the answer the game is built on
+## withholding. After a review there is nothing left to withhold: everyone in the
+## building has just watched it on a screen, the umpire included.
+const OVERTURNED := [
+	"the whole hall saw that, and so did you",
+	"the screen does not blink",
+	"they are not booing the players",
+	"a thousand people just learned something about you",
+]
+const UPHELD := [
+	"the screen agrees with you, this time",
+	"somebody has just wasted a review",
+	"a small nod from the chair opposite",
+	"they will think twice before asking again",
+]
+
+
+static func react_to_review(overturned: bool) -> String:
+	return _pick(OVERTURNED if overturned else UPHELD)
+
+
 static func react_to_delay(seconds: float) -> String:
 	if Suspicion.hesitation_cost(seconds) <= 0.0:
 		return ""

@@ -53,6 +53,10 @@ const LINE_JUDGE_SEATS := {
 	Sides.Team.RED: Vector3(3.85, 0.0, -7.60),
 }
 
+## How long the hall is left waiting for the answer, and how long the answer stays up.
+const REVIEW_SUSPENSE := 1.9
+const REVIEW_VERDICT := 2.3
+
 ## How long the hall waits before the line judge's call goes up. Long enough for the
 ## shuttle to have visibly landed, short enough that it still feels like a reaction.
 const LINE_JUDGE_DELAY := 0.45
@@ -172,6 +176,13 @@ var line_judges: Array[LineJudge] = []
 var shuttle_cam: ShuttleCam
 var sound: Sound
 var settings: Settings
+
+## The review system, and whether this venue has one.
+var challenge := Challenge.new()
+var has_hawk_eye := false
+
+## True while a review is on screen, which is the only time the umpire is a spectator.
+var _reviewing := false
 var menu_camera: MenuCamera
 
 ## Whether the lesson was opened on the way into a match, or from the title screen. It
@@ -290,6 +301,8 @@ func _on_match_requested() -> void:
 	var venue := career.venue()
 	suspicion.scrutiny = venue["scrutiny"]
 	has_shuttle_cam = venue["shuttle_cam"]
+	has_hawk_eye = venue["hawk_eye"]
+	challenge.reset()
 	_set_line_judges_present(venue["line_judges"])
 	# Dressed before the crowd is counted, because dressing the hall rebuilds the
 	# seating and everybody in it, and a density set before that is thrown away.
@@ -477,6 +490,13 @@ func _build_players() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Nothing gets through while a review is on screen. Making a call is a coroutine now
+	# that it can pause for the hall to watch a replay, and the phase does not change
+	# until it finishes — so without this the umpire could stand there calling the same
+	# rally three more times while the first call was still being examined.
+	if _reviewing:
+		return
+
 	if ui.is_fault_panel_open():
 		if _is_key(event, KEY_ESCAPE):
 			_close_fault_panel()
@@ -995,6 +1015,32 @@ func _make_call(id: StringName, against := Sides.Team.NONE) -> void:
 	ui.hide_shuttle_cam()
 	var winner := rally.point_goes_to()
 
+	# The hall makes up its mind about what it just saw. The player is told nothing
+	# except how the room reacted — which is the whole of the feedback they get.
+	#
+	# This happens before any review, not after. A review only ever adds to what the call
+	# already cost, and the rule that nobody is removed without one warning is checked
+	# against the level at the time — so pricing them the wrong way round let a review
+	# push an umpire past the warning that the call itself should have given them first.
+	suspicion.register(rally)
+
+	# Now, before the point is given, whoever it was taken from gets to ask. This is the
+	# only moment in the game where the truth is put on a screen, and the umpire has to
+	# sit through it like everybody else.
+	if has_hawk_eye:
+		var asked := challenge.challenger(rally)
+		if asked != Sides.Team.NONE:
+			var overturned := await _review(asked)
+			if overturned:
+				winner = rally.rightful_winner()
+
+	# A review can be the thing that ends the match: being caught on screen at an
+	# international final is enough to be removed on the spot. If that happened while the
+	# replay was playing, the ending screen is already up and its summary already written
+	# — so nothing below should award another point behind it.
+	if _phase == Phase.REMOVED:
+		return
+
 	if winner != Sides.Team.NONE:
 		board.award(winner)
 		# In badminton the side that wins the rally serves the next one.
@@ -1006,10 +1052,6 @@ func _make_call(id: StringName, against := Sides.Team.NONE) -> void:
 		)
 	else:
 		ui.announce("%s   ·   PLAY IT AGAIN" % call.label, Color(0.85, 0.85, 0.80))
-
-	# The hall makes up its mind about what it just saw. The player is told nothing
-	# except how the room reacted — which is the whole of the feedback they get.
-	suspicion.register(rally)
 
 	# What the hall makes of it: the call itself, or the length of the silence before
 	# it. A slow clap for taking four seconds over a shuttle a metre out.
@@ -1026,6 +1068,38 @@ func _make_call(id: StringName, against := Sides.Team.NONE) -> void:
 		])
 
 	_enter_ready()
+
+
+## Plays the review out: the challenge, a pause, and then the answer. Returns whether the
+## call was overturned.
+##
+## The pause is not decoration. A review that resolved instantly would be a line of text;
+## the second and a half between the hall asking and the hall finding out is the only
+## time in this game an umpire has to wait to learn whether they got away with it.
+func _review(asked: Sides.Team) -> bool:
+	_reviewing = true
+	var overturned := rally.verdict() == Rally.Verdict.WRONG
+
+	shuttle_cam.aim_at(rally.landing_point)
+	ui.show_review(asked, challenge.remaining(asked), shuttle_cam.texture())
+	sound.react(false)
+	await get_tree().create_timer(REVIEW_SUSPENSE).timeout
+
+	var truth := "IN" if rally.was_in else "OUT"
+	if overturned:
+		ui.set_review_verdict("%s  ·  CALL OVERTURNED" % truth, Color(0.96, 0.42, 0.36))
+	else:
+		ui.set_review_verdict("%s  ·  CALL STANDS" % truth, Color(0.55, 0.85, 0.60))
+
+	challenge.settle(asked, overturned)
+	suspicion.register_review(rally, overturned)
+	sound.react(not overturned)
+	ui.react(Crowd.react_to_review(overturned))
+
+	await get_tree().create_timer(REVIEW_VERDICT).timeout
+	ui.hide_review()
+	_reviewing = false
+	return overturned
 
 
 func _on_warning_issued() -> void:
@@ -1117,6 +1191,11 @@ func _react_to_call(winner: Sides.Team) -> void:
 
 func _update_score() -> void:
 	ui.set_score(board, serving)
+	ui.set_reviews(
+		challenge.remaining(Sides.Team.RED),
+		challenge.remaining(Sides.Team.BLUE),
+		has_hawk_eye
+	)
 	# The hanging board says the same thing as the HUD, so the hall and the umpire
 	# never disagree about the score.
 	if court.venue != null:
@@ -1124,6 +1203,7 @@ func _update_score() -> void:
 
 
 func _on_game_won(team: Sides.Team) -> void:
+	challenge.reset()
 	if board.is_over:
 		return
 	ui.announce("GAME  ·  %s" % Sides.label(team), Sides.colour(team), 2.6)
