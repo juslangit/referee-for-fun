@@ -341,7 +341,7 @@ func _ready() -> void:
 func _on_match_requested() -> void:
 	var venue := career.venue()
 	suspicion.scrutiny = venue["scrutiny"]
-	has_shuttle_cam = venue["shuttle_cam"]
+	has_shuttle_cam = venue["close_cam"]
 	has_hawk_eye = venue["hawk_eye"]
 	challenge.reset()
 	_set_line_judges_present(venue["line_judges"])

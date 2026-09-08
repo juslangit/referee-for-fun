@@ -23,19 +23,19 @@ func _ready() -> void:
 func _how_often() -> void:
 	print("how often a match comes with a reason attached")
 	print("%-26s %-8s %s" % ["venue", "expected", "measured"])
-	for tier in Career.LADDER.size():
+	for tier in Career.BADMINTON_LADDER.size():
 		var seen := 0
 		var kinds := {}
 		for run in 400:
 			var career := Career.new()
 			career.tier = tier
-			career.matches_at_tier = int(Career.LADDER[tier]["matches_needed"]) - 1
+			career.matches_at_tier = int(Career.BADMINTON_LADDER[tier]["matches_needed"]) - 1
 			var pressure := Pressure.for_match(career)
 			if pressure.exists():
 				seen += 1
 				kinds[pressure.kind] = int(kinds.get(pressure.kind, 0)) + 1
 		print("%-26s %-8.2f %.2f   %s" % [
-			Career.LADDER[tier]["name"],
+			Career.BADMINTON_LADDER[tier]["name"],
 			Pressure.CHANCE_BY_TIER[tier],
 			float(seen) / 400.0,
 			_kind_counts(kinds),

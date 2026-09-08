@@ -12,7 +12,7 @@ func _ready() -> void:
 		"venue", "judges", "cam", "format", "scrutiny", "a 5 cm lie costs"
 	])
 
-	for i in Career.LADDER.size():
+	for i in Career.BADMINTON_LADDER.size():
 		arena.career.tier = i
 		arena._on_match_requested()
 		await get_tree().process_frame
@@ -26,7 +26,7 @@ func _ready() -> void:
 		var cost := suspicion.register(rally)
 
 		print("%-26s %-7d %-6s %-9s %-9.2f %+.4f" % [
-			Career.LADDER[i]["name"],
+			Career.BADMINTON_LADDER[i]["name"],
 			arena.line_judges.size(),
 			"yes" if arena.has_shuttle_cam else "no",
 			"to %d" % arena.board.target,

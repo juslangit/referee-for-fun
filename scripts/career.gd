@@ -45,18 +45,27 @@ const DAMAGE_FROM_SETTLING_A_SCORE := 0.10
 ## How badly you have to have robbed somebody before they remember your name.
 const GRUDGE_FROM_LEAN := 0.30
 
-## The venues, in order.
+## Which sports there are. The id is what the save file and the sport menu use.
+const BADMINTON := &"badminton"
+const BEACH := &"beach"
+
+## The venues, in order, for each sport.
+##
+## **One reputation, a ladder each.** You are one official with one name, so being
+## caught at a beach tournament means arriving at the badminton hall already suspect —
+## but you climb each sport separately, because a licence is per sport and nobody is
+## promoted to an international volleyball final on the strength of their badminton.
 ##
 ## `scrutiny` multiplies everything suspicion charges you. `matches_needed` is how
 ## many you have to get through without being thrown off before they move you up, and
 ## `reputation_needed` is the character reference required to go with it.
-const LADDER := [
+const BADMINTON_LADDER := [
 	{
 		"name": "School hall",
 		"crowd": 0.18,
 		"blurb": "Two line judges, a camera, and nobody much watching.",
 		"line_judges": true,
-		"shuttle_cam": true,
+		"close_cam": true,
 		"hawk_eye": false,
 		"quick": true,
 		"dressing": Venue.Tier.SCHOOL,
@@ -69,7 +78,7 @@ const LADDER := [
 		"crowd": 0.35,
 		"blurb": "Two line judges now. Somebody is keeping score of more than the score.",
 		"line_judges": true,
-		"shuttle_cam": true,
+		"close_cam": true,
 		"hawk_eye": false,
 		"quick": true,
 		"dressing": Venue.Tier.SCHOOL,
@@ -82,7 +91,7 @@ const LADDER := [
 		"crowd": 0.55,
 		"blurb": "Full matches, best of three. Long enough for a pattern to show.",
 		"line_judges": true,
-		"shuttle_cam": true,
+		"close_cam": true,
 		"hawk_eye": false,
 		"quick": false,
 		"dressing": Venue.Tier.REGIONAL,
@@ -95,7 +104,7 @@ const LADDER := [
 		"crowd": 0.8,
 		"blurb": "A proper hall, and a crowd big enough to hear when it turns.",
 		"line_judges": true,
-		"shuttle_cam": true,
+		"close_cam": true,
 		"hawk_eye": true,
 		"quick": false,
 		"dressing": Venue.Tier.REGIONAL,
@@ -108,7 +117,7 @@ const LADDER := [
 		"crowd": 1.0,
 		"blurb": "Every call you make will be looked at again by somebody.",
 		"line_judges": true,
-		"shuttle_cam": true,
+		"close_cam": true,
 		"hawk_eye": true,
 		"quick": false,
 		"dressing": Venue.Tier.ARENA,
@@ -118,9 +127,136 @@ const LADDER := [
 	},
 ]
 
-var tier := 0
+## Beach volleyball. Two a side, outdoors, and a shorter climb to a bigger stage than
+## badminton has — there are far fewer beach tournaments in the world, so the ones that
+## exist are watched harder.
+const BEACH_LADDER := [
+	{
+		"name": "Beach club court",
+		"crowd": 0.14,
+		"blurb": "A public court with a rope round it. Somebody's dad is keeping score.",
+		"line_judges": false,
+		"close_cam": true,
+		"hawk_eye": false,
+		"quick": true,
+		"dressing": Venue.Tier.SCHOOL,
+		"scrutiny": 0.60,
+		"matches_needed": 2,
+		"reputation_needed": 0.40,
+	},
+	{
+		"name": "Regional beach open",
+		"crowd": 0.34,
+		"blurb": "Two line judges and a scoreboard that works. People have brought chairs.",
+		"line_judges": true,
+		"close_cam": true,
+		"hawk_eye": false,
+		"quick": true,
+		"dressing": Venue.Tier.SCHOOL,
+		"scrutiny": 0.85,
+		"matches_needed": 2,
+		"reputation_needed": 0.50,
+	},
+	{
+		"name": "National beach series",
+		"crowd": 0.56,
+		"blurb": "Best of three, and a stand along one side that fills up by the second set.",
+		"line_judges": true,
+		"close_cam": true,
+		"hawk_eye": false,
+		"quick": false,
+		"dressing": Venue.Tier.REGIONAL,
+		"scrutiny": 1.05,
+		"matches_needed": 3,
+		"reputation_needed": 0.55,
+	},
+	{
+		"name": "World tour",
+		"crowd": 0.82,
+		"blurb": "Stadium sand, a full stand, and both sides carrying a video challenge.",
+		"line_judges": true,
+		"close_cam": true,
+		"hawk_eye": true,
+		"quick": false,
+		"dressing": Venue.Tier.REGIONAL,
+		"scrutiny": 1.30,
+		"matches_needed": 3,
+		"reputation_needed": 0.60,
+	},
+	{
+		"name": "World tour finals",
+		"crowd": 1.0,
+		"blurb": "Every touch you give or do not give will be looked at again by somebody.",
+		"line_judges": true,
+		"close_cam": true,
+		"hawk_eye": true,
+		"quick": false,
+		"dressing": Venue.Tier.ARENA,
+		"scrutiny": 1.60,
+		"matches_needed": 0,
+		"reputation_needed": 1.0,
+	},
+]
+
+const LADDERS := {
+	BADMINTON: BADMINTON_LADDER,
+	BEACH: BEACH_LADDER,
+}
+
+
+## Which sport this career is currently being asked about. Set by the sport menu, and
+## saved, so coming back to the game puts you where you left off.
+var sport := BADMINTON
+
+## Where you have got to in each sport: tier, matches at that tier, and whether the
+## appointments panel has vouched for you there. Reputation is deliberately *not* in
+## here — there is only one of you.
+var progress := {}
+
+## Where you are on the ladder of the sport you are currently refereeing.
+##
+## These read and write through `progress`, so every caller that was written when there
+## was only one sport still says `career.tier` and still means the right thing.
+var tier: int:
+	get:
+		return int(_here()["tier"])
+	set(value):
+		_here()["tier"] = value
+
+var matches_at_tier: int:
+	get:
+		return int(_here()["matches_at_tier"])
+	set(value):
+		_here()["matches_at_tier"] = value
+
+## Set when the appointments panel watched a quiet match. It waives the character
+## reference for one promotion — you did not persuade them you were accurate, because
+## nobody can see that. You persuaded them you were no trouble. Per sport, because it
+## is a particular sport's panel that was in the room.
+var panel_impressed: bool:
+	get:
+		return bool(_here()["panel_impressed"])
+	set(value):
+		_here()["panel_impressed"] = value
+
+
+## This sport's row of `progress`, made if it is not there yet.
+func _here() -> Dictionary:
+	if not progress.has(sport):
+		progress[sport] = {"tier": 0, "matches_at_tier": 0, "panel_impressed": false}
+	return progress[sport]
+
+
+## Every sport's ladder, and this one's.
+static func ladder_for(which: StringName) -> Array:
+	return LADDERS.get(which, BADMINTON_LADDER)
+
+
+func ladder() -> Array:
+	return ladder_for(sport)
+
+
 var reputation := 1.0
-var matches_at_tier := 0
 var matches_refereed := 0
 var times_removed := 0
 var is_over := false
@@ -131,21 +267,17 @@ var is_over := false
 var grudge_name := ""
 var grudge_reason := ""
 
-## Set when the appointments panel watched a quiet match. It waives the character
-## reference for one promotion — you did not persuade them you were accurate, because
-## nobody can see that. You persuaded them you were no trouble.
-var panel_impressed := false
-
 ## Set for one screen after a match, so the result can say what just happened.
 var last_result := ""
 
 
 func venue() -> Dictionary:
-	return LADDER[clampi(tier, 0, LADDER.size() - 1)]
+	var rungs := ladder()
+	return rungs[clampi(tier, 0, rungs.size() - 1)]
 
 
 func at_the_top() -> bool:
-	return tier >= LADDER.size() - 1
+	return tier >= ladder().size() - 1
 
 
 ## Folds one finished match into the career, and returns what to tell the player.
@@ -201,7 +333,7 @@ func finish_match(suspicion_level: float, removed: bool, pressures: Array = []) 
 		tier += 1
 		matches_at_tier = 0
 		panel_impressed = false
-		lines.append("You have been moved up to the %s." % LADDER[tier]["name"])
+		lines.append("You have been moved up to the %s." % ladder()[tier]["name"])
 	elif not at_the_top() and matches_at_tier >= needed:
 		lines.append("They would move you up, but not with a reputation like that.")
 
@@ -237,15 +369,15 @@ func save() -> void:
 		push_warning("Could not write the career to %s" % SAVE_PATH)
 		return
 	file.store_string(JSON.stringify({
-		"tier": tier,
+		"version": 2,
+		"sport": String(sport),
+		"progress": progress,
 		"reputation": reputation,
-		"matches_at_tier": matches_at_tier,
 		"matches_refereed": matches_refereed,
 		"times_removed": times_removed,
 		"is_over": is_over,
 		"grudge_name": grudge_name,
 		"grudge_reason": grudge_reason,
-		"panel_impressed": panel_impressed,
 	}, "\t"))
 
 
@@ -262,15 +394,33 @@ static func load_or_start() -> Career:
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return career
 
-	career.tier = int(parsed.get("tier", 0))
 	career.reputation = float(parsed.get("reputation", 1.0))
-	career.matches_at_tier = int(parsed.get("matches_at_tier", 0))
 	career.matches_refereed = int(parsed.get("matches_refereed", 0))
 	career.times_removed = int(parsed.get("times_removed", 0))
 	career.is_over = bool(parsed.get("is_over", false))
 	career.grudge_name = String(parsed.get("grudge_name", ""))
 	career.grudge_reason = String(parsed.get("grudge_reason", ""))
-	career.panel_impressed = bool(parsed.get("panel_impressed", false))
+	career.sport = StringName(parsed.get("sport", String(BADMINTON)))
+
+	if parsed.has("progress"):
+		# JSON has no integers and no StringNames, so everything comes back as a float
+		# keyed by a plain String. Rebuilt rather than assigned, or `tier` comes out as
+		# 2.0 and every comparison against a rung index quietly stops working.
+		for name in parsed["progress"]:
+			var row: Dictionary = parsed["progress"][name]
+			career.progress[StringName(name)] = {
+				"tier": int(row.get("tier", 0)),
+				"matches_at_tier": int(row.get("matches_at_tier", 0)),
+				"panel_impressed": bool(row.get("panel_impressed", false)),
+			}
+		return career
+
+	# A save from before there was more than one sport. Everything in it was badminton.
+	career.progress[BADMINTON] = {
+		"tier": int(parsed.get("tier", 0)),
+		"matches_at_tier": int(parsed.get("matches_at_tier", 0)),
+		"panel_impressed": bool(parsed.get("panel_impressed", false)),
+	}
 	return career
 
 

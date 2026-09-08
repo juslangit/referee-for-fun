@@ -838,8 +838,9 @@ func show_career(career: Career) -> void:
 	_career_column.add_child(_make_label("YOUR CAREER", TITLE_SIZE - 4, Color(0.95, 0.95, 0.93)))
 	_career_column.add_child(_gap(8))
 
-	for i in Career.LADDER.size():
-		var rung: Dictionary = Career.LADDER[i]
+	var rungs := career.ladder()
+	for i in rungs.size():
+		var rung: Dictionary = rungs[i]
 		var text := "%s" % rung["name"]
 		var tint := Color(0.36, 0.38, 0.42)
 		if i < career.tier:

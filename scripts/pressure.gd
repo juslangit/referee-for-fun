@@ -180,7 +180,7 @@ static func _promotion(career: Career) -> Pressure:
 
 	var next_up := "the next level"
 	if not career.at_the_top():
-		next_up = String(Career.LADDER[career.tier + 1]["name"])
+		next_up = String(career.ladder()[career.tier + 1]["name"])
 
 	pressure.detail = ("Two people from the appointments panel are sitting behind the "
 		+ "officials' table with your file open. This is the match that decides whether "
