@@ -152,7 +152,11 @@ func _tick(delta: float, timer: float, label: Label) -> float:
 
 ## The panels all share a shape: a dark sheet over the court with a column of things
 ## in the middle of it. This builds that much, and the caller fills in the column.
-func _build_sheet(sheet_name: String, shade := Color(0.03, 0.04, 0.06, 0.72)) -> Array:
+## `shade` is the sheet drawn over the hall behind a menu. It is deliberately light now:
+## the arena it covers is already a dark room, and stacking a heavy black sheet on top
+## of it turned the backdrop to mud. The card itself is opaque, so the sheet only has to
+## settle the surroundings, not hide them.
+func _build_sheet(sheet_name: String, shade := Color(0.03, 0.04, 0.06, 0.45)) -> Array:
 	var sheet := Control.new()
 	sheet.name = sheet_name
 	sheet.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -184,7 +188,7 @@ func _build_sheet(sheet_name: String, shade := Color(0.03, 0.04, 0.06, 0.72)) ->
 
 
 func _build_main_menu() -> void:
-	var built := _build_sheet("MainMenu", Color(0.03, 0.04, 0.06, 0.70))
+	var built := _build_sheet("MainMenu", Color(0.03, 0.04, 0.06, 0.40))
 	_main_menu = built[0]
 	_main_menu_column = built[1]
 
@@ -240,7 +244,7 @@ func show_main_menu(career: Career) -> void:
 ## the honest version of a full screen — the alternative was one card on its own, and a
 ## menu that asks you to choose between one thing is not really asking.
 func _build_sport_menu() -> void:
-	var built := _build_sheet("SportMenu", Color(0.03, 0.04, 0.06, 0.80))
+	var built := _build_sheet("SportMenu", Color(0.03, 0.04, 0.06, 0.55))
 	_sport_menu = built[0]
 	var column: VBoxContainer = built[1]
 	column.custom_minimum_size = Vector2(0, 0)
@@ -354,7 +358,7 @@ func hide_sport_menu() -> void:
 func _build_settings_menu(settings: Settings) -> void:
 	if _settings_menu != null:
 		_settings_menu.queue_free()
-	var built := _build_sheet("Settings", Color(0.03, 0.04, 0.06, 0.86))
+	var built := _build_sheet("Settings", Color(0.03, 0.04, 0.06, 0.60))
 	_settings_menu = built[0]
 	var column: VBoxContainer = built[1]
 
@@ -617,7 +621,7 @@ func _build_length_panel() -> void:
 
 	var backdrop := ColorRect.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	backdrop.color = Color(0.03, 0.04, 0.06, 0.74)
+	backdrop.color = Color(0.03, 0.04, 0.06, 0.55)
 	_length_panel.add_child(backdrop)
 
 	var column := VBoxContainer.new()
@@ -667,7 +671,7 @@ func _build_pre_match() -> void:
 
 	var backdrop := ColorRect.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	backdrop.color = Color(0.03, 0.04, 0.06, 0.74)
+	backdrop.color = Color(0.03, 0.04, 0.06, 0.55)
 	_pre_match.add_child(backdrop)
 
 	var column := VBoxContainer.new()

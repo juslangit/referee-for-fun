@@ -172,6 +172,7 @@ var line_judges: Array[LineJudge] = []
 var shuttle_cam: ShuttleCam
 var sound: Sound
 var settings: Settings
+var menu_camera: MenuCamera
 
 var _all_line_judges: Array[LineJudge] = []
 var serving := Sides.Team.RED
@@ -213,6 +214,10 @@ func _ready() -> void:
 	camera.cull_mask = camera.cull_mask & ~Court.CHAIR_LAYER
 	camera.current = true
 	add_child(camera)
+
+	menu_camera = MenuCamera.new()
+	menu_camera.name = "MenuCamera"
+	add_child(menu_camera)
 
 	ui = RefereeUI.new()
 	ui.name = "RefereeUI"
@@ -259,6 +264,7 @@ func _ready() -> void:
 
 	career = Career.load_or_start()
 	court.stands.set_density(career.venue()["crowd"])
+	_menu_view()
 	ui.show_main_menu(career)
 
 	suspicion = Suspicion.new()
@@ -302,6 +308,7 @@ func _set_line_judges_present(present: bool) -> void:
 ## the sport decides everything after it.
 func _on_play_requested() -> void:
 	ui.hide_menus()
+	_menu_view()
 	ui.show_sport_menu()
 
 
@@ -317,6 +324,7 @@ func _on_sport_chosen(id: StringName) -> void:
 
 func _on_settings_requested() -> void:
 	ui.hide_menus()
+	_menu_view()
 	ui.show_settings(settings)
 
 
@@ -324,6 +332,7 @@ func _on_settings_requested() -> void:
 func _on_main_menu_requested() -> void:
 	ui.hide_sport_menu()
 	ui.hide_settings()
+	_menu_view()
 	ui.show_main_menu(career)
 
 
@@ -331,11 +340,34 @@ func _on_look_speed_changed(radians_per_pixel: float) -> void:
 	camera.sensitivity = radians_per_pixel
 
 
+## The drifting view of the hall that sits behind every menu, and the hall dressed at
+## its best while it is showing. A title screen is a shop window: it should be the good
+## version of the game, not whichever rung of the ladder this career happens to be on.
+func _menu_view() -> void:
+	if menu_camera == null:
+		return
+	camera.set_active(false)
+	menu_camera.current = true
+	if court != null and court.venue != null and court.venue.tier != Venue.Tier.ARENA:
+		court.dress(Venue.Tier.ARENA)
+		court.stands.set_density(1.0)
+
+
+## Back into the chair. Called wherever a match actually begins, which is the same place
+## the menus are cleared — every route in has to go through both or the player ends up
+## refereeing from somewhere over the stands.
+func _umpire_view() -> void:
+	if menu_camera != null:
+		menu_camera.current = false
+	camera.current = true
+
+
 func _on_continue_requested() -> void:
 	get_tree().reload_current_scene()
 
 
 func _on_career_screen_requested() -> void:
+	_menu_view()
 	ui.show_career(career)
 
 
@@ -343,6 +375,7 @@ func _on_new_career_requested() -> void:
 	career = Career.start_again()
 	career.save()
 	court.stands.set_density(career.venue()["crowd"])
+	_menu_view()
 	ui.show_career(career)
 
 
@@ -383,6 +416,7 @@ func _on_length_chosen(quick: bool) -> void:
 	# the career screen's button means it holds for every route in — including the
 	# development scenes, which were leaving the menu sitting over the court.
 	ui.hide_menus()
+	_umpire_view()
 	board = Scoreboard.new(quick)
 	board.game_won.connect(_on_game_won)
 	board.match_won.connect(_on_match_won)
