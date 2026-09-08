@@ -10,6 +10,7 @@ extends CanvasLayer
 
 signal length_chosen(quick: bool)
 signal favour_chosen(team: Sides.Team)
+signal briefing_acknowledged()
 signal punishment_chosen(id: StringName, team: Sides.Team)
 signal match_requested()
 signal play_requested()
@@ -77,6 +78,14 @@ var _career_column: VBoxContainer
 var _ending_button: Button
 var _length_panel: Control
 var _pre_match: Control
+
+## The screen that gives you a reason before it asks you the question.
+var _briefing: Control
+var _briefing_headline: Label
+var _briefing_detail: Label
+var _briefing_ask: Label
+var _favour_title: Label
+var _favour_note: Label
 var _ending: Control
 var _ending_headline: Label
 var _ending_detail: Label
@@ -116,6 +125,7 @@ func _ready() -> void:
 	_build_pause_menu()
 	_build_career_panel()
 	_build_length_panel()
+	_build_briefing()
 	_build_pre_match()
 	_build_hud()
 	_build_ending()
@@ -123,6 +133,7 @@ func _ready() -> void:
 	_build_fault_panel()
 	_pre_match.visible = false
 	_length_panel.visible = false
+	_briefing.visible = false
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -831,6 +842,18 @@ func show_career(career: Career) -> void:
 		PROMPT_SIZE + 2,
 		Color(0.88, 0.90, 0.93)
 	))
+
+	# Anybody out there who has not forgotten you. This is the only place a grudge
+	# shows up before you are standing in front of it, and it is here rather than on
+	# the briefing alone because the point of a grudge is that you carry it between
+	# matches — knowing it is coming is most of what it does.
+	if not career.grudge_name.is_empty():
+		_career_column.add_child(_gap(8))
+		_career_column.add_child(_make_label(
+			"%s is still in this draw." % career.grudge_name,
+			PROMPT_SIZE, Color(0.90, 0.62, 0.44)
+		))
+
 	_career_column.add_child(_gap(16))
 	# The button only reports the choice; the match decides what happens to the
 	# screen. Hiding it in here means the flow only works when a human clicks.
@@ -856,6 +879,7 @@ func hide_menus() -> void:
 	_career_panel.visible = false
 	_pause_menu.visible = false
 	_length_panel.visible = false
+	_briefing.visible = false
 
 
 func _gap(height: int) -> Control:
@@ -923,6 +947,81 @@ func _make_length_button(text: String, quick: bool) -> Button:
 	return button
 
 
+# --- the reason ----------------------------------------------------------------
+#
+# The screen that turns "pick a side" into a decision. Everything on it is something
+# somebody said to the umpire in a corridor, and none of it is an instruction. The
+# player is left to draw the conclusion, which is exactly the position the real job
+# puts you in.
+
+func _build_briefing() -> void:
+	_briefing = Control.new()
+	_briefing.name = "Briefing"
+	_briefing.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_briefing.mouse_filter = Control.MOUSE_FILTER_STOP
+	_briefing.visible = false
+	_root.add_child(_briefing)
+
+	var backdrop := ColorRect.new()
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.color = Color(0.02, 0.03, 0.05, 0.72)
+	_briefing.add_child(backdrop)
+
+	var card := PanelContainer.new()
+	card.set_anchors_preset(Control.PRESET_CENTER)
+	card.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	card.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_briefing.add_child(card)
+
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 16)
+	# Wide enough that a paragraph is a paragraph rather than a column of two words.
+	column.custom_minimum_size = Vector2(720, 0)
+	card.add_child(column)
+
+	_briefing_headline = _make_label("", TITLE_SIZE, Color(0.96, 0.94, 0.88))
+	column.add_child(_briefing_headline)
+
+	# The body is the only long prose in the game, so it wraps and is left-aligned.
+	# Centred ragged text reads as a poster; this is meant to read as somebody talking.
+	_briefing_detail = _make_label("", PROMPT_SIZE, Color(0.74, 0.76, 0.80))
+	_briefing_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_briefing_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_briefing_detail.custom_minimum_size = Vector2(720, 0)
+	column.add_child(_briefing_detail)
+
+	column.add_child(_gap(6))
+
+	# The one line you will still be thinking about at 19-all, in the colour of
+	# whoever stands to gain by it.
+	_briefing_ask = _make_label("", BUTTON_SIZE, Color(0.95, 0.90, 0.60))
+	_briefing_ask.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_briefing_ask.custom_minimum_size = Vector2(720, 0)
+	column.add_child(_briefing_ask)
+
+	column.add_child(_gap(10))
+
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_child(row)
+	row.add_child(_make_wide_button("GO OUT", func() -> void: briefing_acknowledged.emit()))
+
+
+func show_briefing(pressure: Pressure) -> void:
+	_length_panel.visible = false
+	_briefing_headline.text = pressure.headline.to_upper()
+	_briefing_detail.text = pressure.detail
+	_briefing_ask.text = pressure.ask
+	_briefing_ask.add_theme_color_override("font_color",
+		Sides.colour(pressure.wants) if pressure.wants != Sides.Team.NONE
+		else Color(0.95, 0.90, 0.60))
+	_briefing.visible = true
+
+
+func hide_briefing() -> void:
+	_briefing.visible = false
+
+
 func _build_pre_match() -> void:
 	_pre_match = Control.new()
 	_pre_match.name = "PreMatch"
@@ -943,12 +1042,14 @@ func _build_pre_match() -> void:
 	column.add_theme_constant_override("separation", 18)
 	_pre_match.add_child(column)
 
-	column.add_child(_make_label("WHO DO YOU WANT TO WIN?", TITLE_SIZE, Color(0.95, 0.95, 0.93)))
-	column.add_child(_make_label(
+	_favour_title = _make_label("WHO DO YOU WANT TO WIN?", TITLE_SIZE, Color(0.95, 0.95, 0.93))
+	column.add_child(_favour_title)
+	_favour_note = _make_label(
 		"Nobody will ever know you chose. Pick nobody to referee honestly.",
 		PROMPT_SIZE,
 		Color(0.62, 0.64, 0.68)
-	))
+	)
+	column.add_child(_favour_note)
 
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 14)
@@ -973,8 +1074,17 @@ func _make_choice_button(team: Sides.Team) -> Button:
 
 
 ## Moves on from the match-length question to the one that matters.
-func show_favour_choice() -> void:
+func show_favour_choice(reason := "") -> void:
 	_length_panel.visible = false
+	_briefing.visible = false
+	# With a reason behind it the question is no longer abstract, so it stops being
+	# phrased as one. You are not picking a favourite; you are answering somebody.
+	if reason.is_empty():
+		_favour_title.text = "WHO DO YOU WANT TO WIN?"
+		_favour_note.text = "Nobody will ever know you chose. Pick nobody to referee honestly."
+	else:
+		_favour_title.text = "SO WHAT ARE YOU GOING TO DO?"
+		_favour_note.text = reason
 	_pre_match.visible = true
 
 

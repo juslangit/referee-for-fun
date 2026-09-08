@@ -159,6 +159,19 @@ var rally: Rally
 ## Who the player privately decided should win. Nothing on screen ever says this.
 var favoured := Sides.Team.NONE
 
+## Why they might want that. Handed to them in a corridor before the match — or, in the
+## case of a debt, built by them halfway through it without meaning to.
+var pressure := Pressure.new()
+var debt: Pressure = null
+
+## Which way the umpire's mistakes were leaning when the debt was taken on. A debt is
+## settled by a later wrong call going the *other* way, so this is what to compare
+## against.
+var _debt_direction := Sides.Team.NONE
+
+## Whether a second wrong call has since gone the other way and settled it.
+var _debt_evened := false
+
 ## How much the hall doubts you. Never displayed — you find out by reading the room.
 var suspicion: Suspicion
 
@@ -238,6 +251,7 @@ func _ready() -> void:
 	ui.name = "RefereeUI"
 	ui.length_chosen.connect(_on_length_chosen)
 	ui.favour_chosen.connect(_on_favour_chosen)
+	ui.briefing_acknowledged.connect(_on_briefing_acknowledged)
 	ui.punishment_chosen.connect(_on_punishment_chosen)
 	ui.match_requested.connect(_on_match_requested)
 	ui.continue_requested.connect(_on_continue_requested)
@@ -463,7 +477,23 @@ func _on_length_chosen(quick: bool) -> void:
 	board = Scoreboard.new(quick)
 	board.game_won.connect(_on_game_won)
 	board.match_won.connect(_on_match_won)
-	ui.show_favour_choice()
+
+	# Whoever has a reason to lean on you this week gets to say their piece before the
+	# question is asked, so that the question has an answer worth thinking about.
+	pressure = Pressure.for_match(career)
+	debt = null
+	_debt_direction = Sides.Team.NONE
+	_debt_evened = false
+	challenge.watching = pressure.watched
+	if pressure.exists():
+		ui.show_briefing(pressure)
+	else:
+		ui.show_favour_choice()
+
+
+func _on_briefing_acknowledged() -> void:
+	ui.hide_briefing()
+	ui.show_favour_choice(pressure.ask)
 
 
 func _on_favour_chosen(team: Sides.Team) -> void:
@@ -1025,6 +1055,7 @@ func _make_call(id: StringName, against := Sides.Team.NONE) -> void:
 	# against the level at the time — so pricing them the wrong way round let a review
 	# push an umpire past the warning that the call itself should have given them first.
 	suspicion.register(rally)
+	_weigh_the_debt()
 
 	# Now, before the point is given, whoever it was taken from gets to ask. This is the
 	# only moment in the game where the truth is put on a screen, and the umpire has to
@@ -1121,9 +1152,26 @@ func _finish_match(headline: String, tint: Color, removed: bool) -> void:
 	ui.hide_shuttle_cam()
 	ui.set_prompt("")
 
+	# Whoever was leaning on you finds out how it went. Resolved before the career is
+	# told about it, because two of them change what the career does next.
+	var pressures: Array = []
+	if pressure.exists():
+		pressure.resolve(board, suspicion)
+		pressures.append(pressure)
+	if debt != null:
+		debt.resolve(board, suspicion, _debt_evened)
+		pressures.append(debt)
+
 	var detail := _reckoning()
 	if career != null:
-		var note := career.finish_match(suspicion.level, removed)
+		var note := career.finish_match(suspicion.level, removed, pressures)
+		# And whether tonight made somebody an enemy for a later match. Done after
+		# finish_match, which is where an old grudge gets marked as spent — so an umpire
+		# who settles one score badly walks straight out with a fresh one, which is the
+		# whole loop this system is for.
+		career.remember_grudge(
+			String(Pressure.NAMES.pick_random()),
+			suspicion.wrong_calls, suspicion.stolen_rallies, suspicion.lean)
 		career.save()
 		detail += "\n\n%s\n\nReputation  %d / 100" % [note, roundi(career.reputation * 100.0)]
 
@@ -1156,6 +1204,48 @@ func _reckoning() -> String:
 		board.games[Sides.Team.BLUE],
 	])
 	return "\n".join(lines)
+
+
+## The one pressure the player builds for themselves.
+##
+## The first time a call goes wrong plainly enough that the hall saw it, a side is a
+## point down because of the umpire, and there is an obvious way to put that right which
+## involves getting a second one wrong on purpose. The game already makes that second
+## lie cheap — suspicion charges for being wrong in a *pattern*, so a mistake the other
+## way genuinely does cost less than another one the same way. All this does is say so.
+##
+## Nothing here reveals anything. It fires only above Pressure.DEBT_NOTICED, which is
+## the level at which the crowd is already telling you.
+func _weigh_the_debt() -> void:
+	if rally == null or rally.verdict() != Rally.Verdict.WRONG:
+		return
+	if rally.visibility() < Pressure.DEBT_NOTICED:
+		return
+
+	var helped := rally.point_goes_to()
+	if helped == Sides.Team.NONE:
+		return
+	var robbed := Sides.opponent(helped)
+
+	if debt == null:
+		if not rally.changed_the_result():
+			return
+		debt = Pressure.debt_from(rally, robbed)
+		_debt_direction = robbed
+		# Whoever you just cost a rally stops giving you the benefit of the doubt. If
+		# somebody was already watching you, they keep the attention — you cannot be
+		# under less scrutiny for having made a second enemy.
+		if challenge.watching == Sides.Team.NONE:
+			challenge.watching = robbed
+		ui.show_banner("THAT ONE WAS WRONG AND EVERYONE SAW IT", 4.0)
+		ui.react("%s are a point down because of you" % Sides.label(robbed), 5.0)
+		return
+
+	# A later mistake going the other way is the books being balanced, which is two
+	# wrong calls dressed up as fairness.
+	if not _debt_evened and helped == _debt_direction:
+		_debt_evened = true
+		ui.react("nobody in this hall thinks that evened anything up", 5.0)
 
 
 ## The players' answer to the call. Whoever won it celebrates; whoever was robbed of

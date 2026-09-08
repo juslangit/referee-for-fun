@@ -97,6 +97,11 @@ var scrutiny := 1.0
 
 var level := 0.0
 
+## The highest this ever got during the match. The level itself comes back down as the
+## umpire referees straight, which is right for the crowd and wrong for anybody keeping
+## notes — the appointments panel remembers the worst it saw, not how it ended.
+var peak := 0.0
+
 ## Which way your wrong calls lean. Negative favours RED, positive favours BLUE.
 var lean := 0.0
 
@@ -285,6 +290,8 @@ func _direction_favoured(rally: Rally) -> float:
 
 
 func _settle_mood() -> void:
+	peak = maxf(peak, level)
+
 	var next := mood
 
 	if level >= REMOVAL_LEVEL:

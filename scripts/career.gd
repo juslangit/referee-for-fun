@@ -34,6 +34,17 @@ const DAMAGE_FROM_SUSPICION := 0.45
 ## will end most careers on their own.
 const DAMAGE_FROM_REMOVAL := 0.35
 
+## What settling a grudge costs you, on top of whatever the wrong calls already cost.
+##
+## Charged only when you actually leaned on the match to do it. Nobody finds out — this
+## is not the hall noticing, it is the fact that an umpire who has once refereed a man
+## out of a tournament for personal reasons is a different umpire afterwards. It is the
+## only thing in this game you are charged for that has no witness.
+const DAMAGE_FROM_SETTLING_A_SCORE := 0.10
+
+## How badly you have to have robbed somebody before they remember your name.
+const GRUDGE_FROM_LEAN := 0.30
+
 ## The venues, in order.
 ##
 ## `scrutiny` multiplies everything suspicion charges you. `matches_needed` is how
@@ -114,6 +125,17 @@ var matches_refereed := 0
 var times_removed := 0
 var is_over := false
 
+## A player who has not forgotten something you did to them, and what it was. Carried
+## between matches, which is the point of it: the consequence of a match you refereed
+## badly turns up in a later one as a temptation to do it again.
+var grudge_name := ""
+var grudge_reason := ""
+
+## Set when the appointments panel watched a quiet match. It waives the character
+## reference for one promotion — you did not persuade them you were accurate, because
+## nobody can see that. You persuaded them you were no trouble.
+var panel_impressed := false
+
 ## Set for one screen after a match, so the result can say what just happened.
 var last_result := ""
 
@@ -127,7 +149,7 @@ func at_the_top() -> bool:
 
 
 ## Folds one finished match into the career, and returns what to tell the player.
-func finish_match(suspicion_level: float, removed: bool) -> String:
+func finish_match(suspicion_level: float, removed: bool, pressures: Array = []) -> String:
 	matches_refereed += 1
 
 	var change := REPAIR_EACH_MATCH - suspicion_level * DAMAGE_FROM_SUSPICION
@@ -135,9 +157,18 @@ func finish_match(suspicion_level: float, removed: bool) -> String:
 		change -= DAMAGE_FROM_REMOVAL
 		times_removed += 1
 
-	reputation = clampf(reputation + change, 0.0, 1.0)
-
 	var lines: Array[String] = []
+
+	# What the people leaning on you made of it. Applied before the promotion is
+	# considered, because two of them change whether there is one.
+	#
+	# Each pressure knows what it does to a career; this file does not know what kinds
+	# of pressure exist. That is not tidiness for its own sake — Pressure has to name
+	# Career to read the ladder, so if Career named Pressure back neither would compile.
+	for pressure in pressures:
+		change += pressure.apply_to(self, lines)
+
+	reputation = clampf(reputation + change, 0.0, 1.0)
 
 	if removed:
 		lines.append("Taken off the match.")
@@ -162,15 +193,40 @@ func finish_match(suspicion_level: float, removed: bool) -> String:
 	var needed: int = here["matches_needed"]
 	var bar: float = here["reputation_needed"]
 
-	if not at_the_top() and matches_at_tier >= needed and reputation >= bar:
+	var vouched_for := reputation >= bar or panel_impressed
+
+	if not at_the_top() and matches_at_tier >= needed and vouched_for:
+		if reputation < bar:
+			lines.append("The panel put their name to you. Nobody read the rest of the file.")
 		tier += 1
 		matches_at_tier = 0
+		panel_impressed = false
 		lines.append("You have been moved up to the %s." % LADDER[tier]["name"])
 	elif not at_the_top() and matches_at_tier >= needed:
 		lines.append("They would move you up, but not with a reputation like that.")
 
 	last_result = "\n".join(lines)
 	return last_result
+
+
+## Whether this match made somebody an enemy, and who.
+##
+## Called after the reckoning. A grudge forms when the umpire visibly robbed one side
+## more than once and did it consistently — a single unlucky call is forgotten, and
+## mistakes that went both ways read as a bad night rather than a bent one.
+func remember_grudge(name: String, wrong_calls: int, stolen: int, lean: float) -> void:
+	if not grudge_name.is_empty():
+		return
+	if stolen < 1 or absf(lean) < GRUDGE_FROM_LEAN:
+		return
+
+	grudge_name = name
+	if stolen >= 3:
+		grudge_reason = "You took three rallies off them in one match and they counted every one."
+	elif wrong_calls >= 3:
+		grudge_reason = "They spent a whole match querying your calls and you never gave them one."
+	else:
+		grudge_reason = "You called a shuttle out that they knew was in, at 19-all, and they said so to a camera."
 
 
 # --- saving --------------------------------------------------------------------
@@ -187,6 +243,9 @@ func save() -> void:
 		"matches_refereed": matches_refereed,
 		"times_removed": times_removed,
 		"is_over": is_over,
+		"grudge_name": grudge_name,
+		"grudge_reason": grudge_reason,
+		"panel_impressed": panel_impressed,
 	}, "\t"))
 
 
@@ -209,6 +268,9 @@ static func load_or_start() -> Career:
 	career.matches_refereed = int(parsed.get("matches_refereed", 0))
 	career.times_removed = int(parsed.get("times_removed", 0))
 	career.is_over = bool(parsed.get("is_over", false))
+	career.grudge_name = String(parsed.get("grudge_name", ""))
+	career.grudge_reason = String(parsed.get("grudge_reason", ""))
+	career.panel_impressed = bool(parsed.get("panel_impressed", false))
 	return career
 
 

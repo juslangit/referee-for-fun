@@ -33,7 +33,16 @@ const MISTAKEN_MOST := 0.16
 ## Below this margin a player cannot really tell either, in metres.
 const DOUBT_RANGE := 0.28
 
+## How much more willing a side is to review when they have a reason to distrust this
+## particular umpire — a grudge, or a call of yours that already cost them a rally. It
+## is the mechanical half of somebody having your name: they stop giving you the
+## benefit of the doubt, and the close ones you used to get away with go on a screen.
+const WATCHING_YOU := 0.22
+
 var left := {Sides.Team.RED: PER_GAME, Sides.Team.BLUE: PER_GAME}
+
+## The side that is watching the umpire closely, if either is.
+var watching := Sides.Team.NONE
 
 
 func reset() -> void:
@@ -76,6 +85,9 @@ func challenger(rally: Rally) -> Sides.Team:
 		# review on a shuttle that was plainly a metre out.
 		var certainty := clampf(absf(rally.margin) / DOUBT_RANGE, 0.0, 1.0)
 		chance = MISTAKEN_MOST * (1.0 - certainty)
+
+	if lost == watching:
+		chance += WATCHING_YOU
 
 	return lost if randf() < chance else Sides.Team.NONE
 
