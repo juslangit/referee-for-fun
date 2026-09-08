@@ -12,6 +12,11 @@ signal length_chosen(quick: bool)
 signal favour_chosen(team: Sides.Team)
 signal punishment_chosen(id: StringName, team: Sides.Team)
 signal match_requested()
+signal play_requested()
+signal sport_chosen(id: StringName)
+signal settings_requested()
+signal main_menu_requested()
+signal look_speed_changed(radians_per_pixel: float)
 signal career_restart_requested()
 signal continue_requested()
 signal new_career_requested()
@@ -37,8 +42,33 @@ const BANNER_SIZE := UiTheme.HEADING
 var _root: Control
 var _hud: Control
 
+## The sports, in the order they appear. Only one of them is a game so far; the rest
+## are here because a selection screen with one thing to select is a strange object, and
+## because saying out loud what is coming is more honest than pretending it is finished.
+##
+## Badminton's picture is a photograph of this game, rendered by _card.gd. The others are
+## public-domain Olympic pictograms — see assets/ui/ATTRIBUTION.md.
+const SPORTS := [
+	{"id": &"badminton", "name": "Badminton", "art": "res://assets/ui/card_badminton.png",
+		"tint": Color(0.16, 0.44, 0.30), "ready": true},
+	{"id": &"volleyball", "name": "Volleyball", "art": "res://assets/ui/sport_volleyball.png",
+		"tint": Color(0.44, 0.24, 0.52), "ready": false},
+	{"id": &"tennis", "name": "Tennis", "art": "res://assets/ui/sport_tennis.png",
+		"tint": Color(0.20, 0.38, 0.58), "ready": false},
+	{"id": &"table_tennis", "name": "Table Tennis", "art": "res://assets/ui/sport_tabletennis.png",
+		"tint": Color(0.60, 0.34, 0.16), "ready": false},
+	{"id": &"basketball", "name": "Basketball", "art": "res://assets/ui/sport_basketball.png",
+		"tint": Color(0.56, 0.22, 0.24), "ready": false},
+]
+
+## How big one card is. Tall, like the reference — a sport reads better as a portrait of
+## somebody playing it than as a square.
+const CARD := Vector2(232.0, 330.0)
+
 var _main_menu: Control
 var _main_menu_column: VBoxContainer
+var _sport_menu: Control
+var _settings_menu: Control
 var _pause_menu: Control
 var _career_panel: Control
 var _career_column: VBoxContainer
@@ -78,6 +108,7 @@ func _ready() -> void:
 	add_child(_root)
 
 	_build_main_menu()
+	_build_sport_menu()
 	_build_pause_menu()
 	_build_career_panel()
 	_build_length_panel()
@@ -175,32 +206,245 @@ func show_main_menu(career: Career) -> void:
 	))
 	_main_menu_column.add_child(_gap(26))
 
+	# Three buttons and nothing else. Whether there is a career to go back to is a
+	# question for after the sport has been chosen, not for the title screen — it used to
+	# be answered here, and the front of the game read as a save-game manager.
 	var underway := career.matches_refereed > 0 and not career.is_over
 	if underway:
-		_main_menu_column.add_child(_centred(_make_wide_button(
-			"CONTINUE CAREER",
-			func() -> void:
-				_main_menu.visible = false
-				career_screen_requested.emit()
-		)))
 		_main_menu_column.add_child(_make_label(
-			"%s        reputation %d / 100" % [
+			"%s in progress        reputation %d / 100" % [
 				career.venue()["name"], roundi(career.reputation * 100.0)
 			],
 			PROMPT_SIZE, Color(0.58, 0.60, 0.64)
 		))
-		_main_menu_column.add_child(_gap(6))
+		_main_menu_column.add_child(_gap(10))
 
 	_main_menu_column.add_child(_centred(_make_wide_button(
-		"NEW CAREER" if underway or career.is_over else "START A CAREER",
-		func() -> void:
-			_main_menu.visible = false
-			new_career_requested.emit()
+		"PLAY", func() -> void: play_requested.emit()
+	)))
+	_main_menu_column.add_child(_gap(6))
+	_main_menu_column.add_child(_centred(_make_wide_button(
+		"SETTINGS", func() -> void: settings_requested.emit()
 	)))
 	_main_menu_column.add_child(_gap(6))
 	_main_menu_column.add_child(_centred(_make_wide_button("QUIT", func() -> void: quit_requested.emit())))
 
 	_main_menu.visible = true
+
+
+# --- choosing a sport -----------------------------------------------------------
+
+## The row of sports. One card each: a picture, and the name under it.
+##
+## Only badminton opens. The rest are drawn dim with COMING SOON across them, which is
+## the honest version of a full screen — the alternative was one card on its own, and a
+## menu that asks you to choose between one thing is not really asking.
+func _build_sport_menu() -> void:
+	var built := _build_sheet("SportMenu", Color(0.03, 0.04, 0.06, 0.80))
+	_sport_menu = built[0]
+	var column: VBoxContainer = built[1]
+	column.custom_minimum_size = Vector2(0, 0)
+
+	column.add_child(_make_label("WHICH SPORT?", TITLE_SIZE, UiTheme.CHALK))
+	column.add_child(_gap(6))
+	column.add_child(_make_label(
+		"Badminton is the one that is finished. The others are on their way.",
+		PROMPT_SIZE, UiTheme.MUTED
+	))
+	column.add_child(_gap(22))
+
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 16)
+	column.add_child(row)
+	for sport in SPORTS:
+		row.add_child(_sport_card(sport))
+
+	column.add_child(_gap(22))
+	column.add_child(_centred(_make_wide_button("BACK", func() -> void: main_menu_requested.emit())))
+
+
+func _sport_card(sport: Dictionary) -> Button:
+	var ready: bool = sport["ready"]
+	var card := Button.new()
+	card.custom_minimum_size = CARD
+	card.disabled = not ready
+	card.tooltip_text = "" if ready else "Not built yet"
+	if ready:
+		card.pressed.connect(func() -> void: sport_chosen.emit(sport["id"]))
+
+	# The card's own colour shows through behind the picture, which is what makes the
+	# row read as a set rather than as five unrelated photographs.
+	var face := StyleBoxFlat.new()
+	var tint: Color = sport["tint"]
+	face.bg_color = tint if ready else tint.darkened(0.55)
+	face.set_content_margin_all(0)
+	face.border_width_left = 0
+	face.corner_radius_top_left = 4
+	face.corner_radius_top_right = 4
+	card.add_theme_stylebox_override("normal", face)
+	card.add_theme_stylebox_override("disabled", face)
+	var lit := face.duplicate()
+	lit.bg_color = tint.lightened(0.16)
+	lit.border_width_top = 5
+	lit.border_color = UiTheme.ACCENT
+	card.add_theme_stylebox_override("hover", lit)
+	card.add_theme_stylebox_override("focus", lit)
+	card.add_theme_stylebox_override("pressed", lit)
+
+	var stack := VBoxContainer.new()
+	stack.set_anchors_preset(Control.PRESET_FULL_RECT)
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.add_theme_constant_override("separation", 0)
+	card.add_child(stack)
+
+	var picture := TextureRect.new()
+	picture.custom_minimum_size = Vector2(CARD.x, CARD.y - 62.0)
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	# The badminton card is a photograph and should fill the space; the pictograms are
+	# silhouettes on nothing and have to keep their shape or they turn into smears.
+	picture.stretch_mode = (
+		TextureRect.STRETCH_KEEP_ASPECT_COVERED if ready
+		else TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	)
+	if ResourceLoader.exists(sport["art"]):
+		picture.texture = load(sport["art"])
+	if not ready:
+		picture.modulate = Color(1.0, 1.0, 1.0, 0.34)
+	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.add_child(picture)
+
+	var name_plate := PanelContainer.new()
+	name_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Takes whatever height the picture left, so the plate reaches the bottom edge. Sized
+	# to its text instead, it stopped short and left a stripe of the card's own colour
+	# under the name.
+	name_plate.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var plate := StyleBoxFlat.new()
+	plate.bg_color = Color(0.05, 0.06, 0.08, 0.92)
+	plate.content_margin_top = 8
+	plate.content_margin_bottom = 8
+	name_plate.add_theme_stylebox_override("panel", plate)
+	stack.add_child(name_plate)
+
+	var caption := _make_label(
+		sport["name"] if ready else "%s\nCOMING SOON" % sport["name"],
+		UiTheme.SMALL if ready else UiTheme.SMALL - 4,
+		UiTheme.CHALK if ready else UiTheme.MUTED
+	)
+	name_plate.add_child(caption)
+	return card
+
+
+func show_sport_menu() -> void:
+	if _hud != null:
+		_hud.visible = false
+	_sport_menu.visible = true
+
+
+func hide_sport_menu() -> void:
+	_sport_menu.visible = false
+
+
+# --- settings -------------------------------------------------------------------
+
+## Volume, mouse speed and the window. Everything takes effect as it is dragged and is
+## written to disk straight away — a setting you have to confirm, or restart for, is one
+## people assume is broken.
+func _build_settings_menu(settings: Settings) -> void:
+	if _settings_menu != null:
+		_settings_menu.queue_free()
+	var built := _build_sheet("Settings", Color(0.03, 0.04, 0.06, 0.86))
+	_settings_menu = built[0]
+	var column: VBoxContainer = built[1]
+
+	column.add_child(_make_label("SETTINGS", TITLE_SIZE, UiTheme.CHALK))
+	column.add_child(_gap(18))
+
+	column.add_child(_slider_row("Overall volume", settings.master, 0.0, 1.0,
+		func(value: float) -> void:
+			settings.master = value
+			settings.apply()
+			settings.save()))
+	column.add_child(_slider_row("Crowd", settings.crowd, 0.0, 1.0,
+		func(value: float) -> void:
+			settings.crowd = value
+			settings.apply()
+			settings.save()))
+	column.add_child(_slider_row("Whistle and play", settings.effects, 0.0, 1.0,
+		func(value: float) -> void:
+			settings.effects = value
+			settings.apply()
+			settings.save()))
+
+	column.add_child(_gap(14))
+	column.add_child(_slider_row("Mouse look speed", settings.sensitivity,
+		Settings.SENSITIVITY_MIN, Settings.SENSITIVITY_MAX,
+		func(value: float) -> void:
+			settings.sensitivity = value
+			settings.save()
+			look_speed_changed.emit(value)))
+
+	column.add_child(_gap(14))
+	var window := CheckButton.new()
+	window.text = "Fullscreen"
+	window.button_pressed = settings.fullscreen
+	window.toggled.connect(func(pressed: bool) -> void:
+		settings.fullscreen = pressed
+		settings.apply()
+		settings.save())
+	column.add_child(_centred(window))
+
+	column.add_child(_gap(22))
+	column.add_child(_centred(_make_wide_button("BACK", func() -> void: main_menu_requested.emit())))
+
+
+## One labelled slider, with the value written out beside it. The number matters: a bare
+## slider tells you where the handle is and nothing about what it means.
+func _slider_row(label: String, value: float, lowest: float, highest: float,
+		on_change: Callable) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+
+	var name_label := _make_label(label, UiTheme.BODY, UiTheme.MUTED)
+	name_label.custom_minimum_size = Vector2(300, 0)
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	row.add_child(name_label)
+
+	var slider := HSlider.new()
+	slider.min_value = lowest
+	slider.max_value = highest
+	slider.step = (highest - lowest) / 40.0
+	slider.value = value
+	slider.custom_minimum_size = Vector2(330, 40)
+	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(slider)
+
+	var readout := _make_label("", UiTheme.BODY, UiTheme.CHALK)
+	readout.custom_minimum_size = Vector2(90, 0)
+	readout.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	row.add_child(readout)
+
+	var show_value := func(current: float) -> void:
+		readout.text = "%d%%" % roundi((current - lowest) / maxf(0.0001, highest - lowest) * 100.0)
+	show_value.call(value)
+	slider.value_changed.connect(func(current: float) -> void:
+		show_value.call(current)
+		on_change.call(current))
+	return row
+
+
+func show_settings(settings: Settings) -> void:
+	if _hud != null:
+		_hud.visible = false
+	_build_settings_menu(settings)
+	_settings_menu.visible = true
+
+
+func hide_settings() -> void:
+	if _settings_menu != null:
+		_settings_menu.visible = false
 
 
 func _build_pause_menu() -> void:
@@ -341,6 +585,8 @@ func hide_career() -> void:
 func hide_menus() -> void:
 	if _hud != null:
 		_hud.visible = true
+	hide_sport_menu()
+	hide_settings()
 	_main_menu.visible = false
 	_career_panel.visible = false
 	_pause_menu.visible = false

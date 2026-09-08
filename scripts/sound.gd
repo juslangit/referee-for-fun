@@ -49,10 +49,16 @@ var _wanted_mood := 0.0
 
 
 func _ready() -> void:
+	# The mixer is split before anything is created, so every player below lands on a
+	# bus the settings screen can actually move.
+	Settings.ensure_buses()
+
 	_calm = _bed(CALM)
 	_tense = _bed(TENSE)
 	_whistle = _flat(WHISTLE, WHISTLE_DB)
 	_reaction = _flat(APPLAUSE, REACTION_DB)
+	# The hall's reaction belongs with the hall, not with the whistle.
+	_reaction.bus = Settings.CROWD_BUS
 
 	for i in STRIKE_VOICES:
 		var voice := AudioStreamPlayer3D.new()
@@ -62,6 +68,7 @@ func _ready() -> void:
 		# inaudible from the chair, which is where the player always is.
 		voice.unit_size = 14.0
 		voice.max_distance = 40.0
+		voice.bus = Settings.EFFECTS_BUS
 		add_child(voice)
 		_strikes.append(voice)
 
@@ -78,6 +85,7 @@ func _bed(path: String) -> AudioStreamPlayer:
 		return player
 	player.stream = stream
 	player.volume_db = -80.0
+	player.bus = Settings.CROWD_BUS
 	add_child(player)
 	player.play()
 	return player
@@ -106,6 +114,7 @@ func _flat(path: String, level: float) -> AudioStreamPlayer:
 	if ResourceLoader.exists(path):
 		player.stream = load(path)
 	player.volume_db = level
+	player.bus = Settings.EFFECTS_BUS
 	add_child(player)
 	return player
 

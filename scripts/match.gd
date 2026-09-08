@@ -171,6 +171,7 @@ var has_shuttle_cam := true
 var line_judges: Array[LineJudge] = []
 var shuttle_cam: ShuttleCam
 var sound: Sound
+var settings: Settings
 
 var _all_line_judges: Array[LineJudge] = []
 var serving := Sides.Team.RED
@@ -226,6 +227,11 @@ func _ready() -> void:
 	ui.resume_requested.connect(_on_resume_requested)
 	ui.walk_out_requested.connect(_on_walk_out_requested)
 	ui.quit_requested.connect(_on_quit_requested)
+	ui.play_requested.connect(_on_play_requested)
+	ui.sport_chosen.connect(_on_sport_chosen)
+	ui.settings_requested.connect(_on_settings_requested)
+	ui.main_menu_requested.connect(_on_main_menu_requested)
+	ui.look_speed_changed.connect(_on_look_speed_changed)
 	add_child(ui)
 
 	_build_players()
@@ -246,6 +252,10 @@ func _ready() -> void:
 	sound = Sound.new()
 	sound.name = "Sound"
 	add_child(sound)
+
+	settings = Settings.load_or_default()
+	settings.apply()
+	camera.sensitivity = settings.sensitivity
 
 	career = Career.load_or_start()
 	court.stands.set_density(career.venue()["crowd"])
@@ -286,6 +296,39 @@ func _set_line_judges_present(present: bool) -> void:
 	for judge in _all_line_judges:
 		judge.visible = present
 		judge.silence()
+
+
+## PLAY on the title screen. Which sport, then which career — in that order, because
+## the sport decides everything after it.
+func _on_play_requested() -> void:
+	ui.hide_menus()
+	ui.show_sport_menu()
+
+
+## Only badminton opens, so this always leads to the same place. It is still routed
+## through the id rather than assumed, because the second sport is the whole reason the
+## screen exists and it should not need this function rewritten.
+func _on_sport_chosen(id: StringName) -> void:
+	ui.hide_sport_menu()
+	if id != &"badminton":
+		return
+	_on_career_screen_requested()
+
+
+func _on_settings_requested() -> void:
+	ui.hide_menus()
+	ui.show_settings(settings)
+
+
+## Back out of anything to the title screen.
+func _on_main_menu_requested() -> void:
+	ui.hide_sport_menu()
+	ui.hide_settings()
+	ui.show_main_menu(career)
+
+
+func _on_look_speed_changed(radians_per_pixel: float) -> void:
+	camera.sensitivity = radians_per_pixel
 
 
 func _on_continue_requested() -> void:
