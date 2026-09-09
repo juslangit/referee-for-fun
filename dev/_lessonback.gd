@@ -9,7 +9,7 @@ extends Node
 
 func _ready() -> void:
 	for scene in ["res://scenes/match.tscn", "res://scenes/beach.tscn",
-			"res://scenes/volleyball.tscn"]:
+			"res://scenes/volleyball.tscn", "res://scenes/tennis.tscn"]:
 		await _check(scene)
 	get_tree().quit()
 
@@ -27,6 +27,7 @@ func _check(scene: String) -> void:
 	else:
 		arena.settings.taught_beach = true
 		arena.settings.taught_indoor = true
+		arena.settings.taught_tennis = true
 		arena.ui.show_career(arena.career)
 	await get_tree().process_frame
 
@@ -35,6 +36,8 @@ func _check(scene: String) -> void:
 		sport = "beach"
 	elif scene.ends_with("volleyball.tscn"):
 		sport = "indoor"
+	elif scene.ends_with("tennis.tscn"):
+		sport = "tennis"
 
 	print("=== %s" % sport)
 	print("   the ladder offers HOW TO REFEREE: %s" % (

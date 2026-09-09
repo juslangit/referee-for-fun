@@ -351,6 +351,7 @@ func _ready() -> void:
 	# The room's mood follows the umpire's standing without either of them being shown
 	# a number. This is the only wire between suspicion and what the player can hear.
 	suspicion.level_changed.connect(sound.set_mood)
+	suspicion.level_changed.connect(_on_reputation_moved)
 
 
 # --- the loop ------------------------------------------------------------------
@@ -579,6 +580,7 @@ func begin_match(_unused := Sides.Team.NONE) -> void:
 		board.game_won.connect(_on_game_won)
 		board.match_won.connect(_on_match_won)
 	camera.set_active(true)
+	_start_watching_reputation()
 	_enter_ready()
 
 
@@ -1391,10 +1393,53 @@ func _on_removed_from_match() -> void:
 
 ## Closes the match out and folds it into the career. This is the only screen in the
 ## game allowed to state the truth, because there is nothing left to judge.
+# --- the reputation meter -------------------------------------------------------
+#
+# The same wiring the other three sports get from OfficiatedMatch. Badminton is not on
+# that base — it owns the whole front of the game — so it carries its own copy, which is
+# small enough to be worth less than converting the scene would cost.
+
+## What the meter last showed, out of a hundred. Negative until a match has begun.
+var _reputation_showing := -1
+
+
+## Reputation moved, so the meter puts itself up for three seconds and goes again.
+##
+## Driven off Suspicion rather than off the call, so every route that costs you
+## something reaches it in one place: a wrong call, a review that went against you on
+## camera, a service fault you sat through, and the slow repair a clean rally earns
+## back.
+##
+## Only a change to the **whole number** is shown. Suspicion moves by thousandths on an
+## honest rally, and a meter that appeared for each of those would be on screen
+## permanently, which is the one thing it must never be.
+func _on_reputation_moved(_level: float) -> void:
+	if career == null or ui == null or _reputation_showing < 0:
+		return
+	var now := career.reputation_as_it_stands(suspicion.level, suspicion.is_removed)
+	var out_of_100 := roundi(now * 100.0)
+	if out_of_100 == _reputation_showing:
+		return
+	var moved := float(out_of_100 - _reputation_showing) / 100.0
+	_reputation_showing = out_of_100
+	ui.show_reputation(now, moved)
+
+
+## Seeds the meter at whatever the career screen just showed, so that the first call of
+## the match is measured against the number the player last read.
+func _start_watching_reputation() -> void:
+	if career == null:
+		return
+	_reputation_showing = roundi(
+		career.reputation_as_it_stands(suspicion.level, false) * 100.0)
+
+
 func _finish_match(headline: String, tint: Color, removed: bool) -> void:
 	_phase = Phase.REMOVED
+	_reputation_showing = -1
 	camera.set_active(false)
 	ui.hide_shuttle_cam()
+	ui.hide_reputation()
 	ui.set_prompt("")
 
 	# Whoever was leaning on you finds out how it went. Resolved before the career is

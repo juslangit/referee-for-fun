@@ -435,13 +435,54 @@ func at_the_top() -> bool:
 	return tier >= ladder().size() - 1
 
 
+## Where reputation would land if the match ended at this instant.
+##
+## The meter on screen and the number on the ending screen are two views of one figure,
+## so they share one piece of arithmetic rather than each keeping a copy. Two copies
+## would eventually disagree, and the player would read that as the game lying to them —
+## which is fatal for the one readout in this project that claims to be the truth about
+## your name.
+##
+## What it deliberately leaves out is the pressures. Those settle when the match does,
+## and nobody has told you yet what the tournament made of it, so the ending screen is
+## still allowed to surprise you.
+func reputation_if_it_ended(suspicion_level: float, removed := false) -> float:
+	return clampf(reputation + _match_change(suspicion_level, removed), 0.0, 1.0)
+
+
+## What the meter on screen shows: your name as it stands right now, with the night's
+## damage taken off but not the flat credit every match earns for turning up.
+##
+## Deliberately not the same as `reputation_if_it_ended`. Including the credit would
+## start every match six points **above** the number the career screen had just shown
+## you, and the first thing the meter did would be to contradict the last thing you
+## read. This way it starts exactly where you left it, falls when you lie, and creeps
+## back as you referee cleanly — and the credit arrives at the end, as a thing the
+## ending screen tells you about.
+func reputation_as_it_stands(suspicion_level: float, removed := false) -> float:
+	return clampf(reputation + _match_damage(suspicion_level, removed), 0.0, 1.0)
+
+
+## What this match has cost so far. Never positive.
+func _match_damage(suspicion_level: float, removed: bool) -> float:
+	var damage := -suspicion_level * DAMAGE_FROM_SUSPICION
+	if removed:
+		damage -= DAMAGE_FROM_REMOVAL
+	return damage
+
+
+## Every match repairs a little and costs a little, and the two are always both applied.
+## See REPAIR_EACH_MATCH for why that break-even is the whole shape of a career.
+func _match_change(suspicion_level: float, removed: bool) -> float:
+	return REPAIR_EACH_MATCH + _match_damage(suspicion_level, removed)
+
+
 ## Folds one finished match into the career, and returns what to tell the player.
 func finish_match(suspicion_level: float, removed: bool, pressures: Array = []) -> String:
 	matches_refereed += 1
 
-	var change := REPAIR_EACH_MATCH - suspicion_level * DAMAGE_FROM_SUSPICION
+	var change := _match_change(suspicion_level, removed)
 	if removed:
-		change -= DAMAGE_FROM_REMOVAL
 		times_removed += 1
 
 	var lines: Array[String] = []

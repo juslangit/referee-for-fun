@@ -38,6 +38,19 @@ const PROMPT_SIZE := UiTheme.BODY
 const REACTION_SIZE := UiTheme.BODY
 const BANNER_SIZE := UiTheme.HEADING
 
+## The reputation meter: how long it fades in, how long it stays, how long it fades out.
+## Three seconds all told, which is long enough to read and short enough that it is gone
+## again before the next serve.
+const METER_FADE_IN := 0.4
+const METER_HOLD := 2.2
+const METER_FADE_OUT := 0.4
+
+## How wide the bar is, and where the colour of the fill changes.
+const METER_WIDTH := 520
+const METER_HEIGHT := 26
+const METER_SAFE := 0.60
+const METER_SHAKY := 0.30
+
 ## Everything is parented to this rather than to the layer, because a Theme travels
 ## down a Control tree and a CanvasLayer is not a Control. One assignment here styles
 ## every button, label and panel in the game.
@@ -106,6 +119,17 @@ var _message_timer := 0.0
 var _reaction_timer := 0.0
 var _banner_timer := 0.0
 
+## The reputation meter, and where it is in its three seconds. `_meter_left` counts down
+## through fade-in, hold and fade-out together, so re-triggering it while it is already
+## up simply refills the clock rather than starting the fade again — which matters,
+## because calls come close together and a meter that re-faded would flicker.
+var _meter: PanelContainer
+var _meter_bar: ProgressBar
+var _meter_value: Label
+var _meter_fill: StyleBoxFlat
+var _meter_left := 0.0
+var _meter_shown := 0.0
+
 
 func _ready() -> void:
 	layer = 10
@@ -148,6 +172,7 @@ func _process(delta: float) -> void:
 	_message_timer = _tick(delta, _message_timer, _message_label)
 	_reaction_timer = _tick(delta, _reaction_timer, _reaction_label)
 	_banner_timer = _tick(delta, _banner_timer, _banner_label)
+	_tick_the_meter(delta)
 
 
 func _tick(delta: float, timer: float, label: Label) -> float:
@@ -533,10 +558,26 @@ const BADMINTON_LESSONS := [
 			+ "two reviews a game, and a successful one is handed back. The hall watches "
 			+ "the landing on a screen and then everybody knows — including about the "
 			+ "close ones you were relying on nobody being sure about. Being caught that "
-			+ "way costs far more than the same call going unchallenged.\n\n"
-			+ "There is no suspicion meter anywhere in this game, and there never will "
-			+ "be. The only thing that tells you how much trouble you are in is the "
-			+ "room: how it sounds, and whether it comes out of its seat.",
+			+ "way costs far more than the same call going unchallenged.",
+	},
+	{
+		"title": "YOUR NAME",
+		"body": "Nothing in this game counts your mistakes for you. What you get while "
+			+ "you referee is the room — how it sounds, and whether it comes out of its "
+			+ "seat — and one number, which is this one.\n\n"
+			+ "REPUTATION is your name, out of a hundred, and it follows you from match "
+			+ "to match and from sport to sport. It is the only thing here that outlives "
+			+ "the match it happened in.\n\n"
+			+ "The bar appears at the bottom of the screen ONLY WHEN IT MOVES, for about "
+			+ "three seconds, and then it is gone. So it is never something to stare at. "
+			+ "It catches your eye at the moment a call has just cost you something, "
+			+ "which is the only moment worth knowing about.\n\n"
+			+ "It falls when you are wrong, and it creeps back up when you referee "
+			+ "cleanly. It does not tell you whether anybody BELIEVED a particular call "
+			+ "— nothing will ever tell you that. It tells you what the night has cost "
+			+ "you so far.\n\n"
+			+ "A quiet match repairs a little of it. A match with three invented cards in it does not.\n\n"
+			+ "Run it down to nothing and nobody will appoint you again.",
 	},
 ]
 
@@ -604,9 +645,26 @@ const BEACH_LESSONS := [
 			+ "that will ever tell you something you could not see from the stand.\n\n"
 			+ "From the world tour up, both sides carry two challenges a set. They can "
 			+ "put your line calls and your touches on a screen, and a successful one is "
-			+ "handed back — so a pair with one left is still dangerous.\n\n"
-			+ "There is no suspicion meter in this game and there never will be. The "
-			+ "only thing telling you how much trouble you are in is the crowd.",
+			+ "handed back — so a pair with one left is still dangerous.",
+	},
+	{
+		"title": "YOUR NAME",
+		"body": "Nothing in this game counts your mistakes for you. What you get while "
+			+ "you referee is the room — how it sounds, and whether it comes out of its "
+			+ "seat — and one number, which is this one.\n\n"
+			+ "REPUTATION is your name, out of a hundred, and it follows you from match "
+			+ "to match and from sport to sport. It is the only thing here that outlives "
+			+ "the match it happened in.\n\n"
+			+ "The bar appears at the bottom of the screen ONLY WHEN IT MOVES, for about "
+			+ "three seconds, and then it is gone. So it is never something to stare at. "
+			+ "It catches your eye at the moment a call has just cost you something, "
+			+ "which is the only moment worth knowing about.\n\n"
+			+ "It falls when you are wrong, and it creeps back up when you referee "
+			+ "cleanly. It does not tell you whether anybody BELIEVED a particular call "
+			+ "— nothing will ever tell you that. It tells you what the night has cost "
+			+ "you so far.\n\n"
+			+ "Denying a touch nobody could see is the cheapest thing you can do here. It is still not free, and it adds up.\n\n"
+			+ "Run it down to nothing and nobody will appoint you again.",
 	},
 ]
 
@@ -687,9 +745,26 @@ const INDOOR_LESSONS := [
 			+ "line calls and your touches on a screen — but NOT your rotation calls. A "
 			+ "camera looks at the ball. Where six people were standing is settled by "
 			+ "the scoresheet, which means a rotation call is your word and stays your "
-			+ "word.\n\n"
-			+ "There is no suspicion meter in this game and there never will be. The "
-			+ "only thing telling you how much trouble you are in is the hall.",
+			+ "word.",
+	},
+	{
+		"title": "YOUR NAME",
+		"body": "Nothing in this game counts your mistakes for you. What you get while "
+			+ "you referee is the room — how it sounds, and whether it comes out of its "
+			+ "seat — and one number, which is this one.\n\n"
+			+ "REPUTATION is your name, out of a hundred, and it follows you from match "
+			+ "to match and from sport to sport. It is the only thing here that outlives "
+			+ "the match it happened in.\n\n"
+			+ "The bar appears at the bottom of the screen ONLY WHEN IT MOVES, for about "
+			+ "three seconds, and then it is gone. So it is never something to stare at. "
+			+ "It catches your eye at the moment a call has just cost you something, "
+			+ "which is the only moment worth knowing about.\n\n"
+			+ "It falls when you are wrong, and it creeps back up when you referee "
+			+ "cleanly. It does not tell you whether anybody BELIEVED a particular call "
+			+ "— nothing will ever tell you that. It tells you what the night has cost "
+			+ "you so far.\n\n"
+			+ "A rotation you invented costs more of it than any line call ever will, because a lineup is written down.\n\n"
+			+ "Run it down to nothing and nobody will appoint you again.",
 	},
 ]
 
@@ -776,9 +851,26 @@ const TENNIS_LESSONS := [
 			+ "official standing in plain sight. Contradict one and the court has "
 			+ "watched two officials disagree in public, with only your call counting.\n\n"
 			+ "From the tour main draw up, both players carry challenges, and a screen "
-			+ "will draw your line calls to the millimetre in front of everybody.\n\n"
-			+ "There is no suspicion meter in this game and there never will be. The only "
-			+ "thing telling you how much trouble you are in is the crowd.",
+			+ "will draw your line calls to the millimetre in front of everybody.",
+	},
+	{
+		"title": "YOUR NAME",
+		"body": "Nothing in this game counts your mistakes for you. What you get while "
+			+ "you referee is the room — how it sounds, and whether it comes out of its "
+			+ "seat — and one number, which is this one.\n\n"
+			+ "REPUTATION is your name, out of a hundred, and it follows you from match "
+			+ "to match and from sport to sport. It is the only thing here that outlives "
+			+ "the match it happened in.\n\n"
+			+ "The bar appears at the bottom of the screen ONLY WHEN IT MOVES, for about "
+			+ "three seconds, and then it is gone. So it is never something to stare at. "
+			+ "It catches your eye at the moment a call has just cost you something, "
+			+ "which is the only moment worth knowing about.\n\n"
+			+ "It falls when you are wrong, and it creeps back up when you referee "
+			+ "cleanly. It does not tell you whether anybody BELIEVED a particular call "
+			+ "— nothing will ever tell you that. It tells you what the night has cost "
+			+ "you so far.\n\n"
+			+ "Shading a first serve is cheap, because it only costs a serve. Taking a second is not.\n\n"
+			+ "Run it down to nothing and nobody will appoint you again.",
 	},
 ]
 
@@ -1033,6 +1125,151 @@ func show_pause_menu() -> void:
 	_pause_menu.visible = true
 
 
+
+# --- the reputation meter -------------------------------------------------------
+#
+# It shows only when it moves, for three seconds, and then it is gone.
+#
+# This is a change of mind about something the game used to say in every lesson: that
+# there is no meter anywhere and the crowd is the only thing telling you how much
+# trouble you are in. The crowd is still there and still does that job — it is the
+# only thing that answers you *back*. What the meter adds is the other half: what a
+# night of small lies has actually cost your name, at the moment it costs it, rather
+# than as a number on a screen after there is nothing left to decide.
+#
+# It shows a projection rather than a stored value. Reputation still settles once, when
+# the match ends; this is where it would land if you walked off now.
+
+func _build_reputation_meter() -> PanelContainer:
+	_meter = PanelContainer.new()
+	_meter.name = "ReputationMeter"
+	_meter.add_theme_stylebox_override("panel", UiTheme.plate(UiTheme.ACCENT, 0.86))
+	# Above the prompt line and above the crowd's line, which is the order they belong
+	# in: what you must do, what the room thinks, and what it has cost you.
+	#
+	# It grows upwards from its anchor rather than both ways. Growing both ways put
+	# half the panel below the bottom of the screen, so the bar was cut in two and the
+	# whole thing sat on top of the reaction line.
+	_meter.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_meter.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_meter.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_meter.position = Vector2(0, -158)
+	_meter.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_meter.modulate = Color(1, 1, 1, 0)
+	_meter.visible = false
+
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 8)
+	_meter.add_child(column)
+
+	var heading := _make_label("REPUTATION", UiTheme.SMALL, UiTheme.MUTED)
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	column.add_child(heading)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 18)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_child(row)
+
+	_meter_bar = ProgressBar.new()
+	_meter_bar.custom_minimum_size = Vector2(METER_WIDTH, METER_HEIGHT)
+	_meter_bar.min_value = 0.0
+	_meter_bar.max_value = 100.0
+	_meter_bar.show_percentage = false
+
+	var track := StyleBoxFlat.new()
+	track.bg_color = UiTheme.INK
+	track.border_width_left = 2
+	track.border_width_right = 2
+	track.border_width_top = 2
+	track.border_width_bottom = 2
+	track.border_color = UiTheme.EDGE
+	_meter_bar.add_theme_stylebox_override("background", track)
+
+	_meter_fill = StyleBoxFlat.new()
+	_meter_fill.bg_color = UiTheme.CHALK
+	_meter_bar.add_theme_stylebox_override("fill", _meter_fill)
+	row.add_child(_meter_bar)
+
+	# The number and which way it just went, which is the part that is actually news.
+	_meter_value = _make_label("", UiTheme.HEADING, UiTheme.CHALK)
+	_meter_value.custom_minimum_size = Vector2(150, 0)
+	_meter_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	row.add_child(_meter_value)
+
+	return _meter
+
+
+## Puts the meter up, or refills its clock if it is already up.
+##
+## `value` is where reputation stands from nought to one; `moved` is how far it just
+## went, in the same units, signed. A move of zero is not shown at all — the meter is
+## only ever news.
+func show_reputation(value: float, moved: float) -> void:
+	if _meter == null or _hud == null or not _hud.visible:
+		return
+	if is_zero_approx(moved):
+		return
+
+	var out_of_100 := roundi(clampf(value, 0.0, 1.0) * 100.0)
+	var band := _meter_colour(value)
+	_meter_fill.bg_color = band
+	_meter_bar.value = float(out_of_100)
+	_meter.add_theme_stylebox_override("panel", UiTheme.plate(band, 0.86))
+
+	# Down is the news, so down is the colour the eye goes to.
+	var arrow := "\u25b2" if moved > 0.0 else "\u25bc"
+	_meter_value.text = "%s %d" % [arrow, out_of_100]
+	_meter_value.add_theme_color_override("font_color",
+		Color(0.55, 0.85, 0.60) if moved > 0.0 else Color(0.96, 0.42, 0.36))
+
+	_meter.visible = true
+	# Refilled rather than restarted: if it is already showing, it stays showing and
+	# simply gets its full hold back.
+	_meter_left = METER_FADE_IN + METER_HOLD + METER_FADE_OUT
+	if _meter_shown < 1.0 and _meter.modulate.a > 0.0:
+		# Already part way in. Keep the opacity it has rather than snapping back to
+		# nothing, which is what a restart would look like.
+		_meter_left -= METER_FADE_IN * _meter_shown
+
+
+## The bar's colour, which is the whole of what it says at a glance.
+func _meter_colour(value: float) -> Color:
+	if value >= METER_SAFE:
+		return Color(0.55, 0.85, 0.60)
+	if value >= METER_SHAKY:
+		return UiTheme.ACCENT
+	return Color(0.96, 0.42, 0.36)
+
+
+func _tick_the_meter(delta: float) -> void:
+	if _meter == null or _meter_left <= 0.0:
+		return
+	_meter_left -= delta
+	if _meter_left <= 0.0:
+		_meter.visible = false
+		_meter.modulate.a = 0.0
+		_meter_shown = 0.0
+		return
+
+	# Fade out at the end, fade in at the start, and full opacity in between.
+	if _meter_left <= METER_FADE_OUT:
+		_meter_shown = _meter_left / METER_FADE_OUT
+	else:
+		var since := (METER_FADE_IN + METER_HOLD + METER_FADE_OUT) - _meter_left
+		_meter_shown = clampf(since / METER_FADE_IN, 0.0, 1.0)
+	_meter.modulate.a = _meter_shown
+
+
+func hide_reputation() -> void:
+	if _meter == null:
+		return
+	_meter.visible = false
+	_meter.modulate.a = 0.0
+	_meter_left = 0.0
+	_meter_shown = 0.0
+
+
 ## Wipes the announcement, the crowd's line and the banner immediately.
 func clear_messages() -> void:
 	_message_label.text = ""
@@ -1041,6 +1278,7 @@ func clear_messages() -> void:
 	_message_timer = 0.0
 	_reaction_timer = 0.0
 	_banner_timer = 0.0
+	hide_reputation()
 
 
 func hide_pause_menu() -> void:
@@ -1371,8 +1609,10 @@ func _build_hud() -> void:
 	_prompt_label = _make_label("", PROMPT_SIZE, Color(0.88, 0.90, 0.93))
 	hud.add_child(_plate_for(_prompt_label, Control.PRESET_CENTER_BOTTOM, Vector2(0, -34)))
 
-	# What the hall is doing. This is the only feedback the player ever gets about
-	# how much trouble they are in — there is no suspicion bar anywhere, on purpose.
+	# What the hall is doing. For a long time this was the *only* feedback the player
+	# ever got about how much trouble they were in. The reputation meter below now says
+	# what it has cost — but only when it changes, and only for three seconds, so the
+	# room is still the thing you read continuously and the meter is only ever news.
 	_reaction_label = _make_label("", REACTION_SIZE, Color(0.86, 0.80, 0.66))
 	_reaction_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_reaction_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -1384,6 +1624,8 @@ func _build_hud() -> void:
 	_banner_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_banner_label.position = Vector2(0, 76)
 	hud.add_child(_banner_label)
+
+	hud.add_child(_build_reputation_meter())
 
 
 ## The score bug at the top of the screen, the way a broadcast does it: a block of each

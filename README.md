@@ -18,10 +18,15 @@ Godot 4.7.2 · GDScript · desktop, keyboard and mouse
 Most sports games ask whether you can play. This one asks whether you can be trusted.
 
 The interesting part is not that you *can* cheat. It is that the game never tells you
-whether you got away with it. **There is no suspicion meter anywhere and there never
-will be.** The only feedback is the room: how the crowd sounds, whether a coach stands
-up, whether the player whose point you just took turns round and argues with the chair.
-You are always guessing, which is exactly the position the job puts you in.
+whether you got away with it. **Nothing counts your mistakes for you.** The feedback is
+the room: how the crowd sounds, whether a coach stands up, whether the player whose
+point you just took turns round and argues with the chair. You are always guessing,
+which is exactly the position the job puts you in.
+
+The one number you are ever shown is your **reputation** — your name, out of a hundred,
+carried between matches. It appears at the bottom of the screen only when it moves, for
+three seconds, and then it is gone. It never tells you whether a particular call was
+believed. It tells you what the night has cost you so far, at the moment it costs it.
 
 That one rule drives everything else. A shuttle two centimetres out called IN is a
 matter of opinion — nobody in the building can be certain, so it barely costs you. One

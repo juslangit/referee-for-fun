@@ -3,8 +3,8 @@ extends Node3D
 
 ## Everything the hall sounds like.
 ##
-## It matters more here than it looks. The crowd is the only thing in this game that
-## tells the player how much trouble they are in — there is no suspicion meter, on
+## It matters more here than it looks. The crowd is the thing that tells the player how
+## much trouble they are in from moment to moment — nothing counts their mistakes, on
 ## purpose — and the hall was recently darkened to the point where you can barely make
 ## the people out. That left the whole feedback loop resting on a line of text. A room
 ## that murmurs, and murmurs differently when it stops trusting you, gives it back.
