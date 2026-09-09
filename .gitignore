@@ -46,5 +46,13 @@ assets/meshy/*/*
 !assets/meshy/*/*_animated.glb
 !assets/meshy/*/*_animated.glb.import
 
+# Downloaded audio, as opposed to the audio the game loads. `sfx` drops whole packs and
+# whole Freesound folders here; the game uses a handful of files out of them, and those
+# are copied up into assets/audio/ under names that say what they are for. Carrying 264
+# Kenney impact sounds to use one of them is the same mistake as carrying the Meshy
+# intermediates. Every fetch command is recorded in assets/audio/SOURCES.md.
+assets/audio/packs/
+assets/audio/freesound/
+
 # Python bytecode from the tool scripts.
 __pycache__/

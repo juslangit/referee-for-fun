@@ -4,9 +4,18 @@ Everything here is **CC0** — public domain, no credit legally required and no 
 carry into a build. It is written down anyway, because a reader should not have to
 wonder which files in a repository are safe to ship.
 
-Fetched with the `sfx` CLI. The full download folders are kept under `freesound/` and
-`packs/` with their own SOURCES.md and licence files; the files in *this* folder are the
-ones the game actually loads, renamed to say what they are for.
+Fetched with the `sfx` CLI. The download folders `freesound/` and `packs/` are **not in
+the repository** — carrying 264 Kenney impact sounds to use one of them is the same
+mistake as carrying the Meshy intermediates — so the files in *this* folder are the ones
+the game loads, copied up and renamed to say what they are for.
+
+To fetch the originals again:
+
+    sfx get 710041     # tennis ball hit
+    sfx get 816991     # volleyball spike
+    sfx get 788264     # tennis ball bouncing
+    sfx get 854616     # sand footstep
+    sfx pack impact-sounds   # Kenney, for footstep_wood_000.ogg
 
 ## Shared
 
