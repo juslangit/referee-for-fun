@@ -79,7 +79,28 @@ Everything an umpire does here is deniable, until it is not.
 
 ![A review](docs/review.png)
 
-## Running it
+## Playing it
+
+Build it yourself from this repo — see below — or open the project in **Godot 4.7.2**
+and run `scenes/match.tscn`.
+
+## Building it
+
+    godot --headless --export-release "macOS"  "build/macos/Referee For Fun.zip"
+    godot --headless --export-release "Windows" "build/windows/Referee For Fun.exe"
+
+Both presets are in `export_presets.cfg` and neither is signed, which costs nothing and
+matters differently on the two platforms. A macOS build **you** make opens with no
+warning, because Gatekeeper only quarantines files that arrived from somewhere else; one
+you send to somebody else needs a right-click → Open the first time, unless you pay
+Apple to notarise it. Windows runs unsigned with a SmartScreen warning you click past.
+
+The macOS preset is a universal binary, and that needs `import_etc2_astc` on in the
+project settings — Godot refuses a universal or arm64 export without it. The alternative
+was an Intel-only build running under Rosetta on the machine this game is developed on,
+which is the wrong way round.
+
+## Running it from source
 
 Open the project in **Godot 4.7.2** and run `scenes/match.tscn`. That is the only scene
 the game runs; the court, the hall, the crowd and the whole interface are built in code.

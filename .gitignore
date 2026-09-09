@@ -4,6 +4,11 @@
 
 # Exported builds
 build/
+
+# The export presets are NOT ignored, on purpose. Godot's own template gitignores them
+# because they can hold signing identities and passwords; these hold neither — codesign
+# and notarisation are both off — and keeping them in the repo is what makes a build
+# reproducible by anybody who clones it.
 *.dmg
 *.zip
 
