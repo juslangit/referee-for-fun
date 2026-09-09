@@ -543,7 +543,7 @@ func cheer() -> void:
 	court.cheer()
 
 func enter_ready() -> void:
-	ui.set_prompt("SPACE  whistle the serve          F  fault")
+	ui.set_prompt("SPACE  whistle the serve")
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -556,8 +556,17 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _phase == Phase.REMOVED or _phase == Phase.MENU:
 		return
 
+	if ui.is_fault_panel_open():
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			close_the_fault_panel()
+		return
+
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		pause_the_match()
+		return
+
+	if event is InputEventKey and event.pressed and event.keycode == KEY_F:
+		open_the_fault_panel()
 		return
 
 	match _phase:

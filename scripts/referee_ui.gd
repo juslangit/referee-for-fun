@@ -1412,6 +1412,12 @@ func _build_fault_panel() -> void:
 var fault_book: Array = CallBook.faults()
 
 
+## Whether this sport hands out cards. Badminton does; neither volleyball has them
+## modelled yet, and offering a card the game cannot price would be worse than not
+## offering one at all.
+var offers_cards := true
+
+
 func show_fault_panel(cards_only: bool) -> void:
 	for child in _fault_rows.get_children():
 		child.queue_free()
@@ -1432,8 +1438,11 @@ func show_fault_panel(cards_only: bool) -> void:
 		for call in fault_book:
 			_fault_rows.add_child(_make_accusation_row(call.label, call.id, Color(0.90, 0.88, 0.84)))
 
-	_fault_rows.add_child(_make_accusation_row("YELLOW CARD", &"yellow", Color(0.95, 0.85, 0.30)))
-	_fault_rows.add_child(_make_accusation_row("RED CARD", &"red", Color(0.94, 0.36, 0.32)))
+	if offers_cards:
+		_fault_rows.add_child(
+			_make_accusation_row("YELLOW CARD", &"yellow", Color(0.95, 0.85, 0.30)))
+		_fault_rows.add_child(
+			_make_accusation_row("RED CARD", &"red", Color(0.94, 0.36, 0.32)))
 
 	_fault_panel.visible = true
 

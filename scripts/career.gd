@@ -207,7 +207,10 @@ const INDOOR_LADDER := [
 		"name": "Sports hall",
 		"crowd": 0.16,
 		"blurb": "A school hall with the badminton posts still stacked against the wall.",
-		"line_judges": false,
+		# Two of them from the first rung, as badminton's school hall has. Indoor
+		# volleyball is refereed by a crew even at league level, and a first venue with
+		# nobody on the lines reads as a bug rather than as a small occasion.
+		"line_judges": true,
 		"close_cam": true,
 		"hawk_eye": false,
 		"quick": true,

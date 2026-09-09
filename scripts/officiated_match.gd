@@ -126,6 +126,8 @@ func _ready() -> void:
 	add_child(ui)
 	ui.show_hud(false)
 	ui.fault_book = fault_book()
+	ui.offers_cards = false
+	ui.punishment_chosen.connect(_on_fault_chosen)
 	_connect_menus()
 
 	sound = Sound.new()
@@ -695,6 +697,40 @@ func _announce_after_a_beat(judge: LineJudge) -> void:
 func hush_the_line_judges() -> void:
 	for judge in line_judges:
 		judge.silence()
+
+
+# --- accusing somebody ----------------------------------------------------------
+#
+# Every fault has to name a side: IN and OUT are about the ball, but a net touch or a
+# rotation is about a person, so the official points. Both volleyball prompts have
+# offered F since they were written and neither had wired it — which left an official
+# who wanted to call a fault with nothing that worked, and no way forward, because the
+# game was still waiting for a call that could not be made.
+
+func open_the_fault_panel() -> void:
+	if _phase != Phase.READY and _phase != Phase.AWAITING_CALL:
+		return
+	camera.set_active(false)
+	# Only the faults, never the cards: a fault between rallies belongs to the rally
+	# that has not happened yet, so there is nothing to accuse anybody of.
+	if _phase != Phase.AWAITING_CALL:
+		return
+	ui.show_fault_panel(false)
+
+
+func close_the_fault_panel() -> void:
+	ui.hide_fault_panel()
+	camera.set_active(true)
+
+
+func _on_fault_chosen(id: StringName, team: Sides.Team) -> void:
+	close_the_fault_panel()
+	make_call(id, team)
+
+
+## Overridden by each sport, because each has its own book.
+func make_call(_id: StringName, _against := Sides.Team.NONE) -> void:
+	pass
 
 
 # --- the mark ------------------------------------------------------------------

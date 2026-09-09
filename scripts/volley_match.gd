@@ -208,7 +208,14 @@ func _build_players() -> void:
 			player.speed = COURT_SPEED
 			player.reach = 1.35
 			add_child(player)
-			player.setup(team, Vector3(0.0, 0.0, Sides.half_sign(team) * 4.0))
+			# A first position each, rather than all six on one spot. They are put in
+			# their real rotational places by stand_in_position the moment the match
+			# begins; this only stops them being built inside one another.
+			var spot: Vector2 = Rotation.SPOTS[i + 1]
+			player.setup(team, Vector3(
+				spot.x * VolleySpec.HALF_WIDTH,
+				0.0,
+				Sides.half_sign(team) * spot.y * VolleySpec.HALF_LENGTH))
 			players.append(player)
 		_dress_the_libero(team)
 
@@ -254,6 +261,18 @@ func nearest_of(team: Sides.Team, to: Vector3) -> Player:
 ## This is where the sport's own kind of truth is made. Everything else in this game is
 ## decided by the ball; this is decided before the ball is touched, by six people
 ## walking to six places, and the referee either noticed or did not.
+## Puts the twelve where their rotations say, with nobody doing anything wrong.
+##
+## Called between rallies, so that the six are standing in their positions from the
+## moment the match begins rather than stacked on one spot until the first serve. It is
+## also the picture the official has to read: the lineup is only judged at the instant
+## of service, but it is only *learnable* by watching it in the gaps.
+func stand_in_position() -> void:
+	for team in [Sides.Team.RED, Sides.Team.BLUE]:
+		var who: Rotation = rota[team]
+		_stand(team, who.spots(team == serving))
+
+
 func _line_up() -> void:
 	rally.rotation_fault_by = Sides.Team.NONE
 	rally.wrong_server_by = Sides.Team.NONE
@@ -602,7 +621,7 @@ func _on_ball_landed(point: Vector3) -> void:
 		ball_cam.aim_at(point)
 		ui.show_close_cam(ball_cam.texture())
 	ui.set_prompt(
-		"LEFT CLICK  in    RIGHT CLICK  out    T  touch    R  rotation    F  fault")
+		"LEFT CLICK  in    RIGHT CLICK  out    T  touch    F  fault or rotation")
 
 
 # --- the call -------------------------------------------------------------------
@@ -628,15 +647,25 @@ func award_the_point(winner: Sides.Team) -> void:
 	super(winner)
 
 func enter_ready() -> void:
-	ui.set_prompt("SPACE  whistle the serve      F  fault, including the rotation")
+	stand_in_position()
+	ui.set_prompt("SPACE  whistle the serve")
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _reviewing or _phase == Phase.REMOVED or _phase == Phase.MENU:
 		return
 
+	if ui.is_fault_panel_open():
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			close_the_fault_panel()
+		return
+
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		pause_the_match()
+		return
+
+	if event is InputEventKey and event.pressed and event.keycode == KEY_F:
+		open_the_fault_panel()
 		return
 
 	match _phase:
