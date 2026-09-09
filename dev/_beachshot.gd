@@ -13,6 +13,12 @@ func _ready() -> void:
 	arena.career.sport = Career.BEACH
 	arena.ui.match_requested.emit()
 	await get_tree().process_frame
+	# Some venues open with a briefing, and its sheet covers the whole screen. Leaving
+	# it up does not stop the match — begin_match works either way — it just darkens
+	# every picture taken afterwards by 72%, which reads as a lighting bug.
+	if arena.pressure.exists():
+		arena.ui.briefing_acknowledged.emit()
+		await get_tree().process_frame
 	arena.begin_match()
 	for f in 3:
 		await get_tree().process_frame

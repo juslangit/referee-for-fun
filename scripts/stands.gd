@@ -17,15 +17,24 @@ extends Node3D
 ## people over there are the only thing in the game that tells the player how much
 ## trouble they are in, so that stand sits as close to the run-off as it can. The +X
 ## stand is behind the chair and gives up its place to the second court.
-const FIRST_ROW_X := 6.55
-const FAR_ROW_X := 20.4
-const ROW_DEPTH := 0.85
-const ROW_RISE := 0.38
-const ROWS := 6
+## These are the badminton hall's numbers and they are the defaults, but they are
+## variables rather than constants because a second sport is played on a different
+## rectangle. Everything below this — the seats, the crowd, the density, the cheering —
+## is about people in rows and does not care how far out the rows are, so beach
+## volleyball builds the same Stands with its own geometry rather than a second copy of
+## four hundred lines of MultiMesh.
+var near_row_x := 6.55
+var far_row_x := 20.4
+var row_depth := 0.85
+var row_rise := 0.38
+var rows := 6
 
 ## How far the seating runs along the hall, and how far apart people sit.
-const HALF_LENGTH := 10.4
-const SEAT_SPACING := 0.80
+var half_length := 10.4
+var seat_spacing := 0.80
+
+## Temporary scaffold seating on sand rather than concrete steps in a building.
+var outdoors := false
 
 ## The two sides of the hall. Typed, because a bare [1.0, -1.0] is an untyped Array
 ## and everything derived from an element of it becomes a Variant.
@@ -197,8 +206,8 @@ func set_density(density: float) -> void:
 ## Where one row of one side sits. The near side is pushed out past the second court,
 ## so the two sides cannot share a number any more.
 func _row_x(side: float, row: int) -> float:
-	var start := FAR_ROW_X if side > 0.0 else FIRST_ROW_X
-	return side * (start + ROW_DEPTH * (float(row) + 0.5))
+	var start := far_row_x if side > 0.0 else near_row_x
+	return side * (start + row_depth * (float(row) + 0.5))
 
 
 func _build_seating() -> void:
@@ -207,22 +216,27 @@ func _build_seating() -> void:
 	var pale := tier == Venue.Tier.SCHOOL
 
 	var concrete := StandardMaterial3D.new()
-	concrete.albedo_color = Color(0.52, 0.51, 0.48) if pale else Color(0.20, 0.20, 0.23)
-	concrete.roughness = 0.95
-
 	var front := StandardMaterial3D.new()
-	front.albedo_color = Color(0.42, 0.41, 0.39) if pale else Color(0.14, 0.14, 0.17)
+	if outdoors:
+		# Scaffold decking put up for the weekend: pale boards on a dark frame, and
+		# bleached rather than the grey of a room that never sees the sun.
+		concrete.albedo_color = Color(0.78, 0.72, 0.62)
+		front.albedo_color = Color(0.34, 0.33, 0.33)
+	else:
+		concrete.albedo_color = Color(0.52, 0.51, 0.48) if pale else Color(0.20, 0.20, 0.23)
+		front.albedo_color = Color(0.42, 0.41, 0.39) if pale else Color(0.14, 0.14, 0.17)
+	concrete.roughness = 0.95
 	front.roughness = 0.95
 
 	for side: float in SIDES:
-		for row in ROWS:
-			var height := ROW_RISE * float(row + 1)
+		for row in rows:
+			var height := row_rise * float(row + 1)
 			var x := _row_x(side, row)
 
 			var step := MeshInstance3D.new()
 			step.name = "Step"
 			var box := BoxMesh.new()
-			box.size = Vector3(ROW_DEPTH, height, HALF_LENGTH * 2.0)
+			box.size = Vector3(row_depth, height, half_length * 2.0)
 			step.mesh = box
 			step.position = Vector3(x, height * 0.5, 0.0)
 			step.material_override = concrete if row % 2 == 0 else front
@@ -235,17 +249,17 @@ func _build_crowd() -> void:
 	# everybody in one solid block at one end.
 	var seats: Array[Transform3D] = []
 	for side: float in SIDES:
-		for row in ROWS:
-			var height := ROW_RISE * float(row + 1)
+		for row in rows:
+			var height := row_rise * float(row + 1)
 			var x := _row_x(side, row)
-			var z := -HALF_LENGTH + SEAT_SPACING * 0.5
-			while z < HALF_LENGTH:
+			var z := -half_length + seat_spacing * 0.5
+			while z < half_length:
 				var seat := Transform3D.IDENTITY
 				# Turned to face the court, with a little slouch either way.
 				seat.basis = Basis(Vector3.UP, (PI * 0.5 * side) + randf_range(-0.18, 0.18))
 				seat.origin = Vector3(x + randf_range(-0.12, 0.12), height, z)
 				seats.append(seat)
-				z += SEAT_SPACING
+				z += seat_spacing
 	seats.shuffle()
 	_total = seats.size()
 	_seats = seats

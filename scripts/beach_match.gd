@@ -372,6 +372,7 @@ func _on_match_requested() -> void:
 	suspicion.scrutiny = venue["scrutiny"]
 	has_challenge = venue["hawk_eye"]
 	challenge.reset()
+	court.dress(venue["dressing"], venue["crowd"])
 	board = Scoreboard.new(venue["quick"])
 	# Two challenges a set, as in the real sport, so a new set hands them both back.
 	board.game_won.connect(func(_team: Sides.Team) -> void:
@@ -783,6 +784,10 @@ func make_call(id: StringName, against := Sides.Team.NONE) -> void:
 			Sides.colour(winner))
 
 	ui.react(Crowd.react_to_call(rally.visibility(), suspicion.mood))
+	# The stand comes out of its seats for a point, which is the only thing on screen
+	# that answers the referee back.
+	if winner != Sides.Team.NONE:
+		court.cheer()
 	ui.set_reviews(challenge.remaining(Sides.Team.RED),
 		challenge.remaining(Sides.Team.BLUE), has_challenge)
 

@@ -46,9 +46,18 @@ const EYE_HEIGHT := POST_TOP + 0.55
 ## inside your own chair is a view of the inside of a chair.
 const STAND_LAYER := 4
 
-## Seating is not built here yet. The badminton Stands are placed against a hall that
-## is 13.4 m long and walled; dropped around a 16 m beach court they sit in the wrong
-## place and are made of indoor furniture. The venue gets dressed once the match plays.
+## Temporary scaffold seating down both long sides, and the people in it.
+##
+## The same Stands the badminton hall uses, told where to put itself. The crowd is the
+## only thing in this game that tells the player how much trouble they are in, so a
+## beach court with nobody watching it is not a stylistic gap — it is the feedback
+## channel missing.
+var stands: Stands
+
+## Where the seating begins. The free zone is in play right out to five metres, so the
+## front row has to sit beyond it or the crowd is standing in the court.
+const STAND_SET_BACK := BeachSpec.FREE_ZONE + 1.2
+
 var _net_parts: Array[MeshInstance3D] = []
 var _net_rest: Array[Vector3] = []
 var _shake_left := 0.0
@@ -66,6 +75,7 @@ func _ready() -> void:
 	_build_lines()
 	_build_net()
 	_build_referee_stand()
+	_build_stands()
 
 
 func _build_materials() -> void:
@@ -234,6 +244,38 @@ func _build_referee_stand() -> void:
 	)
 	for part in [legs, platform]:
 		part.layers = STAND_LAYER
+
+
+## Both sides at the same distance, unlike the badminton hall — there is no second
+## court here to push one stand back, and no building to fit inside.
+func _build_stands() -> void:
+	stands = Stands.new()
+	stands.name = "Stands"
+	stands.outdoors = true
+	stands.near_row_x = BeachSpec.HALF_WIDTH + STAND_SET_BACK
+	stands.far_row_x = BeachSpec.HALF_WIDTH + STAND_SET_BACK
+	stands.row_depth = 0.92
+	stands.row_rise = 0.42
+	stands.rows = 5
+	# Along the court and a little past each end line, which is where a beach crowd
+	# actually gathers — the best view of a line call is from behind the line.
+	stands.half_length = BeachSpec.HALF_LENGTH + 2.4
+	stands.seat_spacing = 0.82
+	add_child(stands)
+
+
+## The venue, and how full it is. Dressed before the crowd is counted, because dressing
+## rebuilds the seating and everybody in it — a density set before that is thrown away.
+func dress(tier: Venue.Tier, density: float) -> void:
+	if stands == null:
+		return
+	stands.dress(tier)
+	stands.set_density(density)
+
+
+func cheer() -> void:
+	if stands != null:
+		stands.cheer()
 
 
 func _add_box(name: String, size: Vector3, at: Vector3,
