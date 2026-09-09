@@ -17,9 +17,14 @@ extends RigidBody3D
 
 signal landed(point: Vector3)
 
-## FIVB: 260 to 280 grams, 66 to 68 cm around.
+## FIVB: 260 to 280 grams, 66 to 68 cm around. These are the defaults; a subclass sets
+## its own before _ready runs, which is how the tennis ball exists without a second copy
+## of the flight code.
 const MASS := 0.270
 const RADIUS := 0.1055
+
+var mass_kg := MASS
+var radius := RADIUS
 
 ## Drag. Far gentler than a shuttlecock's, but not nothing — a served ball loses a
 ## noticeable amount of speed over sixteen metres, and a float serve wanders because of
@@ -27,11 +32,21 @@ const RADIUS := 0.1055
 ## so the two are tuned in the same language.
 const TERMINAL_VELOCITY := 31.0
 
+var terminal_velocity := TERMINAL_VELOCITY
+
 ## Bounce off the sand. A volleyball does bounce, unlike a shuttlecock, and the bounce
 ## is part of how a beach point reads: the ball lands, kicks up sand, and everybody
-## looks at the mark. It is cosmetic — the landing point is recorded on the way down,
-## before any of it.
+## looks at the mark. It is cosmetic for volleyball — the landing point is recorded on
+## the way down, before any of it — and it is not cosmetic at all for tennis, where the
+## second bounce is a call.
 const SAND_BOUNCE := 0.32
+
+var bounce := SAND_BOUNCE
+
+## How many times it has hit the ground since it was launched. Volleyball never asks;
+## tennis asks constantly, because a ball that bounces twice before it is reached is the
+## point over.
+var bounces := 0
 
 ## Below this the ball is treated as at rest and stops being pushed around.
 const REST_SPEED := 0.05
@@ -52,7 +67,7 @@ var _previous_bottom := Vector3.ZERO
 
 
 func _ready() -> void:
-	mass = MASS
+	mass = mass_kg
 	gravity_scale = 1.0
 	continuous_cd = true
 	# The only drag on this ball is the one modelled below.
@@ -70,7 +85,7 @@ func _ready() -> void:
 	contact_monitor = false
 	can_sleep = false
 	# Drag balances gravity at terminal velocity: k v² = m g.
-	_drag_factor = (MASS * 9.81) / (TERMINAL_VELOCITY * TERMINAL_VELOCITY)
+	_drag_factor = (mass_kg * 9.81) / (terminal_velocity * terminal_velocity)
 	_build_body()
 	_build_collision()
 	_draw_on_court_layer()
@@ -78,6 +93,7 @@ func _ready() -> void:
 
 func launch(from: Vector3, velocity: Vector3) -> void:
 	has_landed = false
+	bounces = 0
 	landing_point = Vector3.ZERO
 	freeze = false
 	global_position = from
@@ -104,7 +120,7 @@ func _physics_process(_delta: float) -> void:
 ## point is more than five times the width of the tape it is being judged against.
 ## Reading the centre would put every close call a whole ball-radius out.
 func _bottom() -> Vector3:
-	return global_position - Vector3(0.0, RADIUS, 0.0)
+	return global_position - Vector3(0.0, radius, 0.0)
 
 
 ## Where the underside crossed the sand, rather than wherever the ball happened to be
@@ -126,6 +142,13 @@ func _check_for_landing() -> void:
 		crossing = clampf((previous.y - floor_height) / (previous.y - bottom.y), 0.0, 1.0)
 
 	var contact := previous.lerp(bottom, crossing)
+	bounces += 1
+	# Only the first bounce is the landing. Everything after it is the ball still
+	# moving, which volleyball ignores and tennis has to keep watching: the second
+	# bounce is what ends a point.
+	if bounces > 1:
+		_bounce_again()
+		return
 	landing_point = Vector3(contact.x, floor_height, contact.z)
 	landing_speed = linear_velocity.length()
 	has_landed = true
@@ -133,12 +156,18 @@ func _check_for_landing() -> void:
 	# Unlike the shuttle this is not frozen on contact: a volleyball bounces, the sand
 	# kicks up, and everybody looks at where it hit. The truth was taken on the way
 	# down, so whatever it does now is decoration and cannot change the call.
-	global_position = landing_point + Vector3(0.0, RADIUS, 0.0)
-	linear_velocity = Vector3(
-		linear_velocity.x * SAND_BOUNCE,
-		absf(linear_velocity.y) * SAND_BOUNCE,
-		linear_velocity.z * SAND_BOUNCE)
+	global_position = landing_point + Vector3(0.0, radius, 0.0)
+	_bounce_again()
 	landed.emit(landing_point)
+
+
+## Kicks it back up off the ground, keeping some of the speed it arrived with.
+func _bounce_again() -> void:
+	global_position.y = maxf(global_position.y, floor_height + radius)
+	linear_velocity = Vector3(
+		linear_velocity.x * bounce,
+		absf(linear_velocity.y) * bounce,
+		linear_velocity.z * bounce)
 
 
 ## Ends the flight wherever the ball is, for the case where it has come to rest against
@@ -159,8 +188,8 @@ func _build_body() -> void:
 	var view := MeshInstance3D.new()
 	view.name = "Ball"
 	var sphere := SphereMesh.new()
-	sphere.radius = RADIUS
-	sphere.height = RADIUS * 2.0
+	sphere.radius = radius
+	sphere.height = radius * 2.0
 	sphere.radial_segments = 24
 	sphere.rings = 12
 	view.mesh = sphere
@@ -178,7 +207,7 @@ func _build_body() -> void:
 func _build_collision() -> void:
 	var shape := CollisionShape3D.new()
 	var sphere := SphereShape3D.new()
-	sphere.radius = RADIUS
+	sphere.radius = radius
 	shape.shape = sphere
 	add_child(shape)
 

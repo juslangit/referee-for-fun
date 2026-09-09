@@ -32,6 +32,7 @@ The ones worth keeping in mind:
 | `_indoorbugs` | Three reported faults at the venue a new career actually starts on: are there line judges, are the six in position before the first serve, and does a rally follow every whistle? |
 | `_cover` | Do the volleyball line judges actually give an official cover? Prices the same wrong call three ways — nobody spoke, the judge agreed, the judge disagreed. Found the verdict-enum mismatch. |
 | `_sets` | Is the last set shorter than the rest? Drives each sport's match to its decider and prints what every set was played to. |
+| `_tennislook` | The tennis court empty, from the chair and from above: do the two sets of sidelines read as one court, and does the net look like it sags? |
 | `_tennisscore` | Does tennis count the way tennis counts? A game, deuce and advantage, a set won by two, a tiebreak at six-all, and a match. Arithmetic, checked before anything was built on it. |
 | `_rotate` | Does the rotation rotate the way volleyball rotates? Six turns, who serves, and whether the legality test catches the arrangements it should. Pure arithmetic, checked before anything was built on it. |
 | `_indoorrules` | The four positional calls, made, missed and invented, one at a time. Waiting for a rotation fault to come up on its own takes forty rallies; this builds each by hand. |

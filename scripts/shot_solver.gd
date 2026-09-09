@@ -55,6 +55,12 @@ static func ball_flight() -> Flight:
 	return Flight.new(Ball.TERMINAL_VELOCITY, Ball.RADIUS, false)
 
 
+## The tennis ball, which is lighter, smaller and faster.
+static func tennis_flight() -> Flight:
+	return Flight.new(
+		TennisBall.TENNIS_TERMINAL, TennisBall.TENNIS_RADIUS, false)
+
+
 ## Speeds worth searching between, in m/s. The upper end is well past a smash.
 const MIN_SPEED := 1.0
 const MAX_SPEED := 140.0
