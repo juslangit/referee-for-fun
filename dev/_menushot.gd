@@ -18,7 +18,7 @@ func _ready() -> void:
 
 	arena.ui._main_menu.visible = false
 	arena._on_match_requested()
-	arena._on_favour_chosen(Sides.Team.BLUE)
+	arena.begin_match()
 	for r in range(2):
 		arena._start_rally()
 		var waited := 0

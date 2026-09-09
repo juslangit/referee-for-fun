@@ -8,7 +8,7 @@ func _ready() -> void:
 	add_child(arena)
 	await get_tree().physics_frame
 	arena._on_length_chosen(false)
-	arena._on_favour_chosen(Sides.Team.NONE)
+	arena.begin_match()
 
 	# Let a few rallies play so the score is not 0-0 and the players are spread out.
 	for r in range(4):

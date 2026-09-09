@@ -104,8 +104,9 @@ var sound: Sound
 var players: Array[Player] = []
 var serving := Sides.Team.RED
 
-## Who the referee privately wants to win, and why they might.
-var favoured := Sides.Team.NONE
+## Why the referee might want a particular result this week, if anybody has given them
+## one. Nobody is asked to pick a side any more — a reason only ever arrives from
+## outside, and only sometimes.
 var pressure := Pressure.new()
 
 var _phase := Phase.MENU
@@ -308,7 +309,6 @@ func _meet_the_attack(defending: Sides.Team, from: Vector3, target: Vector3) -> 
 func _connect_menus() -> void:
 	ui.match_requested.connect(_on_match_requested)
 	ui.briefing_acknowledged.connect(_on_briefing_acknowledged)
-	ui.favour_chosen.connect(_on_favour_chosen)
 	ui.continue_requested.connect(func() -> void: get_tree().reload_current_scene())
 	ui.career_screen_requested.connect(func() -> void: ui.show_career(career))
 	ui.new_career_requested.connect(func() -> void:
@@ -345,25 +345,24 @@ func _on_match_requested() -> void:
 	ui.hide_menus()
 	ui.hide_career()
 
-	# The camera does NOT take the mouse here. Two more screens come before the first
-	# serve — the briefing and the favour question — and taking the chair captures the
-	# cursor, which left both of them showing buttons that could not be clicked. The
-	# referee sits down in _on_favour_chosen, once there is nothing left to press.
+	# The camera does NOT take the mouse here. The briefing still comes before the first
+	# serve, and taking the chair captures the cursor — which once left that screen
+	# showing a button that could not be clicked. The referee sits down in begin_match,
+	# after there is nothing left to press.
 	pressure = Pressure.for_match(career)
 	if pressure.exists():
 		ui.show_briefing(pressure)
 	else:
-		ui.show_favour_choice()
+		begin_match()
 
 
 func _on_briefing_acknowledged() -> void:
 	ui.hide_briefing()
-	ui.show_favour_choice(pressure.ask)
+	begin_match()
 
 
-func _on_favour_chosen(team: Sides.Team) -> void:
-	favoured = team
-	ui.hide_pre_match()
+## Out to the stand. Every route into a match ends here.
+func begin_match(_unused := Sides.Team.NONE) -> void:
 	camera.set_active(true)
 	_enter_ready()
 
@@ -407,10 +406,14 @@ func _reckoning() -> String:
 	else:
 		var helped := Sides.Team.BLUE if suspicion.lean > 0.0 else Sides.Team.RED
 		lines.append("Almost every one of them helped %s." % Sides.label(helped))
-		if helped == favoured:
-			lines.append("Which is who you wanted to win. Everyone worked that out before you did.")
+		# Nobody was ever asked who they wanted to win, so this cannot be read back to
+		# them as a broken promise. What it can say is the thing that actually gets an
+		# official caught: not that they were wrong, but that they were wrong in one
+		# direction, which is a pattern rather than a bad night.
+		if pressure.exists() and pressure.wants == helped:
+			lines.append("Which is the result somebody mentioned to you before you went out.")
 		else:
-			lines.append("Which is not even who you wanted to win.")
+			lines.append("Nobody asked you to. That is the part people find hard to believe.")
 
 	lines.append("")
 	lines.append("Final score  RED %d — %d BLUE      sets  %d — %d" % [

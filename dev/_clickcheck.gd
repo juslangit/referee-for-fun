@@ -49,10 +49,7 @@ func _every_screen_before_the_first_serve() -> void:
 				sport, _mouse_mode_name(Input.mouse_mode)])
 			arena.ui.briefing_acknowledged.emit()
 			await get_tree().process_frame
-		print("  %-10s favour question      mouse %s" % [
-			sport, _mouse_mode_name(Input.mouse_mode)])
-
-		arena.ui.favour_chosen.emit(Sides.Team.NONE)
+		arena.begin_match()
 		for f in 3:
 			await get_tree().process_frame
 		print("  %-10s in the chair         mouse %s  (captured is correct here)" % [

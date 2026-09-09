@@ -7,7 +7,7 @@ func _ready() -> void:
 	add_child(arena)
 	await get_tree().physics_frame
 	arena._on_length_chosen(false)
-	arena._on_favour_chosen(Sides.Team.NONE)
+	arena.begin_match()
 	arena.ui.visible = false
 
 	for judge in arena.line_judges:

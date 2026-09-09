@@ -8,7 +8,7 @@ func _ready() -> void:
 	arena.print_truth_while_testing = true
 	add_child(arena)
 	await get_tree().physics_frame
-	arena._on_favour_chosen(Sides.Team.RED)
+	arena.begin_match()
 
 	for i in range(3):
 		if arena.suspicion.is_removed:

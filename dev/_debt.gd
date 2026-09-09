@@ -18,7 +18,7 @@ func _ready() -> void:
 	arena.career = Career.new()
 	arena.ui.match_requested.emit()
 	await get_tree().process_frame
-	arena._on_favour_chosen(Sides.Team.NONE)
+	arena.begin_match()
 
 	print("%-4s %-9s %-7s %-6s %s" % ["#", "landed", "called", "seen", "what happened"])
 

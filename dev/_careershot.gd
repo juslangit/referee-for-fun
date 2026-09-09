@@ -21,7 +21,7 @@ func _ready() -> void:
 	# Now play out the end of a match that went badly.
 	arena.ui.show_career(arena.career)
 	arena._on_match_requested()
-	arena._on_favour_chosen(Sides.Team.RED)
+	arena.begin_match()
 	arena.suspicion.level = 0.62
 	arena.suspicion.lean = -0.74
 	arena.suspicion.wrong_calls = 7

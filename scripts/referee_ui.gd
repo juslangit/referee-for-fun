@@ -9,7 +9,6 @@ extends CanvasLayer
 ## can tell the player they got it right, the game stops being about judgement.
 
 signal length_chosen(quick: bool)
-signal favour_chosen(team: Sides.Team)
 signal briefing_acknowledged()
 signal punishment_chosen(id: StringName, team: Sides.Team)
 signal match_requested()
@@ -80,15 +79,12 @@ var _career_panel: Control
 var _career_column: VBoxContainer
 var _ending_button: Button
 var _length_panel: Control
-var _pre_match: Control
 
 ## The screen that gives you a reason before it asks you the question.
 var _briefing: Control
 var _briefing_headline: Label
 var _briefing_detail: Label
 var _briefing_ask: Label
-var _favour_title: Label
-var _favour_note: Label
 var _ending: Control
 var _ending_headline: Label
 var _ending_detail: Label
@@ -129,12 +125,10 @@ func _ready() -> void:
 	_build_career_panel()
 	_build_length_panel()
 	_build_briefing()
-	_build_pre_match()
 	_build_hud()
 	_build_ending()
 	_build_shuttle_cam()
 	_build_fault_panel()
-	_pre_match.visible = false
 	_length_panel.visible = false
 	_briefing.visible = false
 
@@ -1041,6 +1035,7 @@ func _build_briefing() -> void:
 	row.add_child(_make_wide_button("GO OUT", func() -> void: briefing_acknowledged.emit()))
 
 
+
 func show_briefing(pressure: Pressure) -> void:
 	_length_panel.visible = false
 	_briefing_headline.text = pressure.headline.to_upper()
@@ -1056,78 +1051,15 @@ func hide_briefing() -> void:
 	_briefing.visible = false
 
 
-func _build_pre_match() -> void:
-	_pre_match = Control.new()
-	_pre_match.name = "PreMatch"
-	_pre_match.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_pre_match.mouse_filter = Control.MOUSE_FILTER_STOP
-	_root.add_child(_pre_match)
-
-	var backdrop := ColorRect.new()
-	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	backdrop.color = Color(0.03, 0.04, 0.06, 0.55)
-	_pre_match.add_child(backdrop)
-
-	var column := VBoxContainer.new()
-	column.set_anchors_preset(Control.PRESET_CENTER)
-	column.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	column.grow_vertical = Control.GROW_DIRECTION_BOTH
-	column.alignment = BoxContainer.ALIGNMENT_CENTER
-	column.add_theme_constant_override("separation", 18)
-	_pre_match.add_child(column)
-
-	_favour_title = _make_label("WHO DO YOU WANT TO WIN?", TITLE_SIZE, Color(0.95, 0.95, 0.93))
-	column.add_child(_favour_title)
-	_favour_note = _make_label(
-		"Nobody will ever know you chose. Pick nobody to referee honestly.",
-		PROMPT_SIZE,
-		Color(0.62, 0.64, 0.68)
-	)
-	column.add_child(_favour_note)
-
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 14)
-	column.add_child(spacer)
-
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 14)
-	column.add_child(row)
-
-	for team in [Sides.Team.RED, Sides.Team.BLUE, Sides.Team.NONE]:
-		row.add_child(_make_choice_button(team))
-
-
-func _make_choice_button(team: Sides.Team) -> Button:
-	var button := Button.new()
-	button.text = "  %s  " % Sides.label(team)
-	button.custom_minimum_size = Vector2(150, 52)
-	button.add_theme_color_override("font_color", Sides.colour(team))
-	button.pressed.connect(func() -> void: favour_chosen.emit(team))
-	return button
-
-
-## Moves on from the match-length question to the one that matters.
-func show_favour_choice(reason := "") -> void:
-	_length_panel.visible = false
-	_briefing.visible = false
-	# With a reason behind it the question is no longer abstract, so it stops being
-	# phrased as one. You are not picking a favourite; you are answering somebody.
-	if reason.is_empty():
-		_favour_title.text = "WHO DO YOU WANT TO WIN?"
-		_favour_note.text = "Nobody will ever know you chose. Pick nobody to referee honestly."
-	else:
-		_favour_title.text = "SO WHAT ARE YOU GOING TO DO?"
-		_favour_note.text = reason
-	_pre_match.visible = true
-
-
-func show_pre_match() -> void:
-	_pre_match.visible = true
-
-
-func hide_pre_match() -> void:
-	_pre_match.visible = false
+## The match starts the moment the briefing is dismissed, or straight away when there
+## is no briefing.
+##
+## There used to be a screen here asking WHO DO YOU WANT TO WIN, answered before a ball
+## was served. It was cut on purpose. Being asked to declare a favourite made the game
+## tell you what kind of referee to be before you had seen anything, and most people do
+## not sit down wanting a result — they sit down wanting to get it right, and find out
+## later what they are willing to do. A reason to lean now only ever arrives from
+## outside, in a briefing, and only sometimes.
 
 
 # --- in-match ------------------------------------------------------------------

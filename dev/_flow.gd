@@ -16,7 +16,7 @@ func _ready() -> void:
 	print("3. career screen  sport menu gone=%s" % (not arena.ui._sport_menu.visible))
 	arena.ui.match_requested.emit()
 	await get_tree().process_frame
-	arena._on_favour_chosen(Sides.Team.NONE)
+	arena.begin_match()
 	for f in 40:
 		await get_tree().process_frame
 		if arena._phase == arena.Phase.READY:

@@ -10,7 +10,7 @@ func _ready() -> void:
 	add_child(arena)
 	await get_tree().physics_frame
 	arena._on_length_chosen(true)
-	arena._on_favour_chosen(Sides.Team.NONE)
+	arena.begin_match()
 
 	print("%-4s %-6s %-24s %-30s %s" % ["#", "shots", "truth", "offence", "score"])
 

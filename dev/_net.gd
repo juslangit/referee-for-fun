@@ -9,7 +9,7 @@ func _ready() -> void:
 	add_child(arena)
 	await get_tree().physics_frame
 	arena._on_length_chosen(false)
-	arena._on_favour_chosen(Sides.Team.NONE)
+	arena.begin_match()
 
 	print("%-34s %-9s %-10s %s" % ["shot", "crossed", "landed z", "truth"])
 	await _fire("flat and low, struck from 1.0 m", Vector3(0, 1.00, -2.0), 5.0, arena)

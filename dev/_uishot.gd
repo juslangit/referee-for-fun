@@ -14,7 +14,7 @@ func _ready() -> void:
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png("res://_shot_prematch.png")
 
-	arena._on_favour_chosen(Sides.Team.RED)
+	arena.begin_match()
 	arena._start_rally()
 	while arena._phase != arena.Phase.AWAITING_CALL:
 		await get_tree().physics_frame

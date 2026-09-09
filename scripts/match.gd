@@ -169,9 +169,6 @@ var ui: RefereeUI
 ## it. Never shown to the player.
 var rally: Rally
 
-## Who the player privately decided should win. Nothing on screen ever says this.
-var favoured := Sides.Team.NONE
-
 ## Why they might want that. Handed to them in a corridor before the match — or, in the
 ## case of a debt, built by them halfway through it without meaning to.
 var pressure := Pressure.new()
@@ -277,7 +274,6 @@ func _ready() -> void:
 	ui = RefereeUI.new()
 	ui.name = "RefereeUI"
 	ui.length_chosen.connect(_on_length_chosen)
-	ui.favour_chosen.connect(_on_favour_chosen)
 	ui.briefing_acknowledged.connect(_on_briefing_acknowledged)
 	ui.punishment_chosen.connect(_on_punishment_chosen)
 	ui.match_requested.connect(_on_match_requested)
@@ -532,21 +528,20 @@ func _on_length_chosen(quick: bool) -> void:
 	if pressure.exists():
 		ui.show_briefing(pressure)
 	else:
-		ui.show_favour_choice()
+		begin_match()
 
 
 func _on_briefing_acknowledged() -> void:
 	ui.hide_briefing()
-	ui.show_favour_choice(pressure.ask)
+	begin_match()
 
 
-func _on_favour_chosen(team: Sides.Team) -> void:
-	favoured = team
+## Out to the chair. Every route into a match ends here.
+func begin_match(_unused := Sides.Team.NONE) -> void:
 	if board == null:
 		board = Scoreboard.new(false)
 		board.game_won.connect(_on_game_won)
 		board.match_won.connect(_on_match_won)
-	ui.hide_pre_match()
 	camera.set_active(true)
 	_enter_ready()
 
@@ -1323,10 +1318,14 @@ func _reckoning() -> String:
 	else:
 		var helped := Sides.Team.BLUE if suspicion.lean > 0.0 else Sides.Team.RED
 		lines.append("Almost every one of them helped %s." % Sides.label(helped))
-		if helped == favoured:
-			lines.append("Which is who you wanted to win. Everyone worked that out before you did.")
+		# Nobody was ever asked who they wanted to win, so this cannot be read back to
+		# them as a broken promise. What it can say is the thing that actually gets an
+		# official caught: not that they were wrong, but that they were wrong in one
+		# direction, which is a pattern rather than a bad night.
+		if pressure.exists() and pressure.wants == helped:
+			lines.append("Which is the result somebody mentioned to you before you went out.")
 		else:
-			lines.append("Which is not even who you wanted to win.")
+			lines.append("Nobody asked you to. That is the part people find hard to believe.")
 
 	lines.append("")
 	lines.append("Final score  RED %d — %d BLUE      games  %d — %d" % [

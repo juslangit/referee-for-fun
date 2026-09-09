@@ -7,7 +7,7 @@ extends Node
 ##
 ## First half: in the badminton scene, is there a beach card, is it enabled, and does
 ## pressing it write the sport into the career? Second half: in the beach scene, does
-## the career screen lead to a briefing, a favour question and a rally that can be
+## the career screen lead to a briefing and then a rally that can be
 ## called — pressing only things a player can press.
 
 func _ready() -> void:
@@ -60,9 +60,9 @@ func _the_beach_flow() -> void:
 		await get_tree().process_frame
 
 	# WHO DO YOU WANT TO WIN.
-	arena.ui.favour_chosen.emit(Sides.Team.NONE)
+	arena.begin_match()
 	await get_tree().process_frame
-	print("  phase after the favour question: %s (READY is %d)" % [
+	print("  phase once the match has begun: %s (READY is %d)" % [
 		arena._phase, arena.Phase.READY])
 
 	# SPACE.

@@ -14,7 +14,7 @@ func _ready() -> void:
 	arena.career.tier = 3
 	arena.ui.match_requested.emit()
 	await get_tree().process_frame
-	arena._on_favour_chosen(Sides.Team.NONE)
+	arena.begin_match()
 	for f in 4:
 		await get_tree().process_frame
 

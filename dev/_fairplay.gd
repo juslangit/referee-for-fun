@@ -14,7 +14,7 @@ func _ready() -> void:
 	await get_tree().process_frame
 	arena.ui.match_requested.emit()
 	await get_tree().process_frame
-	arena._on_favour_chosen(Sides.Team.NONE)
+	arena.begin_match()
 
 	var judged := 0
 	var wrong := 0

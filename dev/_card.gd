@@ -21,7 +21,7 @@ func _ready() -> void:
 	await get_tree().process_frame
 	arena.ui.match_requested.emit()
 	await get_tree().process_frame
-	arena._on_favour_chosen(Sides.Team.NONE)
+	arena.begin_match()
 	arena.court.dress(Venue.Tier.ARENA)
 	arena.court.stands.set_density(1.0)
 	arena.ui.visible = false

@@ -9,7 +9,7 @@ func _ready() -> void:
 	add_child(arena)
 	await get_tree().physics_frame
 	arena._on_length_chosen(false)
-	arena._on_favour_chosen(Sides.Team.RED)
+	arena.begin_match()
 
 	for r in range(3):
 		arena._start_rally()

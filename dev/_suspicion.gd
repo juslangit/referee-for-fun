@@ -23,7 +23,7 @@ func _run(policy: String) -> void:
 	# Seeded after the arena is built, so every policy referees the same match.
 	seed(20260907)
 	arena._on_length_chosen(false)
-	arena._on_favour_chosen(Sides.Team.RED)
+	arena.begin_match()
 
 	var suspicion: Suspicion = arena.suspicion
 	var removed_at := 0

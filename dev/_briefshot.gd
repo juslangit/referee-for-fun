@@ -28,11 +28,7 @@ func _ready() -> void:
 		await _shot("res://dev/shots/brief_%s.png" % label)
 		arena.ui.hide_briefing()
 
-	# And the question it leads into, which now has an answer worth thinking about.
-	arena.ui.show_favour_choice(shots["tournament"].ask)
-	await _shot("res://dev/shots/brief_question.png")
-
-	print("saved %d briefing shots" % (shots.size() + 1))
+	print("saved %d briefing shots" % shots.size())
 	get_tree().quit()
 
 

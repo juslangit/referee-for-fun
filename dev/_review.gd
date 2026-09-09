@@ -12,7 +12,7 @@ func _ready() -> void:
 	arena.career.tier = 3
 	arena.ui.match_requested.emit()
 	await get_tree().process_frame
-	arena._on_favour_chosen(Sides.Team.BLUE)
+	arena.begin_match()
 	print("venue: %s   hawk-eye: %s" % [arena.career.venue()["name"], arena.has_hawk_eye])
 
 	var lying := OS.get_environment("UMPIRE") == "liar"

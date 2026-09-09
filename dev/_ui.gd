@@ -14,7 +14,7 @@ func _ready() -> void:
 
 	ui.hide_menus()
 	arena._on_length_chosen(false)
-	arena._on_favour_chosen(Sides.Team.NONE)
+	arena.begin_match()
 	arena.court.dress(Venue.Tier.ARENA)
 	arena.court.stands.set_density(1.0)
 	arena.board.points[Sides.Team.RED] = 18

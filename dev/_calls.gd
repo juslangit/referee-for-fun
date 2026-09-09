@@ -18,9 +18,9 @@ func _ready() -> void:
 	await get_tree().physics_frame
 
 	arena._on_length_chosen(false)
-	arena._on_favour_chosen(Sides.Team.RED)
+	arena.begin_match()
 
-	print("favouring RED, and lying only when the margin is under %.0f cm\n" % (Rally.BLATANT_MARGIN * NERVE * 100.0))
+	print("leaning towards RED, and lying only when the margin is under %.0f cm\n" % (Rally.BLATANT_MARGIN * NERVE * 100.0))
 	print("%-4s %-7s %-26s %-6s %-11s %-6s %s" % ["#", "struck", "truth", "call", "verdict", "vis.", "score"])
 
 	var lies := 0
