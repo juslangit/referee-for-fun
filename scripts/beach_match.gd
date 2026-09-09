@@ -180,6 +180,7 @@ func _ready() -> void:
 	# Not hide_menus() — that is what a match *beginning* calls, and it turns the score
 	# bug on. This scene opens into the career ladder, with nothing yet to score.
 	ui.show_hud(false)
+	ui.fault_book = BeachCallBook.faults()
 	_connect_menus()
 
 	sound = Sound.new()
@@ -465,7 +466,7 @@ func _reckoning() -> String:
 # --- the rally ------------------------------------------------------------------
 
 func start_rally() -> void:
-	if _phase != Phase.READY:
+	if _phase != Phase.READY or _reviewing:
 		return
 	rally = BeachRally.new()
 	net_toucher = Sides.Team.NONE
@@ -828,22 +829,27 @@ func _who_would_challenge() -> Sides.Team:
 ## only time in this game a referee has to wait to learn whether they got away with it.
 func _review(asked: Sides.Team) -> bool:
 	_reviewing = true
+
+	# Everything this needs is read now, before the first await.
+	#
+	# A review is two seconds of waiting with the game still running, and `rally` is a
+	# reference that the next serve replaces. Reading `rally.call` on the far side of a
+	# timer worked until something started a rally during one, and then crashed on a
+	# call that no longer existed. Nothing below touches the rally again.
 	var overturned := rally.verdict() == BeachRally.Verdict.WRONG
+	var about_a_touch: bool = rally.call != null and rally.call.judges_the_touch
+	var truth := ""
+	if about_a_touch:
+		truth = "TOUCHED" if rally.was_touched else "NO TOUCH"
+	else:
+		truth = "IN" if rally.was_in else "OUT"
+	var seen := rally.visibility()
+	var leaned := _which_way_it_leaned()
 
 	ball_cam.aim_at(rally.landing_point)
 	ui.show_review(asked, challenge.remaining(asked), ball_cam.texture())
 	sound.react(false)
 	await get_tree().create_timer(REVIEW_SUSPENSE).timeout
-
-	# What the video showed. For a line call that is the picture on screen; for a touch
-	# the picture cannot show it — a fingertip is not on the sand — so the finding is
-	# stated instead. It is the one thing in this game the screen is allowed to say
-	# outright, because by then the whole venue has seen it too.
-	var truth := ""
-	if rally.call.judges_the_touch:
-		truth = "TOUCHED" if rally.was_touched else "NO TOUCH"
-	else:
-		truth = "IN" if rally.was_in else "OUT"
 
 	if overturned:
 		ui.set_review_verdict("%s  ·  CALL OVERTURNED" % truth, Color(0.96, 0.42, 0.36))
@@ -851,8 +857,7 @@ func _review(asked: Sides.Team) -> bool:
 		ui.set_review_verdict("%s  ·  CALL STANDS" % truth, Color(0.55, 0.85, 0.60))
 
 	challenge.settle(asked, overturned)
-	suspicion.register_review_judgement(
-		rally.visibility(), _which_way_it_leaned(), overturned)
+	suspicion.register_review_judgement(seen, leaned, overturned)
 	sound.react(not overturned)
 	ui.react(Crowd.react_to_review(overturned))
 

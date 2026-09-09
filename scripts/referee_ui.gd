@@ -56,8 +56,8 @@ const SPORTS := [
 	{"id": &"beach", "name": "Beach Volleyball",
 		"art": "res://assets/ui/sport_beachvolleyball.png",
 		"tint": Color(0.78, 0.52, 0.20), "ready": true},
-	{"id": &"volleyball", "name": "Volleyball", "art": "res://assets/ui/sport_volleyball.png",
-		"tint": Color(0.44, 0.24, 0.52), "ready": false},
+	{"id": &"indoor", "name": "Volleyball", "art": "res://assets/ui/sport_volleyball.png",
+		"tint": Color(0.44, 0.24, 0.52), "ready": true},
 	{"id": &"tennis", "name": "Tennis", "art": "res://assets/ui/sport_tennis.png",
 		"tint": Color(0.20, 0.38, 0.58), "ready": false},
 	{"id": &"table_tennis", "name": "Table Tennis", "art": "res://assets/ui/sport_tabletennis.png",
@@ -268,7 +268,7 @@ func _build_sport_menu() -> void:
 	column.add_child(_make_label("WHICH SPORT?", TITLE_SIZE, UiTheme.CHALK))
 	column.add_child(_gap(6))
 	column.add_child(_make_label(
-		"Two of them are ready. The rest are on their way.",
+		"Three of them are ready. The rest are on their way.",
 		PROMPT_SIZE, UiTheme.MUTED
 	))
 	column.add_child(_gap(22))
@@ -588,6 +588,86 @@ const BEACH_LESSONS := [
 	},
 ]
 
+## Indoor volleyball's lesson, and the longest of the three, because this is the only
+## sport in the game that asks the referee to know something before the ball is served.
+const INDOOR_LESSONS := [
+	{
+		"title": "THE JOB",
+		"body": "You are the first referee, on the stand beside the net.\n\n"
+			+ "Six a side, indoors. Everything beach volleyball asks of you it asks of "
+			+ "you here too — where the ball landed, whether a block touched it, whether "
+			+ "a set was clean.\n\n"
+			+ "And one thing more, which is the reason this is the hardest chair in the "
+			+ "game to sit in.",
+		"keys": [
+			["SPACE", "whistle the serve"],
+			["LEFT CLICK", "in"],
+			["RIGHT CLICK", "out"],
+			["T", "touched"],
+			["F", "a fault, including the rotation"],
+			["ESC", "pause"],
+		],
+	},
+	{
+		"title": "THE ROTATION",
+		"body": "Six players stand in six positions, numbered the way the sport numbers "
+			+ "them — anticlockwise from the server's corner:\n\n"
+			+ "        4    3    2      the front row, nearest the net\n"
+			+ "        5    6    1      the back row; 1 serves\n\n"
+			+ "Whoever is in position 1 serves. When a side wins the serve back, all six "
+			+ "move one place clockwise, so 2 goes to 1 and everybody follows. A side "
+			+ "that keeps serving does NOT rotate — that is the part most people get "
+			+ "wrong.\n\n"
+			+ "At the moment the serve is struck, each front-row player must be nearer "
+			+ "the net than the back-row player behind them, and within each row they "
+			+ "must be in left, centre, right order across the court. After the ball is "
+			+ "struck they may go anywhere.\n\n"
+			+ "Get this wrong and it is OUT OF ROTATION, or WRONG SERVER if the ball was "
+			+ "hit by somebody who was not in position 1.",
+	},
+	{
+		"title": "WHAT THAT MEANS FOR YOU",
+		"body": "Every other call in this game is about something you can see happening. "
+			+ "This one is about something you had to be watching for twenty seconds "
+			+ "before it mattered.\n\n"
+			+ "So it cuts both ways. If you were paying attention, a rotation fault is "
+			+ "the most certain call in the sport — six people were in their order or "
+			+ "they were not, and both benches know which.\n\n"
+			+ "Which is exactly why inventing one is the least deniable thing you can "
+			+ "do. There is no close call to hide behind. A lineup is written down.\n\n"
+			+ "BACK ROW ATTACK is the same rule in the air: a back-row player may hit "
+			+ "the ball down from above the net, but only if they took off from behind "
+			+ "the attack line, three metres back. In front of it, it is a fault — and "
+			+ "unlike the rest of this, everybody in the hall is looking at it.",
+	},
+	{
+		"title": "THE LIBERO",
+		"body": "One player on each side wears a different shirt. That is not decoration "
+			+ "— it is so that you can pick them out without thinking, because there are "
+			+ "three things they alone may not do.\n\n"
+			+ "They may not attack the ball above the net.\n"
+			+ "They may not serve.\n"
+			+ "They may not set the ball overhand from in front of the attack line for "
+			+ "somebody else to attack.\n\n"
+			+ "They also never leave the back court. If the rotation would carry them to "
+			+ "the front row they come off, and somebody else comes on.\n\n"
+			+ "Press F and point at them for LIBERO.",
+	},
+	{
+		"title": "FAULTS, AND WHO IS WATCHING",
+		"body": "Press F, then point at whoever did it.\n\n"
+			+ "NET TOUCH, CENTRE LINE, FOUR HITS, DOUBLE, LIFT and FOOT FAULT are the "
+			+ "same as they are on the sand.\n\n"
+			+ "From the champions cup up, both sides carry challenges. They can put your "
+			+ "line calls and your touches on a screen — but NOT your rotation calls. A "
+			+ "camera looks at the ball. Where six people were standing is settled by "
+			+ "the scoresheet, which means a rotation call is your word and stays your "
+			+ "word.\n\n"
+			+ "There is no suspicion meter in this game and there never will be. The "
+			+ "only thing telling you how much trouble you are in is the hall.",
+	},
+]
+
 var _lesson := 0
 var _lessons: Array = BADMINTON_LESSONS
 var _teaching: Control
@@ -597,7 +677,10 @@ var _lesson_buttons: HBoxContainer
 ## `sport` picks which lesson. The two sports share the screen and share nothing else
 ## about what they need explaining.
 func show_teaching(sport := Career.BADMINTON) -> void:
-	_lessons = BEACH_LESSONS if sport == Career.BEACH else BADMINTON_LESSONS
+	match sport:
+		Career.BEACH: _lessons = BEACH_LESSONS
+		Career.INDOOR: _lessons = INDOOR_LESSONS
+		_: _lessons = BADMINTON_LESSONS
 	if _hud != null:
 		_hud.visible = false
 	_lesson = 0
@@ -1316,6 +1399,12 @@ func _build_fault_panel() -> void:
 
 ## Builds the list fresh each time, because between rallies there is no rally to
 ## fault anybody over — only misconduct, which can be punished whenever you like.
+## Which sport's faults the panel offers. Badminton's by default; the two volleyballs
+## set their own, because "four hits" means nothing on a badminton court and "carry"
+## means nothing on a volleyball one.
+var fault_book: Array = CallBook.faults()
+
+
 func show_fault_panel(cards_only: bool) -> void:
 	for child in _fault_rows.get_children():
 		child.queue_free()
@@ -1333,7 +1422,7 @@ func show_fault_panel(cards_only: bool) -> void:
 	_fault_rows.add_child(spacer)
 
 	if not cards_only:
-		for call in CallBook.faults():
+		for call in fault_book:
 			_fault_rows.add_child(_make_accusation_row(call.label, call.id, Color(0.90, 0.88, 0.84)))
 
 	_fault_rows.add_child(_make_accusation_row("YELLOW CARD", &"yellow", Color(0.95, 0.85, 0.30)))

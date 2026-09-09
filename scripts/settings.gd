@@ -35,6 +35,7 @@ var fullscreen := false
 ## what a carry looks like tells you nothing whatever about a block touch.
 var taught := false
 var taught_beach := false
+var taught_indoor := false
 
 
 static func load_or_default() -> Settings:
@@ -49,6 +50,8 @@ static func load_or_default() -> Settings:
 	settings.fullscreen = file.get_value("window", "fullscreen", settings.fullscreen)
 	settings.taught = file.get_value("player", "taught", settings.taught)
 	settings.taught_beach = file.get_value("player", "taught_beach", settings.taught_beach)
+	settings.taught_indoor = file.get_value(
+		"player", "taught_indoor", settings.taught_indoor)
 	return settings
 
 
@@ -61,6 +64,7 @@ func save() -> void:
 	file.set_value("window", "fullscreen", fullscreen)
 	file.set_value("player", "taught", taught)
 	file.set_value("player", "taught_beach", taught_beach)
+	file.set_value("player", "taught_indoor", taught_indoor)
 	file.save(PATH)
 
 

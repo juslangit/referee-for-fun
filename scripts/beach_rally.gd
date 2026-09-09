@@ -172,6 +172,18 @@ func _handler() -> Sides.Team:
 func verdict() -> Verdict:
 	if call == null:
 		return Verdict.NO_CALL
+
+	# A fault is right only if that offence happened and the right side did it.
+	#
+	# This cannot be left to the outcome, and that was the first version's mistake.
+	# Comparing only who ended up with the point scores an *invented* fault as correct
+	# whenever the lie happens to award the rally to the side that deserved it anyway —
+	# which for a fault against the losing side is most of the time. Badminton has
+	# always guarded this; the beach rally did not, and indoor inherited the gap along
+	# with four new calls to make it with.
+	if call.judges_conduct:
+		return Verdict.CORRECT if _the_claimed_fault_happened() else Verdict.WRONG
+
 	return Verdict.CORRECT if point_goes_to() == rightful_winner() else Verdict.WRONG
 
 
@@ -223,11 +235,11 @@ func _the_claimed_fault_happened() -> bool:
 		return false
 	match call.id:
 		&"four_hits":
-			return contacts > 3
+			return contacts > 3 and struck_by == call_against
 		&"double_contact", &"lift":
-			return handling_fault
+			return handling_fault and struck_by == call_against
 		&"foot_fault":
-			return foot_fault
+			return foot_fault and served_by == call_against
 		&"net_touch":
 			return net_toucher != Sides.Team.NONE and net_toucher == call_against
 		&"centre_line":

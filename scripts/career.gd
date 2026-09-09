@@ -48,6 +48,7 @@ const GRUDGE_FROM_LEAN := 0.30
 ## Which sports there are. The id is what the save file and the sport menu use.
 const BADMINTON := &"badminton"
 const BEACH := &"beach"
+const INDOOR := &"indoor"
 
 ## The venues, in order, for each sport.
 ##
@@ -198,9 +199,81 @@ const BEACH_LADDER := [
 	},
 ]
 
+## Indoor volleyball. A hall sport, so the venues are the badminton ladder's kind of
+## place rather than the beach's — but the scrutiny climbs faster, because six players a
+## side means six times as many people who know exactly where they were standing.
+const INDOOR_LADDER := [
+	{
+		"name": "Sports hall",
+		"crowd": 0.16,
+		"blurb": "A school hall with the badminton posts still stacked against the wall.",
+		"line_judges": false,
+		"close_cam": true,
+		"hawk_eye": false,
+		"quick": true,
+		"dressing": Venue.Tier.SCHOOL,
+		"scrutiny": 0.65,
+		"matches_needed": 2,
+		"reputation_needed": 0.40,
+	},
+	{
+		"name": "Regional league",
+		"crowd": 0.36,
+		"blurb": "Two benches who have both brought a scoresheet and know how to read it.",
+		"line_judges": true,
+		"close_cam": true,
+		"hawk_eye": false,
+		"quick": true,
+		"dressing": Venue.Tier.SCHOOL,
+		"scrutiny": 0.90,
+		"matches_needed": 2,
+		"reputation_needed": 0.50,
+	},
+	{
+		"name": "National league",
+		"crowd": 0.58,
+		"blurb": "Best of five. Long enough for a lineup to catch you out twice.",
+		"line_judges": true,
+		"close_cam": true,
+		"hawk_eye": false,
+		"quick": false,
+		"dressing": Venue.Tier.REGIONAL,
+		"scrutiny": 1.10,
+		"matches_needed": 3,
+		"reputation_needed": 0.55,
+	},
+	{
+		"name": "Champions cup",
+		"crowd": 0.84,
+		"blurb": "Both coaches have the rotation on a tablet and neither of them blinks.",
+		"line_judges": true,
+		"close_cam": true,
+		"hawk_eye": true,
+		"quick": false,
+		"dressing": Venue.Tier.REGIONAL,
+		"scrutiny": 1.35,
+		"matches_needed": 3,
+		"reputation_needed": 0.60,
+	},
+	{
+		"name": "World championship",
+		"crowd": 1.0,
+		"blurb": "Everything you say about where six people were standing will be checked.",
+		"line_judges": true,
+		"close_cam": true,
+		"hawk_eye": true,
+		"quick": false,
+		"dressing": Venue.Tier.ARENA,
+		"scrutiny": 1.60,
+		"matches_needed": 0,
+		"reputation_needed": 1.0,
+	},
+]
+
 const LADDERS := {
 	BADMINTON: BADMINTON_LADDER,
 	BEACH: BEACH_LADDER,
+	INDOOR: INDOOR_LADDER,
 }
 
 

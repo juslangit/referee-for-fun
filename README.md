@@ -118,5 +118,9 @@ them was scored good, and calling it out was recorded as a lie.
 
 ---
 
-Badminton first. Volleyball second — the referee systems were written to be
-sport-agnostic on purpose.
+Three sports share one official. **Badminton** in a hall, **beach volleyball** on sand,
+and **indoor volleyball** — which is the only one that asks you to know something before
+the ball is served, because six players rotate through six positions and the referee
+either kept track or did not.
+
+Your reputation is shared across all three. You climb each ladder separately.

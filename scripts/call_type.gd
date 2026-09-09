@@ -56,6 +56,14 @@ var judges_conduct := false
 ## in either sport to a truth only the official can possibly hold.
 var judges_the_touch := false
 
+## Whether this call is a claim about where people were standing rather than about
+## anything the ball did.
+##
+## Indoor volleyball's own kind of claim, and the only one in the game whose truth is a
+## matter of record rather than of judgement: six players were either in their order or
+## they were not. That makes it the least deniable thing a referee can invent.
+var judges_position := false
+
 ## Which offence it claims. Only meaningful when judges_conduct is true.
 var claims := Incident.Kind.NONE
 

@@ -273,6 +273,61 @@ static func _world_aabb(node: Node3D) -> AABB:
 
 
 ## A band round the chest in the team's colour, bright enough to read across a hall.
+## Puts a coloured bib on a character who already has a kit.
+##
+## Used for the libero, who has to be identifiable at a glance — that is the entire
+## reason the different-shirt rule exists in the sport. A tint will not do it: the kit
+## is painted into the texture, so multiplying it by yellow gives a dirty version of
+## whatever it already was rather than a yellow shirt.
+static func wear_bib(figure: Node3D, colour: Color) -> void:
+	if figure == null:
+		return
+
+	# On the chest bone, so it moves with the body.
+	#
+	# The plain bib below hangs off the model root, which is fine for a figure that
+	# stands still and comes apart the moment one runs: the character leans into a
+	# sprint and the bib stays bolt upright in the air behind them. The racket had the
+	# same problem and the same answer.
+	var skeleton := _find_skeleton(figure)
+	var chest := ""
+	if skeleton != null:
+		for name in ["Spine02", "Spine01", "Spine", "Hips"]:
+			if skeleton.find_bone(name) >= 0:
+				chest = name
+				break
+
+	if chest.is_empty():
+		_add_bib(figure, colour)
+		return
+
+	var socket := BoneAttachment3D.new()
+	socket.name = "Bib"
+	socket.bone_name = chest
+	skeleton.add_child(socket)
+
+	# A BoneAttachment3D inherits every scale between it and the model root, which on
+	# these characters is about a hundred. So the vest is built at world size and then
+	# divided by whatever it inherited, rather than guessed at in local units and found
+	# to be either invisible or the size of the hall.
+	var inherited := socket.global_transform.basis.get_scale()
+	var factor := maxf(0.0001, inherited.x)
+
+	var material := StandardMaterial3D.new()
+	material.albedo_color = colour
+	material.roughness = 0.75
+
+	var vest := MeshInstance3D.new()
+	vest.name = "Vest"
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.34, 0.40, 0.26) / factor
+	vest.mesh = mesh
+	vest.position = Vector3(0.0, 0.06 / factor, 0.0)
+	vest.material_override = material
+	vest.layers = Figure.PEOPLE_LAYER
+	socket.add_child(vest)
+
+
 static func _add_bib(figure: Node3D, colour: Color) -> void:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = colour
