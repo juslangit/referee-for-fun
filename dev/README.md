@@ -24,6 +24,7 @@ The ones worth keeping in mind:
 | `_menus` | The three front-of-game screens. |
 | `_seat`, `_layout`, `_close` | The hall from the chair, from above, and up close. `TIER=0..2` picks the venue. |
 | `_card`, `_courtmap` | Regenerate the artwork in `assets/ui/`. |
+| `_endings` | Can a match in each sport actually finish, and how many rallies does the shortest one take? Every other harness stops after a fixed count, so the ending screen and the career fold-in had never been reached in either volleyball. |
 | `_faultkey` | Does F open the fault panel and complete a call, in both volleyballs? Written after both prompts turned out to advertise a key nothing was listening to. |
 | `_indoorbugs` | Three reported faults at the venue a new career actually starts on: are there line judges, are the six in position before the first serve, and does a rally follow every whistle? |
 | `_cover` | Do the volleyball line judges actually give an official cover? Prices the same wrong call three ways — nobody spoke, the judge agreed, the judge disagreed. Found the verdict-enum mismatch. |
