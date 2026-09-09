@@ -97,7 +97,7 @@ func _a_match_of_it() -> void:
 	for frame in 60000:
 		await get_tree().process_frame
 		if arena._phase == arena.Phase.READY:
-			arena._start_rally()
+			arena.start_rally()
 			continue
 		if arena._phase != arena.Phase.AWAITING_CALL:
 			continue
@@ -110,11 +110,11 @@ func _a_match_of_it() -> void:
 		if rally.incident.is_a_service_fault():
 			service_faults += 1
 			called += 1
-			arena._make_call(_call_for(rally.incident.kind), rally.incident.by)
+			arena.make_call(_call_for(rally.incident.kind), rally.incident.by)
 		elif rally.incident.happened():
-			arena._make_call(_call_for(rally.incident.kind), rally.incident.by)
+			arena.make_call(_call_for(rally.incident.kind), rally.incident.by)
 		else:
-			arena._make_call(
+			arena.make_call(
 				&"in" if CourtSpec.is_in(rally.landing_point, rally.doubles) else &"out")
 
 		if rally.verdict() == Rally.Verdict.WRONG:

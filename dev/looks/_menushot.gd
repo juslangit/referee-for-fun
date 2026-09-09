@@ -27,19 +27,19 @@ func _ready() -> void:
 
 	# Paused before a single call has been made, which is the only time the game offers
 	# a way back to the menu that costs nothing.
-	arena._pause()
+	arena.pause_the_match()
 	await _shot("res://dev/shots/_shot_pause_early.png")
 	get_tree().paused = false
 	arena.ui.hide_pause_menu()
 
 	for r in range(2):
-		arena._start_rally()
+		arena.start_rally()
 		var waited := 0
 		while arena._phase != arena.Phase.AWAITING_CALL and waited < 3000:
 			await get_tree().physics_frame
 			waited += 1
-		arena._make_call(&"in" if arena.rally.was_in else &"out")
-	arena._pause()
+		arena.make_call(&"in" if arena.rally.was_in else &"out")
+	arena.pause_the_match()
 	await _shot("res://dev/shots/_shot_pause.png")
 
 	get_tree().paused = false

@@ -20,7 +20,7 @@ func _ready() -> void:
 	for f in 40:
 		await get_tree().process_frame
 		if arena._phase == arena.Phase.READY:
-			arena._start_rally()
+			arena.start_rally()
 			break
 	for f in 60:
 		await get_tree().process_frame

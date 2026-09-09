@@ -13,14 +13,14 @@ func _ready() -> void:
 
 	# Keep playing until one lands near enough to a line to be worth photographing.
 	for attempt in range(14):
-		arena._start_rally()
+		arena.start_rally()
 		var waited := 0
 		while arena._phase != arena.Phase.AWAITING_CALL and waited < 3000:
 			await get_tree().physics_frame
 			waited += 1
 		if absf(arena.rally.margin) < 0.09:
 			break
-		arena._make_call(&"in" if arena.rally.was_in else &"out")
+		arena.make_call(&"in" if arena.rally.was_in else &"out")
 
 	# Wait for the line judge to actually say something before looking at them.
 	await get_tree().create_timer(0.9).timeout

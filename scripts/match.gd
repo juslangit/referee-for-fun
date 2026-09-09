@@ -1,6 +1,21 @@
-extends Node3D
+class_name BadmintonMatch
+extends OfficiatedMatch
 
 ## One match: the court, the umpire, and the loop of rally, call, point.
+##
+## **Badminton sits on the shared spine like the other three sports.** It did not for a
+## long time, and the reason it did not was real: this scene owns the whole front of the
+## game — the title screen, the sport menu, the settings, the first lesson — so it is a
+## match and a main menu at once, and the spine only knows about matches.
+##
+## What made it worth doing anyway is that every feature was costing twice. The line
+## judge's spoken call, the reputation meter at the edges of a match, the crowd getting
+## to its feet: each was written once here and once in OfficiatedMatch, in the same
+## session, from the same description. The two worst bugs this project has had were both
+## duplicated-code bugs — a verdict enum that disagreed with itself, and a review that
+## read a rally after an await — and both had to be found twice.
+##
+## So the front of the game stays here, and everything that is *a match* is inherited.
 ##
 ## The shape of the loop is the umpire's real job. Whistle to start the rally, watch
 ## it, then say what happened. The game already knows what happened. It waits to
@@ -70,13 +85,6 @@ const LINE_JUDGE_SEATS := {
 	Sides.Team.RED: Vector3(3.85, 0.0, -7.60),
 }
 
-## How long the hall is left waiting for the answer, and how long the answer stays up.
-const REVIEW_SUSPENSE := 1.9
-const REVIEW_VERDICT := 2.3
-
-## How long the hall waits before the line judge's call goes up. Long enough for the
-## shuttle to have visibly landed, short enough that it still feels like a reaction.
-const LINE_JUDGE_DELAY := 0.45
 
 ## How often a stroke goes wrong in some way other than missing the court. Rolled per
 ## stroke, so with rallies running to six or seven shots this is roughly a third of
@@ -143,18 +151,6 @@ const NET_SHOT_CHANCE := 0.18
 const NET_SHOT_NEAR := 0.70
 const NET_SHOT_FAR := 1.90
 
-enum Phase {
-	## Choosing who you want to win.
-	PRE_MATCH,
-	## Waiting for the umpire to start the rally.
-	READY,
-	## The shuttle is in the air.
-	IN_FLIGHT,
-	## The shuttle has landed. The hall is waiting for you to say something.
-	AWAITING_CALL,
-	## Taken off the match. Nothing more to do.
-	REMOVED,
-}
 
 ## How often the hall mutters something between rallies once it has stopped
 ## trusting the umpire.
@@ -173,22 +169,13 @@ const SERVICE_COURT_ERROR_CHANCE := 0.06
 ## Weighted towards the server because that is the plainer of the two to see.
 const SERVER_AT_FAULT := 0.6
 
-## While developing, the truth of each rally is printed to the console. This must be
-## off before anyone plays it — the player learning where the shuttle really landed
-## would remove the only interesting decision in the game.
-@export var print_truth_while_testing := true
 
 var court: Court
-var camera: UmpireCamera
-var ui: RefereeUI
 
 ## What really happened in the rally being played right now, and what was said about
 ## it. Never shown to the player.
 var rally: Rally
 
-## Why they might want that. Handed to them in a corridor before the match — or, in the
-## case of a debt, built by them halfway through it without meaning to.
-var pressure := Pressure.new()
 var debt: Pressure = null
 
 ## Which way the umpire's mistakes were leaning when the debt was taken on. A debt is
@@ -199,30 +186,13 @@ var _debt_direction := Sides.Team.NONE
 ## Whether a second wrong call has since gone the other way and settled it.
 var _debt_evened := false
 
-## How much the hall doubts you. Never displayed — you find out by reading the room.
-var suspicion: Suspicion
-
-## The scoreline, and the badminton rules that govern it.
-var board: Scoreboard
-
-var players: Array[Player] = []
-## The career this match belongs to, and the venue it decides.
-var career: Career
 
 ## Whether this venue has a camera on the line. School halls do not.
 var has_shuttle_cam := true
 
-var line_judges: Array[LineJudge] = []
 var shuttle_cam: ShuttleCam
-var sound: Sound
-var settings: Settings
 
-## The review system, and whether this venue has one.
-var challenge := Challenge.new()
-var has_hawk_eye := false
 
-## True while a review is on screen, which is the only time the umpire is a spectator.
-var _reviewing := false
 var menu_camera: MenuCamera
 
 ## Whether the lesson was opened on the way into a match, or from the title screen. It
@@ -233,7 +203,6 @@ var _teaching_leads_to_play := false
 var _teaching_returns_to_career := false
 
 var _all_line_judges: Array[LineJudge] = []
-var serving := Sides.Team.RED
 
 var _shots_this_rally := 0
 
@@ -261,10 +230,7 @@ var _rally_seconds := 0.0
 ## it passes the plane of the net.
 var _previous_shuttle_spot := Vector3.ZERO
 
-## When the shuttle landed, so the game knows how long the umpire stood there.
-var _awaiting_since := 0
 
-var _phase := Phase.PRE_MATCH
 var _shuttle: Shuttle
 
 
@@ -362,9 +328,9 @@ func _on_match_requested() -> void:
 	var venue := career.venue()
 	suspicion.scrutiny = venue["scrutiny"]
 	has_shuttle_cam = venue["close_cam"]
-	has_hawk_eye = venue["hawk_eye"]
+	has_challenge = venue["hawk_eye"]
 	challenge.reset()
-	_set_line_judges_present(venue["line_judges"])
+	set_line_judges_present(venue["line_judges"])
 	# Dressed before the crowd is counted, because dressing the hall rebuilds the
 	# seating and everybody in it, and a density set before that is thrown away.
 	court.dress(venue["dressing"])
@@ -372,7 +338,14 @@ func _on_match_requested() -> void:
 	_set_up_the_match(venue["quick"])
 
 
-func _set_line_judges_present(present: bool) -> void:
+## Overridden, because badminton keeps a full set and shows a subset of it.
+##
+## The spine hides the judges it does not want; this rebuilds `line_judges` from the
+## ones the venue actually seats, so `judge_watching` has nobody to find rather than
+## somebody invisible. Cleared rather than replaced with []: a bare empty array is
+## untyped and will not assign to an Array[LineJudge], which failed silently enough that
+## the school hall quietly kept its line judges.
+func set_line_judges_present(present: bool) -> void:
 	# Cleared rather than replaced with []: a bare empty array is untyped and will not
 	# assign to an Array[LineJudge], which failed silently enough that the school hall
 	# quietly kept its line judges.
@@ -516,21 +489,6 @@ func _on_quit_requested() -> void:
 	get_tree().quit()
 
 
-## Stops the match dead. The mouse goes back to the player, because a menu you cannot
-## click is not a menu.
-## How many calls this umpire has made in this match. Only used to decide whether
-## leaving costs anything: before the first call there is nothing to answer for.
-var calls_made := 0
-
-
-func _pause() -> void:
-	camera.set_active(false)
-	# The free exit is offered only while nothing has happened yet. Same rule as the
-	# other three sports get from OfficiatedMatch.
-	ui.show_pause_menu(calls_made == 0)
-	get_tree().paused = true
-
-
 func _on_resume_requested() -> void:
 	get_tree().paused = false
 	ui.hide_pause_menu()
@@ -549,8 +507,6 @@ func _on_walk_out_requested() -> void:
 func _on_career_restart_requested() -> void:
 	Career.start_again().save()
 	get_tree().reload_current_scene()
-
-
 
 
 ## Everything a match needs before the first serve, whatever route brought us here.
@@ -596,7 +552,7 @@ func begin_match(_unused := Sides.Team.NONE) -> void:
 	calls_made = 0
 	camera.set_active(true)
 	_start_watching_reputation()
-	_enter_ready()
+	enter_ready()
 
 
 func _build_players() -> void:
@@ -625,18 +581,18 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if ui.is_fault_panel_open():
 		if _is_key(event, KEY_ESCAPE):
-			_close_fault_panel()
+			close_the_fault_panel()
 		return
 
 	if _phase == Phase.REMOVED:
 		return
 
 	if _is_key(event, KEY_ESCAPE):
-		_pause()
+		pause_the_match()
 		return
 
 	if _is_key(event, KEY_F):
-		_open_fault_panel()
+		open_the_fault_panel()
 		return
 
 	# The service court call is the only thing in the game that can be said at two
@@ -651,15 +607,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	match _phase:
 		Phase.READY:
 			if event.is_action_pressed(&"ui_accept") or _is_key(event, KEY_SPACE):
-				_start_rally()
+				start_rally()
 		Phase.AWAITING_CALL:
 			if event is InputEventMouseButton and event.pressed:
 				if event.button_index == MOUSE_BUTTON_LEFT:
-					_make_call(&"in")
+					make_call(&"in")
 				elif event.button_index == MOUSE_BUTTON_RIGHT:
-					_make_call(&"out")
+					make_call(&"out")
 			elif _is_key(event, KEY_L):
-				_make_call(&"let")
+				make_call(&"let")
 
 
 ## "Service court error." The one call in this game that decides nothing.
@@ -708,27 +664,13 @@ func _call_service_court(in_time: bool) -> void:
 	_stand_for_serve(_serve_court)
 
 
-## Between rallies there is no rally to fault anybody over, so only misconduct is on
-## offer. Cards can be handed out whenever the umpire feels like it.
-func _open_fault_panel() -> void:
-	if _phase != Phase.READY and _phase != Phase.AWAITING_CALL:
-		return
-	camera.set_active(false)
-	ui.show_fault_panel(_phase == Phase.READY)
-
-
-func _close_fault_panel() -> void:
-	ui.hide_fault_panel()
-	camera.set_active(true)
-
-
 func _on_punishment_chosen(id: StringName, team: Sides.Team) -> void:
-	_close_fault_panel()
+	close_the_fault_panel()
 	if id == &"yellow" or id == &"red":
 		show_card(team, id == &"red")
 		return
 	if _phase == Phase.AWAITING_CALL:
-		_make_call(id, team)
+		make_call(id, team)
 
 
 ## Produces a card. Nothing happened — nothing ever happened — so this is not a
@@ -763,12 +705,14 @@ func show_card(against: Sides.Team, red: bool) -> void:
 		ui.hide_shuttle_cam()
 		for judge in line_judges:
 			judge.silence()
-		_enter_ready()
+		enter_ready()
 	else:
 		_update_score()
 
 
-func _enter_ready() -> void:
+## What the umpire is told to do next, which in badminton includes which service court
+## the serve has to come from.
+func enter_ready() -> void:
 	if suspicion.is_removed or board.is_over:
 		return
 	_phase = Phase.READY
@@ -802,7 +746,7 @@ func _set_up_the_serve() -> void:
 	_stand_for_serve(_serve_court, service_error)
 
 
-func _start_rally() -> void:
+func start_rally() -> void:
 	_shots_this_rally = 0
 	_rally_seconds = 0.0
 	for judge in line_judges:
@@ -840,13 +784,13 @@ func _start_rally() -> void:
 		return
 
 	sound.whistle()
-	_phase = Phase.IN_FLIGHT
+	_phase = Phase.IN_PLAY
 	ui.set_prompt("watch it")
 
 
 ## Watches for a player getting a racket on the shuttle before it can land.
 func _physics_process(_delta: float) -> void:
-	if _phase != Phase.IN_FLIGHT:
+	if _phase != Phase.IN_PLAY:
 		return
 	if not is_instance_valid(_shuttle) or _shuttle.has_landed:
 		return
@@ -939,7 +883,7 @@ func _return_shot(player: Player) -> void:
 		# is the only thing there is to see.
 		_shuttle.freeze = true
 		await get_tree().create_timer(CARRY_HOLD).timeout
-		if _phase != Phase.IN_FLIGHT or not is_instance_valid(_shuttle):
+		if _phase != Phase.IN_PLAY or not is_instance_valid(_shuttle):
 			return
 		_shuttle.freeze = false
 
@@ -950,7 +894,7 @@ func _return_shot(player: Player) -> void:
 
 	if offence == Incident.Kind.DOUBLE_HIT:
 		await get_tree().create_timer(DOUBLE_HIT_GAP).timeout
-		if _phase != Phase.IN_FLIGHT or not is_instance_valid(_shuttle) or _shuttle.has_landed:
+		if _phase != Phase.IN_PLAY or not is_instance_valid(_shuttle) or _shuttle.has_landed:
 			return
 		# The same side gets a second stroke in, which is the whole of the offence.
 		var again := _pick_target(Sides.half_sign(Sides.opponent(player.team)))
@@ -1257,11 +1201,11 @@ func _on_shuttle_landed(point: Vector3) -> void:
 	# until a beat later. Deciding it now means an umpire who calls before the bubble
 	# goes up has still overruled them, rather than dodging the whole question by
 	# being quick.
-	var judge := _judge_watching(point)
+	var judge := judge_watching(point)
 	if judge != null:
 		rally.line_judge_said_in = judge.judge(rally)
 		rally.line_judge_called = true
-		_announce_line_judge(judge)
+		_announce_after_a_beat(judge)
 
 
 ## Whichever line judge is responsible for the end the shuttle came down at, if this is
@@ -1279,7 +1223,10 @@ func _on_shuttle_landed(point: Vector3) -> void:
 ## agreeing with a line judge halves what a wrong call costs, so muting them on exactly
 ## the rallies where an honest umpire is most likely to be marked wrong quietly stripped
 ## away the cover the whole system was balanced around.
-func _judge_watching(point: Vector3) -> LineJudge:
+## Overridden to add the one thing badminton has and the others do not: a shuttle that
+## never crossed the net. Nobody on a line calls that — there is no line involved — and
+## a judge who raised a flag over it would be answering a question nobody asked.
+func judge_watching(point: Vector3) -> LineJudge:
 	if rally == null or not rally.crossed_the_net:
 		return null
 	var half := Sides.half_containing(point.z)
@@ -1289,7 +1236,7 @@ func _judge_watching(point: Vector3) -> LineJudge:
 	return null
 
 
-func _announce_line_judge(judge: LineJudge) -> void:
+func _announce_after_a_beat(judge: LineJudge) -> void:
 	await get_tree().create_timer(LINE_JUDGE_DELAY).timeout
 	if _phase != Phase.AWAITING_CALL or not is_instance_valid(judge):
 		return
@@ -1303,24 +1250,23 @@ func _announce_line_judge(judge: LineJudge) -> void:
 		sound.judge_calls_out(judge.global_position)
 
 
-func _make_call(id: StringName, against := Sides.Team.NONE) -> void:
+## The call, on the shared pipeline. Everything badminton does differently is below.
+func make_call(id: StringName, against := Sides.Team.NONE) -> void:
 	var call := CallBook.get_call(id)
-	if call == null:
-		return
+	if call != null:
+		await judge(call, against)
 
-	calls_made += 1
-	rally.seconds_to_call = float(Time.get_ticks_msec() - _awaiting_since) / 1000.0
-	rally.record_call(call, against)
-	ui.hide_shuttle_cam()
-	var winner := rally.point_goes_to()
 
-	# The hall makes up its mind about what it just saw. The player is told nothing
-	# except how the room reacted — which is the whole of the feedback they get.
-	#
-	# This happens before any review, not after. A review only ever adds to what the call
-	# already cost, and the rule that nobody is removed without one warning is checked
-	# against the level at the time — so pricing them the wrong way round let a review
-	# push an umpire past the warning that the call itself should have given them first.
+## Badminton writes the line judge's word onto its rally when the shuttle lands, so
+## there is nothing to copy across here. See _on_shuttle_landed.
+func record_the_line_judge(_rally) -> void:
+	pass
+
+
+## The shared pricing, plus the two charges only badminton has.
+func price_the_call(rally, _call: CallType) -> void:
+	# `register` is the Rally-shaped door onto the same `register_judgement` every sport
+	# goes through, so the arithmetic below this line is shared whatever it looks like.
 	suspicion.register(rally)
 	_weigh_the_debt()
 
@@ -1332,50 +1278,20 @@ func _make_call(id: StringName, against := Sides.Team.NONE) -> void:
 		suspicion.register_service_court(true, false)
 		ui.react("somebody in the stands is pointing at the service courts", 4.0)
 
-	# Now, before the point is given, whoever it was taken from gets to ask. This is the
-	# only moment in the game where the truth is put on a screen, and the umpire has to
-	# sit through it like everybody else.
-	if has_hawk_eye:
-		var asked := challenge.challenger(rally)
-		if asked != Sides.Team.NONE:
-			var overturned := await _review(asked)
-			if overturned:
-				winner = rally.rightful_winner()
 
-	# A review can be the thing that ends the match: being caught on screen at an
-	# international final is enough to be removed on the spot. If that happened while the
-	# replay was playing, the ending screen is already up and its summary already written
-	# — so nothing below should award another point behind it.
-	if _phase == Phase.REMOVED:
-		return
-
-	if winner != Sides.Team.NONE:
-		board.award(winner)
-		# In badminton the side that wins the rally serves the next one.
-		serving = winner
-		var accused := "" if against == Sides.Team.NONE else " on %s" % Sides.label(against)
-		ui.announce(
-			"%s%s   ·   POINT %s" % [call.label, accused, Sides.label(winner)],
-			Sides.colour(winner)
-		)
-	else:
+## A badminton call that awards nothing is a let, and the hall is told so.
+func announce_the_call(call: CallType, against: Sides.Team, winner: Sides.Team) -> void:
+	if winner == Sides.Team.NONE:
 		ui.announce("%s   ·   PLAY IT AGAIN" % call.label, Color(0.85, 0.85, 0.80))
+		return
+	super(call, against, winner)
 
-	# What the hall makes of it: the call itself, or the length of the silence before
-	# it. A slow clap for taking four seconds over a shuttle a metre out.
-	var reaction := Crowd.react_to_call(rally.visibility(), suspicion.mood)
-	if reaction.is_empty():
-		reaction = Crowd.react_to_delay(rally.seconds_to_call)
-	ui.react(reaction)
 
-	_react_to_call(winner)
-
-	if print_truth_while_testing:
-		print("[truth, testing only] %s  |  took %.1fs  |  suspicion %.3f lean %+.2f" % [
-			rally.describe(), rally.seconds_to_call, suspicion.level, suspicion.lean
-		])
-
-	_enter_ready()
+## Who asks for a review. Badminton's Challenge knows its own Rally.
+func who_would_challenge() -> Sides.Team:
+	if rally == null:
+		return Sides.Team.NONE
+	return challenge.challenger(rally)
 
 
 # --- sitting through a review ---------------------------------------------------
@@ -1386,22 +1302,6 @@ func _make_call(id: StringName, against := Sides.Team.NONE) -> void:
 #
 # The half **after** the answer is just reading a line you have already read, and on the
 # tenth review of a match it is dead time. So that half takes SPACE.
-
-## Whether a review is far enough along that it can be waved away, and whether it has.
-var _can_skip_review := false
-var _review_skipped := false
-
-
-## Waits out `seconds`, or until the umpire waves it on.
-func _wait_or_skip(seconds: float) -> void:
-	_review_skipped = false
-	_can_skip_review = true
-	var left := seconds
-	while left > 0.0 and not _review_skipped:
-		await get_tree().process_frame
-		left -= get_process_delta_time()
-	_can_skip_review = false
-	_review_skipped = false
 
 
 ## Plays the review out: the challenge, a pause, and then the answer. Returns whether
@@ -1453,51 +1353,6 @@ func _on_removed_from_match() -> void:
 # The same wiring the other three sports get from OfficiatedMatch. Badminton is not on
 # that base — it owns the whole front of the game — so it carries its own copy, which is
 # small enough to be worth less than converting the scene would cost.
-
-## What the meter last showed, out of a hundred. Negative until a match has begun.
-var _reputation_showing := -1
-
-
-## Reputation moved, so the meter puts itself up for three seconds and goes again.
-##
-## Driven off Suspicion rather than off the call, so every route that costs you
-## something reaches it in one place: a wrong call, a review that went against you on
-## camera, a service fault you sat through, and the slow repair a clean rally earns
-## back.
-##
-## Only a change to the **whole number** is shown. Suspicion moves by thousandths on an
-## honest rally, and a meter that appeared for each of those would be on screen
-## permanently, which is the one thing it must never be.
-func _on_reputation_moved(_level: float) -> void:
-	if career == null or ui == null or _reputation_showing < 0:
-		return
-	var now := career.reputation_as_it_stands(suspicion.level, suspicion.is_removed)
-	var out_of_100 := roundi(now * 100.0)
-	if out_of_100 == _reputation_showing:
-		return
-	var moved := float(out_of_100 - _reputation_showing) / 100.0
-	_reputation_showing = out_of_100
-	ui.show_reputation(now, moved)
-
-
-## Seeds the meter at whatever the career screen just showed, so that the first call of
-## the match is measured against the number the player last read.
-func _start_watching_reputation() -> void:
-	if career == null:
-		return
-	_reputation_showing = roundi(
-		career.reputation_as_it_stands(suspicion.level, false) * 100.0)
-	show_where_you_stand()
-
-
-## Puts the meter up whether or not the number has moved — once as you go out, and again
-## at the end of every game. See OfficiatedMatch.show_where_you_stand for why.
-func show_where_you_stand() -> void:
-	if career == null or ui == null:
-		return
-	var now := career.reputation_as_it_stands(suspicion.level, suspicion.is_removed)
-	_reputation_showing = roundi(now * 100.0)
-	ui.show_reputation(now, 0.0, true)
 
 
 func _finish_match(headline: String, tint: Color, removed: bool) -> void:
@@ -1656,7 +1511,7 @@ func _update_score() -> void:
 	ui.set_reviews(
 		challenge.remaining(Sides.Team.RED),
 		challenge.remaining(Sides.Team.BLUE),
-		has_hawk_eye
+		has_challenge
 	)
 	# The hanging board says the same thing as the HUD, so the hall and the umpire
 	# never disagree about the score.
@@ -1688,7 +1543,7 @@ func serve(from: Vector3, target: Vector3, angle := 36.0, striker := Sides.Team.
 	if not _hit(from, target, angle, striker):
 		push_warning("No shot at %.0f degrees reaches %v from %v" % [angle, target, from])
 		return null
-	_phase = Phase.IN_FLIGHT
+	_phase = Phase.IN_PLAY
 	return _shuttle
 
 

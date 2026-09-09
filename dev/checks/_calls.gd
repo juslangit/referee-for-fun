@@ -28,7 +28,7 @@ func _ready() -> void:
 	var total_visibility := 0.0
 
 	for i in range(16):
-		arena._start_rally()
+		arena.start_rally()
 		while arena._phase != arena.Phase.AWAITING_CALL:
 			await get_tree().physics_frame
 
@@ -44,7 +44,7 @@ func _ready() -> void:
 		var truth := "%s by %.3f m at (%+.2f, %+.2f)" % [
 			"IN" if rally.was_in else "OUT", absf(rally.margin), rally.landing_point.x, rally.landing_point.z
 		]
-		arena._make_call(chosen)
+		arena.make_call(chosen)
 
 		if rally.verdict() == Rally.Verdict.WRONG:
 			lies += 1

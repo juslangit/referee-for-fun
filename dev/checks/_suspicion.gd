@@ -31,12 +31,12 @@ func _run(policy: String) -> void:
 	for i in range(RALLIES):
 		if suspicion.is_removed:
 			break
-		arena._start_rally()
+		arena.start_rally()
 		while arena._phase != arena.Phase.AWAITING_CALL:
 			await get_tree().physics_frame
 
 		var rally: Rally = arena.rally
-		arena._make_call(_choose(policy, rally))
+		arena.make_call(_choose(policy, rally))
 		if suspicion.is_removed and removed_at == 0:
 			removed_at = i + 1
 

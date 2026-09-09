@@ -15,12 +15,12 @@ func _ready() -> void:
 	get_viewport().get_texture().get_image().save_png("res://dev/shots/_shot_prematch.png")
 
 	arena.begin_match()
-	arena._start_rally()
+	arena.start_rally()
 	while arena._phase != arena.Phase.AWAITING_CALL:
 		await get_tree().physics_frame
 
 	print("truth was: ", arena.rally.describe())
-	arena._make_call(&"in")
+	arena.make_call(&"in")
 
 	for i in 4:
 		await get_tree().process_frame

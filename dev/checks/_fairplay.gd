@@ -30,7 +30,7 @@ func _ready() -> void:
 	for frame in 60000:
 		await get_tree().process_frame
 		if arena._phase == arena.Phase.READY:
-			arena._start_rally()
+			arena.start_rally()
 			continue
 		if arena._phase != arena.Phase.AWAITING_CALL:
 			continue
@@ -62,9 +62,9 @@ func _ready() -> void:
 				Incident.Kind.SERVICE_FEET: &"serve_feet",
 			}
 			var fault: StringName = names.get(rally.incident.kind, &"in")
-			arena._make_call(fault, rally.incident.by)
+			arena.make_call(fault, rally.incident.by)
 		else:
-			arena._make_call(&"in" if landed_inside else &"out")
+			arena.make_call(&"in" if landed_inside else &"out")
 		judged += 1
 		dithered += Suspicion.hesitation_cost(rally.seconds_to_call) * arena.suspicion.scrutiny
 

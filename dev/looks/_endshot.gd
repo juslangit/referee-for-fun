@@ -23,7 +23,7 @@ func _ready() -> void:
 		while not shuttle.has_landed:
 			await get_tree().physics_frame
 		arena._phase = arena.Phase.AWAITING_CALL
-		arena._make_call(&"in")
+		arena.make_call(&"in")
 
 		if arena.suspicion.has_been_warned and not arena.suspicion.is_removed:
 			for f in 3:

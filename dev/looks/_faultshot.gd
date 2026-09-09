@@ -12,15 +12,15 @@ func _ready() -> void:
 	arena.begin_match()
 
 	for r in range(3):
-		arena._start_rally()
+		arena.start_rally()
 		var waited := 0
 		while arena._phase != arena.Phase.AWAITING_CALL and waited < 3000:
 			await get_tree().physics_frame
 			waited += 1
-		arena._make_call(&"in" if arena.rally.was_in else &"out")
+		arena.make_call(&"in" if arena.rally.was_in else &"out")
 
 	# A rally is on the table, so the full list is available.
-	arena._start_rally()
+	arena.start_rally()
 	var waiting := 0
 	while arena._phase != arena.Phase.AWAITING_CALL and waiting < 3000:
 		await get_tree().physics_frame

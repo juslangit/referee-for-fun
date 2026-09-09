@@ -24,7 +24,7 @@ func _ready() -> void:
 
 	while not arena.board.is_over and rallies < 60:
 		rallies += 1
-		arena._start_rally()
+		arena.start_rally()
 		var waited := 0
 		while arena._phase != arena.Phase.AWAITING_CALL and waited < 3000:
 			await get_tree().physics_frame
@@ -64,9 +64,9 @@ func _ready() -> void:
 				Incident.Kind.DOUBLE_HIT: &"double_hit",
 				Incident.Kind.OBSTRUCTION: &"obstruction",
 			}[offence.kind]
-			arena._make_call(id, offence.by)
+			arena.make_call(id, offence.by)
 		else:
-			arena._make_call(&"in" if rally.was_in else &"out")
+			arena.make_call(&"in" if rally.was_in else &"out")
 
 		print("%-4d %-6d %-24s %-30s %d-%d" % [
 			rallies, shots, truth_text, offence.describe(),

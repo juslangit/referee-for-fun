@@ -620,20 +620,11 @@ func judge(call: CallType, against: Sides.Team) -> void:
 	calls_made += 1
 	rally.seconds_to_call = float(Time.get_ticks_msec() - _awaiting_since) / 1000.0
 	rally.record_call(call, against)
-	rally.line_judge_called = _judge_called
-	rally.line_judge_said_in = _judge_said_in
+	record_the_line_judge(rally)
 	before_pricing()
 	ui.hide_close_cam()
 
-	suspicion.register_judgement(
-		rally.verdict() as int,
-		rally.visibility(),
-		which_way_it_leaned(),
-		call.severity,
-		rally.seconds_to_call,
-		rally.echoes_line_judge(),
-		rally.overrules_line_judge(),
-		rally.changed_the_result())
+	price_the_call(rally, call)
 
 	# Before the point is given, whoever it was taken from gets to ask. This is the only
 	# moment in these sports where the truth is put on a screen, and the official has to
@@ -654,10 +645,9 @@ func judge(call: CallType, against: Sides.Team) -> void:
 
 	if winner != Sides.Team.NONE:
 		award_the_point(winner)
-		ui.announce("%s   ·   POINT %s" % [call.label, Sides.label(winner)],
-			Sides.colour(winner))
 		cheer()
 		_the_players_react(winner, rally)
+	announce_the_call(call, against, winner)
 
 	# And what the room made of the person awarding it. Separate from the cheer on
 	# purpose: the cheer is about the rally and fires whoever won it, and this is about
@@ -665,7 +655,12 @@ func judge(call: CallType, against: Sides.Team) -> void:
 	# reading anything back to you, which is what it did until now.
 	_the_room_reacts(rally)
 
-	ui.react(Crowd.react_to_call(rally.visibility(), suspicion.mood))
+	# What the hall makes of it: the call itself, or the length of the silence before it.
+	# A slow clap for taking four seconds over a ball a metre out.
+	var reaction := Crowd.react_to_call(rally.visibility(), suspicion.mood)
+	if reaction.is_empty():
+		reaction = Crowd.react_to_delay(rally.seconds_to_call)
+	ui.react(reaction)
 	_show_reviews()
 
 	if print_truth_while_testing:
@@ -679,6 +674,43 @@ func judge(call: CallType, against: Sides.Team) -> void:
 ## keeps on the match rather than on the ball.
 func before_pricing() -> void:
 	pass
+
+
+## What the line judge on that line said, written onto the rally.
+##
+## The three ball sports learn it at the landing and keep it on the match; badminton
+## writes it straight onto its own rally when the shuttle comes down, and overrides this
+## to leave well alone. Getting it wrong is silent — the cover a line judge gives simply
+## stops applying — which is why it is a named step rather than two assignments.
+func record_the_line_judge(rally) -> void:
+	rally.line_judge_called = _judge_called
+	rally.line_judge_said_in = _judge_said_in
+
+
+## What the call costs. Every sport prices the same way; badminton adds two charges of
+## its own that no other sport has — the debt it may have just settled, and a service
+## court error it sat through — so it wraps this rather than replacing it.
+func price_the_call(rally, call: CallType) -> void:
+	suspicion.register_judgement(
+		rally.verdict() as int,
+		rally.visibility(),
+		which_way_it_leaned(),
+		call.severity,
+		rally.seconds_to_call,
+		rally.echoes_line_judge(),
+		rally.overrules_line_judge(),
+		rally.changed_the_result())
+
+
+## What the umpire is heard to say. A call that awards nothing is not "point to nobody";
+## in badminton it is a let, and the hall is told to play it again.
+func announce_the_call(call: CallType, against: Sides.Team, winner: Sides.Team) -> void:
+	var accused := "" if against == Sides.Team.NONE else " on %s" % Sides.label(against)
+	if winner == Sides.Team.NONE:
+		ui.announce("%s%s" % [call.label, accused], Color(0.85, 0.85, 0.80))
+		return
+	ui.announce("%s%s   ·   POINT %s" % [call.label, accused, Sides.label(winner)],
+		Sides.colour(winner))
 
 
 ## Gives the point. Indoor overrides this because a side that wins the serve back

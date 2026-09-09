@@ -57,7 +57,7 @@ func _check(name: String, scene: String, sport: StringName) -> void:
 	var meter := 0
 	for r in 6:
 		if badminton:
-			arena._start_rally()
+			arena.start_rally()
 		else:
 			arena.start_rally()
 		var waited := 0
@@ -91,7 +91,7 @@ func _check(name: String, scene: String, sport: StringName) -> void:
 		var rally = arena.rally
 		arena._awaiting_since = Time.get_ticks_msec()
 		if badminton:
-			arena._make_call(&"in" if not rally.was_in else &"out")
+			arena.make_call(&"in" if not rally.was_in else &"out")
 		else:
 			arena.make_call(&"in" if not rally.was_in else &"out")
 		# Sampled for a fixed stretch rather than "while the phase is still awaiting a

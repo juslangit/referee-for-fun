@@ -43,16 +43,16 @@ func _ready() -> void:
 	arena.begin_match()
 	# Two rallies of warm-up, so the score is not 0-0 but the run still finishes.
 	for r in 2:
-		arena._start_rally()
+		arena.start_rally()
 		var waited := 0
 		while arena._phase != arena.Phase.AWAITING_CALL and waited < 3000:
 			await get_tree().physics_frame
 			waited += 1
-		arena._make_call(&"in" if arena.rally.was_in else &"out")
+		arena.make_call(&"in" if arena.rally.was_in else &"out")
 		for f in 8:
 			await get_tree().process_frame
 
-	arena._start_rally()
+	arena.start_rally()
 	# The previous rally's verdict is still on screen for a few seconds, and a picture
 	# of a rally in flight captioned with the last one's result reads as a bug.
 	arena.ui.announce("", Color.WHITE)

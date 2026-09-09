@@ -46,7 +46,7 @@ func _ready() -> void:
 				shot_taken = true
 			continue
 		if arena._phase == arena.Phase.READY:
-			arena._start_rally()
+			arena.start_rally()
 			continue
 		if arena._phase != arena.Phase.AWAITING_CALL:
 			continue
@@ -61,7 +61,7 @@ func _ready() -> void:
 			print("!! the umpire was removed from the match after %d rallies" % judged)
 			break
 		before_level = arena.suspicion.level
-		arena._make_call(&"in" if say else &"out")
+		arena.make_call(&"in" if say else &"out")
 		judged += 1
 		for f in 12:
 			await get_tree().process_frame

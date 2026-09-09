@@ -113,7 +113,7 @@ func _a_whole_match(arena: Node, attentive: bool) -> void:
 	arena.suspicion.wrong_calls = 0
 	arena.board = Scoreboard.new(false)
 	arena.serving = Sides.Team.RED
-	arena._enter_ready()
+	arena.enter_ready()
 
 	var judged := 0
 	var errors := 0
@@ -127,7 +127,7 @@ func _a_whole_match(arena: Node, attentive: bool) -> void:
 				if attentive:
 					caught += 1
 					arena._call_service_court(true)
-			arena._start_rally()
+			arena.start_rally()
 			served += 1
 			continue
 		if arena._phase != arena.Phase.AWAITING_CALL:
@@ -139,7 +139,7 @@ func _a_whole_match(arena: Node, attentive: bool) -> void:
 		# Hesitation is not what is being measured here; reset the clock so the number
 		# at the end is the service court call and nothing else.
 		arena._awaiting_since = Time.get_ticks_msec()
-		arena._make_call(&"in" if CourtSpec.is_in(rally.landing_point, rally.doubles) else &"out")
+		arena.make_call(&"in" if CourtSpec.is_in(rally.landing_point, rally.doubles) else &"out")
 		judged += 1
 		for f in 18:
 			await get_tree().process_frame

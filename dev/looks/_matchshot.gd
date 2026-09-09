@@ -12,15 +12,15 @@ func _ready() -> void:
 
 	# Let a few rallies play so the score is not 0-0 and the players are spread out.
 	for r in range(4):
-		arena._start_rally()
+		arena.start_rally()
 		var waited := 0
 		while arena._phase != arena.Phase.AWAITING_CALL and waited < 3000:
 			await get_tree().physics_frame
 			waited += 1
-		arena._make_call(&"in" if arena.rally.was_in else &"out")
+		arena.make_call(&"in" if arena.rally.was_in else &"out")
 
 	# Now catch one mid-flight.
-	arena._start_rally()
+	arena.start_rally()
 	for f in 90:
 		await get_tree().physics_frame
 

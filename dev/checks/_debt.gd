@@ -27,7 +27,7 @@ func _ready() -> void:
 	for frame in 60000:
 		await get_tree().process_frame
 		if arena._phase == arena.Phase.READY:
-			arena._start_rally()
+			arena.start_rally()
 			continue
 		if arena._phase != arena.Phase.AWAITING_CALL:
 			continue
@@ -44,7 +44,7 @@ func _ready() -> void:
 		# enough to be shown what they have done.
 		var still_owing: bool = arena.debt == null or not arena._debt_evened
 		var says_in := not landed_in if (blatant and still_owing) else landed_in
-		arena._make_call(&"in" if says_in else &"out")
+		arena.make_call(&"in" if says_in else &"out")
 		judged += 1
 
 		var note := ""
