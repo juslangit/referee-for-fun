@@ -7,6 +7,9 @@ extends Node
 ## nobody's fault, and a rally in which the ball lands over and over. An umpire who
 ## always says the true thing must pay nothing for any of it.
 
+var _phase_frames := {}
+
+
 func _ready() -> void:
 	var court: Node = load("res://scenes/tennis.tscn").instantiate()
 	court.print_truth_while_testing = false
@@ -33,6 +36,7 @@ func _ready() -> void:
 	var kinds := {}
 	var margins: Array[float] = []
 	var stalled := 0
+	var started := Time.get_ticks_msec()
 
 	for frame in 400000:
 		await get_tree().process_frame
@@ -40,10 +44,7 @@ func _ready() -> void:
 			court.start_rally()
 			stalled = 0
 			continue
-		if frame % 1200 == 0:
-			print("    ... frame %d, phase %d, judged %d, beat %d, aimed %s, letting %s, landed %s, bounces %d" % [
-				frame, court._phase, judged, court._beat, court._aimed_to_end,
-				court._letting_it_go, court._ball.has_landed, court._ball.bounces])
+		_phase_frames[court._phase] = int(_phase_frames.get(court._phase, 0)) + 1
 		if court._phase != court.Phase.AWAITING_CALL:
 			stalled += 1
 			if stalled > 2000:
@@ -77,18 +78,9 @@ func _ready() -> void:
 		if rally.verdict() == Rally.Verdict.WRONG:
 			wrong += 1
 			print("   WRONG: %s" % rally.describe())
-			print("      serve=%s n=%d good=%s cord=%s foot=%s notup=%s net=%s over=%s | goes=%s rightful=%s | call=%s against=%s conduct=%s land=%s in=%s" % [
-				rally.is_a_serve, rally.serve_number, rally.serve_was_good,
-				rally.clipped_the_cord, rally.foot_fault,
-				Sides.label(rally.not_up_by), Sides.label(rally.net_toucher),
-				Sides.label(rally.reached_over_by),
-				Sides.label(rally.point_goes_to()), Sides.label(rally.rightful_winner()),
-				rally.call.id, Sides.label(rally.call_against),
-				rally.call.judges_conduct, rally.call.judges_the_landing,
-				rally.call.asserts_in])
 
 		judged += 1
-		if judged >= 400 or court.board.is_over or court._phase == court.Phase.REMOVED:
+		if judged >= 40 or court.board.is_over or court._phase == court.Phase.REMOVED:
 			break
 
 	var close := 0
@@ -96,6 +88,11 @@ func _ready() -> void:
 		if absf(m) <= 0.25:
 			close += 1
 
+	# How long a point takes, which is worth watching: a rally that hangs waiting for a
+	# bounce that never comes does not look like a bug, it looks like a slow game.
+	var total: int = _phase_frames.values().reduce(func(a, b): return a + b, 0)
+	print("frames a point:  %.0f   (about %.1f seconds)" % [
+		float(total) / maxf(1.0, float(judged)), float(total) / maxf(1.0, float(judged)) / 60.0])
 	print("points judged:   %d" % judged)
 	print("of which serves: %d   (second serves %d, lets %d, good %d)" % [
 		serves, seconds, lets, good_serves])

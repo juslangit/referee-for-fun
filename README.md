@@ -139,9 +139,14 @@ them was scored good, and calling it out was recorded as a lie.
 
 ---
 
-Three sports share one official. **Badminton** in a hall, **beach volleyball** on sand,
-and **indoor volleyball** — which is the only one that asks you to know something before
-the ball is served, because six players rotate through six positions and the referee
-either kept track or did not.
+Four sports share one official.
 
-Your reputation is shared across all three. You climb each ladder separately.
+**Badminton** in a hall. **Beach volleyball** on sand, where the ball flies out past a
+block and only you can say whether it brushed a hand on the way. **Indoor volleyball**,
+the only one that asks you to know something before the ball is served, because six
+players rotate through six positions and the referee either kept track or did not. And
+**tennis**, where a point is not one event: there is a first serve, and perhaps a second,
+and then a rally in which the ball lands over and over — so the same call costs a serve
+at one moment and the match at another.
+
+Your reputation is shared across all four. You climb each ladder separately.
