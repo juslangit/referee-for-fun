@@ -118,6 +118,8 @@ func _ready() -> void:
 	settings.apply()
 
 	build_the_venue()
+	build_line_judges()
+	_build_the_mark()
 
 	ui = RefereeUI.new()
 	ui.name = "UI"
@@ -213,6 +215,7 @@ func _on_match_requested() -> void:
 	challenge.reset()
 	dress_the_venue(venue)
 
+	set_line_judges_present(venue["line_judges"])
 	board = make_the_board(venue)
 	board.game_won.connect(_on_set_won)
 	board.match_won.connect(func(team: Sides.Team) -> void:
@@ -277,7 +280,7 @@ func review(asked: Sides.Team) -> bool:
 		return false
 
 	_reviewing = true
-	var overturned: bool = rally.verdict() == BeachRally.Verdict.WRONG
+	var overturned: bool = rally.verdict() == Rally.Verdict.WRONG
 	var about_a_touch: bool = rally.call != null and rally.call.judges_the_touch
 	var truth := ""
 	if about_a_touch:
@@ -329,7 +332,7 @@ func who_would_challenge() -> Sides.Team:
 	if rally.call.judges_the_touch:
 		closeness = (1.0 - rally.touch_visibility) * Challenge.DOUBT_RANGE
 	return challenge.who_challenges(
-		lost, rally.verdict() == BeachRally.Verdict.WRONG, rally.visibility(), closeness)
+		lost, rally.verdict() == Rally.Verdict.WRONG, rally.visibility(), closeness)
 
 
 ## +1 if the call helped BLUE, -1 if it helped RED, 0 if it helped nobody.
@@ -524,6 +527,8 @@ func judge(call: CallType, against: Sides.Team) -> void:
 
 	rally.seconds_to_call = float(Time.get_ticks_msec() - _awaiting_since) / 1000.0
 	rally.record_call(call, against)
+	rally.line_judge_called = _judge_called
+	rally.line_judge_said_in = _judge_said_in
 	before_pricing()
 	ui.hide_close_cam()
 
@@ -533,7 +538,8 @@ func judge(call: CallType, against: Sides.Team) -> void:
 		which_way_it_leaned(),
 		call.severity,
 		rally.seconds_to_call,
-		false, false,
+		rally.echoes_line_judge(),
+		rally.overrules_line_judge(),
 		rally.changed_the_result())
 
 	# Before the point is given, whoever it was taken from gets to ask. This is the only
@@ -586,3 +592,157 @@ func award_the_point(winner: Sides.Team) -> void:
 ## official back.
 func cheer() -> void:
 	pass
+
+
+# --- the line judges ------------------------------------------------------------
+#
+# Both volleyball ladders have promised line judges on four of five rungs since they
+# were written, and neither sport had any. That is not only an unkept promise: it left
+# the two sports missing a mechanic badminton has had from the start, so the same lie
+# was priced differently in different sports for no reason anybody had stated.
+#
+# What a line judge is *for*, in this game, is cover. They are usually right and least
+# reliable exactly when it matters most, and that is the point of them:
+#
+#   Agree with one who has just got it wrong, and the mistake is shared with an
+#   official standing in plain sight. Suspicion halves it.
+#
+#   Contradict one and the venue has watched two officials disagree in public, with
+#   only one call deciding the rally. Suspicion charges 1.6 times, and a little even
+#   when the official turns out to have been right.
+
+## How long after the ball lands before they raise the flag. They make their mind up
+## the instant it lands and say so a beat later, so an official who calls before the
+## flag goes up has still contradicted them rather than dodging the question.
+const LINE_JUDGE_DELAY := 0.55
+
+var line_judges: Array[LineJudge] = []
+
+## What the judge on that line said about the rally being judged now.
+var _judge_called := false
+var _judge_said_in := false
+
+
+## Where this sport stands its line judges, and which half each of them watches.
+##
+## Diagonally opposite corners, in every sport that has them. From opposite corners the
+## pair of them see all four boundary lines between them; two on the same side cover the
+## same two lines twice.
+func line_judge_spots() -> Array:
+	return []
+
+
+func build_line_judges() -> void:
+	for judge in line_judges:
+		judge.queue_free()
+	line_judges.clear()
+
+	for spot in line_judge_spots():
+		var judge := LineJudge.new()
+		judge.name = "LineJudge"
+		judge.seated = false
+		judge.watches = Sides.half_containing(float(spot["at"].z))
+		judge.position = spot["at"]
+		add_child(judge)
+		line_judges.append(judge)
+
+
+## Whether this venue has them at all, and how many.
+func set_line_judges_present(present: bool) -> void:
+	for judge in line_judges:
+		judge.visible = present
+		judge.silence()
+
+
+## The judge responsible for the line the ball came down near, if any.
+func judge_watching(point: Vector3) -> LineJudge:
+	if not _line_judges_present():
+		return null
+	var half := Sides.half_containing(point.z)
+	for judge in line_judges:
+		if judge.watches == half:
+			return judge
+	return null
+
+
+func _line_judges_present() -> bool:
+	for judge in line_judges:
+		if judge.visible:
+			return true
+	return false
+
+
+## Called the moment the ball lands: the judge on that line makes up their mind, and
+## says so a beat later.
+func line_judges_watch(point: Vector3, margin: float, was_in: bool) -> void:
+	_judge_called = false
+	_judge_said_in = false
+	var judge := judge_watching(point)
+	if judge == null:
+		return
+	_judge_called = true
+	_judge_said_in = judge.decide(margin, was_in)
+	_announce_after_a_beat(judge)
+
+
+func _announce_after_a_beat(judge: LineJudge) -> void:
+	await get_tree().create_timer(LINE_JUDGE_DELAY).timeout
+	if _phase != Phase.AWAITING_CALL or not is_instance_valid(judge):
+		return
+	judge.announce(_judge_said_in)
+
+
+func hush_the_line_judges() -> void:
+	for judge in line_judges:
+		judge.silence()
+
+
+# --- the mark ------------------------------------------------------------------
+
+## The dent the ball leaves where it landed.
+##
+## A shuttlecock stops dead when it lands, so the badminton camera can point at it and
+## the shuttle is still there. A volleyball bounces — which is right, and which meant
+## the camera on the line showed the ball for about a fifth of a second and then a bare
+## patch of sand for as long as the official took to decide.
+##
+## So the landing is marked. This is not a convenience invented for the game: arguing
+## about the mark is exactly how a beach line call is settled in the real sport, and
+## both sides walk over to look at it.
+const MARK_RADIUS := 0.085
+
+var _landing_mark: MeshInstance3D
+
+
+func _build_the_mark() -> void:
+	_landing_mark = MeshInstance3D.new()
+	_landing_mark.name = "Mark"
+	var disc := CylinderMesh.new()
+	disc.top_radius = MARK_RADIUS
+	disc.bottom_radius = MARK_RADIUS
+	disc.height = 0.004
+	disc.radial_segments = 20
+	_landing_mark.mesh = disc
+
+	var dent := StandardMaterial3D.new()
+	# A shadow in the sand rather than a sticker on it: dark, and see-through enough
+	# that the line underneath still reads.
+	dent.albedo_color = Color(0.24, 0.18, 0.10, 0.55)
+	dent.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dent.roughness = 1.0
+	_landing_mark.material_override = dent
+	_landing_mark.layers = Ball.COURT_LAYER
+	_landing_mark.visible = false
+	add_child(_landing_mark)
+
+
+func mark_the_landing(point: Vector3) -> void:
+	if _landing_mark == null:
+		return
+	_landing_mark.global_position = point + Vector3(0.0, 0.002, 0.0)
+	_landing_mark.visible = true
+
+
+func clear_the_mark() -> void:
+	if _landing_mark != null:
+		_landing_mark.visible = false

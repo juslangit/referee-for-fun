@@ -29,6 +29,12 @@ const BUBBLE_SECONDS := 2.4
 const BODY_HEIGHT := 1.34
 const BODY_RADIUS := 0.24
 
+## Whether they sit down. Badminton line judges sit on a folding chair for the whole
+## match; volleyball line judges stand, at the corners, holding a flag. The difference
+## is not decoration — a seated official at the corner of a volleyball court would be
+## looking at the sand from below the height of the tape.
+var seated := true
+
 ## Which half of the court this judge is responsible for. In a real match a line
 ## judge has their own lines and says nothing about anybody else's, which is why the
 ## two of them never end up contradicting each other in public.
@@ -52,15 +58,44 @@ func _process(delta: float) -> void:
 		_bubble.visible = false
 
 
+## A line judge on their feet, which is what both volleyballs use.
+func _build_standing() -> void:
+	var standing := Node3D.new()
+	standing.name = "Judge"
+	standing.rotation.y = atan2(-position.x, -position.z)
+	add_child(standing)
+
+	var model := Models.official()
+	if model == null:
+		Figure.standing(standing, Color(0.93, 0.85, 0.30), false)
+		return
+
+	standing.add_child(model)
+	var animator := Models.animator(model)
+	var clip := Models.clip_named(animator, ["idle", "stand", "ready"])
+	if animator != null and not clip.is_empty():
+		Models.make_looping(animator, clip)
+		animator.play(clip)
+	if not Models.is_forged(model):
+		_settle_when_posed(model)
+
+
 ## What they saw. Correct most of the time, and less and less reliable the closer the
-## shuttle landed to the line.
-func judge(rally: Rally) -> bool:
-	var certainty := clampf(absf(rally.margin) / DOUBT_RANGE, 0.0, 1.0)
+## ball landed to the line.
+##
+## Written in terms of the two numbers rather than a rally, because three sports have
+## three different rally classes and a line judge's job is the same in all of them:
+## look at a line, and be least certain exactly when it matters most.
+func decide(margin: float, was_in: bool) -> bool:
+	var certainty := clampf(absf(margin) / DOUBT_RANGE, 0.0, 1.0)
 	var chance_of_error := WORST_ERROR * (1.0 - certainty)
-	var says_in := rally.was_in
 	if randf() < chance_of_error:
-		says_in = not says_in
-	return says_in
+		return not was_in
+	return was_in
+
+
+func judge(rally: Rally) -> bool:
+	return decide(rally.margin, rally.was_in)
 
 
 ## Puts their call in the air above their head.
@@ -77,6 +112,10 @@ func silence() -> void:
 
 
 func _build_body() -> void:
+	if not seated:
+		_build_standing()
+		return
+
 	# Seated, so shorter than the players, and in a kit that is nobody's team colour.
 	# A real folding chair, which is what a line judge actually sits on. Under them
 	# rather than beside them: it used to stand half a metre to one side, which was

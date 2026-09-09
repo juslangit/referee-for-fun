@@ -21,14 +21,14 @@ extends RefCounted
 ## decides IN and OUT as it always has. And whether it was touched, which decides
 ## whether landing out was the attacker's mistake or the blocker's.
 
-enum Verdict {
-	## The referee's call matched what happened.
-	CORRECT,
-	## It did not.
-	WRONG,
-	## Nothing has been called yet.
-	NO_CALL,
-}
+## Verdicts are Rally.Verdict, deliberately, rather than an enum of this class's own.
+##
+## This file had its own — CORRECT, WRONG, NO_CALL — and the badminton one is ordered
+## NO_CALL, CORRECT, WRONG, UNVERIFIABLE. Both volleyballs hand `verdict() as int` to
+## Suspicion, which reads it as a Rally.Verdict, so **every wrong call arrived as
+## "correct" and every correct one as "no call"**: neither sport ever charged anything
+## for a lie at the moment it was told. Two enums that mean the same thing and disagree
+## about the numbers are a bug waiting behind every cast, so there is now one.
 
 ## Above this the ball plainly deflected — it changed direction, everybody saw it, and
 ## claiming otherwise is not a close call but a lie. Below it, the referee is genuinely
@@ -100,6 +100,17 @@ var centre_line_crosser := Sides.Team.NONE
 
 var is_settled := false
 
+# --- what the line judge said ---------------------------------------------------
+
+## Whether the line judge on that line gave a call, and what it was.
+##
+## The most useful thing a line judge does for a bent official is stand there and be
+## wrong: agree with their mistake and the blame is shared with somebody in plain sight.
+## Contradict them and the venue has just watched two officials disagree, with only one
+## call deciding the rally.
+var line_judge_called := false
+var line_judge_said_in := false
+
 # --- what the referee said ------------------------------------------------------
 
 var call: CallType = null
@@ -113,6 +124,21 @@ func record_landing(point: Vector3, defending: Sides.Team) -> void:
 	was_in = BeachSpec.is_in(point)
 	margin = BeachSpec.margin(point)
 	is_settled = true
+
+
+## Whether the official contradicted the line judge in public.
+func overrules_line_judge() -> bool:
+	if call == null or not call.judges_the_landing or not line_judge_called:
+		return false
+	return call.asserts_in != line_judge_said_in
+
+
+## Whether they simply said what the line judge said. A wrong call made this way is a
+## shared mistake rather than a suspicious one.
+func echoes_line_judge() -> bool:
+	if call == null or not call.judges_the_landing or not line_judge_called:
+		return false
+	return call.asserts_in == line_judge_said_in
 
 
 func record_call(made: CallType, against := Sides.Team.NONE) -> void:
@@ -169,9 +195,9 @@ func _handler() -> Sides.Team:
 	return struck_by
 
 
-func verdict() -> Verdict:
+func verdict() -> Rally.Verdict:
 	if call == null:
-		return Verdict.NO_CALL
+		return Rally.Verdict.NO_CALL
 
 	# A fault is right only if that offence happened and the right side did it.
 	#
@@ -182,9 +208,9 @@ func verdict() -> Verdict:
 	# always guarded this; the beach rally did not, and indoor inherited the gap along
 	# with four new calls to make it with.
 	if call.judges_conduct:
-		return Verdict.CORRECT if _the_claimed_fault_happened() else Verdict.WRONG
+		return Rally.Verdict.CORRECT if _the_claimed_fault_happened() else Rally.Verdict.WRONG
 
-	return Verdict.CORRECT if point_goes_to() == rightful_winner() else Verdict.WRONG
+	return Rally.Verdict.CORRECT if point_goes_to() == rightful_winner() else Rally.Verdict.WRONG
 
 
 ## How plainly wrong the call was, from 0 (nobody could tell) to 1 (the whole venue saw).
@@ -251,7 +277,7 @@ func _the_claimed_fault_happened() -> bool:
 
 
 func changed_the_result() -> bool:
-	return verdict() == Verdict.WRONG and point_goes_to() != rightful_winner()
+	return verdict() == Rally.Verdict.WRONG and point_goes_to() != rightful_winner()
 
 
 func describe() -> String:
@@ -263,5 +289,5 @@ func describe() -> String:
 		"  %d contacts" % contacts,
 		Sides.label(rightful_winner()),
 		call.label if call != null else "nothing",
-		"CORRECT" if verdict() == Verdict.CORRECT else "WRONG",
+		"CORRECT" if verdict() == Rally.Verdict.CORRECT else "WRONG",
 	]

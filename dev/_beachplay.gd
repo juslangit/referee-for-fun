@@ -78,7 +78,7 @@ func _ready() -> void:
 		else:
 			arena.make_call(&"out")
 
-		if rally.verdict() == BeachRally.Verdict.WRONG:
+		if rally.verdict() == Rally.Verdict.WRONG:
 			wrong += 1
 			print("   WRONG: %s" % rally.describe())
 

@@ -32,6 +32,16 @@ func _ready() -> void:
 	for f in 3:
 		await get_tree().process_frame
 
+	# A rally first, so the line judges are on their feet and one of them has called.
+	arena.start_rally()
+	var waited := 0
+	while arena._phase != arena.Phase.AWAITING_CALL and waited < 4000:
+		await get_tree().physics_frame
+		waited += 1
+	for f in 45:
+		await get_tree().physics_frame
+	await _shot("res://dev/shots/beach_judges.png")
+
 	var on_the_line := Vector3(1.2, BeachCourt.SURFACE_Y, BeachSpec.HALF_LENGTH - 0.02)
 	arena._ball.freeze = true
 	arena._ball.global_position = on_the_line + Vector3(0.0, Ball.RADIUS, 0.0)

@@ -59,7 +59,7 @@ func _ready() -> void:
 			await get_tree().process_frame
 			waited += 1
 
-		if rally.verdict() == BeachRally.Verdict.WRONG:
+		if rally.verdict() == Rally.Verdict.WRONG:
 			wrong += 1
 			print("   WRONG: %s" % rally.describe())
 

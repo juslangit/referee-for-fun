@@ -169,6 +169,17 @@ func fault_book() -> Array:
 	return BeachCallBook.faults()
 
 
+## Two of them, at diagonally opposite corners, behind the end lines and outside the
+## sidelines. From opposite corners the pair see all four boundary lines between them.
+func line_judge_spots() -> Array:
+	return [
+		{"at": Vector3(BeachSpec.HALF_WIDTH + 1.6,
+			0.0, BeachSpec.HALF_LENGTH + 1.6)},
+		{"at": Vector3(-(BeachSpec.HALF_WIDTH + 1.6),
+			0.0, -(BeachSpec.HALF_LENGTH + 1.6))},
+	]
+
+
 func dress_the_venue(venue: Dictionary) -> void:
 	court.dress(venue["dressing"], venue["crowd"])
 
@@ -287,6 +298,8 @@ func _meet_the_attack(defending: Sides.Team, from: Vector3, target: Vector3) -> 
 func start_rally() -> void:
 	if _phase != Phase.READY or _reviewing:
 		return
+	hush_the_line_judges()
+	clear_the_mark()
 	rally = BeachRally.new()
 	net_toucher = Sides.Team.NONE
 	centre_line_crosser = Sides.Team.NONE
@@ -498,6 +511,10 @@ func _on_ball_landed(point: Vector3) -> void:
 	_setter = null
 	_phase = Phase.AWAITING_CALL
 	_awaiting_since = Time.get_ticks_msec()
+	# The line judge on that line makes their mind up now and raises the flag a beat
+	# later, so an official who calls first has contradicted them rather than dodged it.
+	line_judges_watch(point, rally.margin, rally.was_in)
+	mark_the_landing(point)
 	if has_close_cam:
 		ball_cam.aim_at(point)
 		ui.show_close_cam(ball_cam.texture())

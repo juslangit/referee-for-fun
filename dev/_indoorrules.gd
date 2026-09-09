@@ -70,6 +70,6 @@ func _and_when_nothing_happened() -> void:
 func _report(kind: String, said: String, rally: VolleyRally) -> void:
 	print("%-16s %-22s %-9s %-8.2f %s" % [
 		kind, said,
-		"correct" if rally.verdict() == BeachRally.Verdict.CORRECT else "WRONG",
+		"correct" if rally.verdict() == Rally.Verdict.CORRECT else "WRONG",
 		rally.visibility(),
 		Sides.label(rally.point_goes_to())])

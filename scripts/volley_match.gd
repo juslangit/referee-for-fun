@@ -126,6 +126,17 @@ func build_the_venue() -> void:
 	_build_lighting()
 
 
+## Two of them, at diagonally opposite corners, behind the end lines and outside the
+## sidelines. From opposite corners the pair see all four boundary lines between them.
+func line_judge_spots() -> Array:
+	return [
+		{"at": Vector3(VolleySpec.HALF_WIDTH + 1.4,
+			0.0, VolleySpec.HALF_LENGTH + 1.4)},
+		{"at": Vector3(-(VolleySpec.HALF_WIDTH + 1.4),
+			0.0, -(VolleySpec.HALF_LENGTH + 1.4))},
+	]
+
+
 func dress_the_venue(venue: Dictionary) -> void:
 	court.dress(venue["dressing"], venue["crowd"])
 
@@ -372,6 +383,8 @@ func _roll_for_one_fault() -> StringName:
 func start_rally() -> void:
 	if _phase != Phase.READY or _reviewing:
 		return
+	hush_the_line_judges()
+	clear_the_mark()
 	rally = VolleyRally.new()
 	rally.served_by = serving
 	_rally_seconds = 0.0
@@ -581,6 +594,10 @@ func _on_ball_landed(point: Vector3) -> void:
 	_setter = null
 	_phase = Phase.AWAITING_CALL
 	_awaiting_since = Time.get_ticks_msec()
+	# The line judge on that line makes their mind up now and raises the flag a beat
+	# later, so an official who calls first has contradicted them rather than dodged it.
+	line_judges_watch(point, rally.margin, rally.was_in)
+	mark_the_landing(point)
 	if has_close_cam:
 		ball_cam.aim_at(point)
 		ui.show_close_cam(ball_cam.texture())
