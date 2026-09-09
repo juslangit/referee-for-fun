@@ -440,6 +440,7 @@ func start_rally() -> void:
 	receiver.chase(target)
 	_phase = Phase.IN_PLAY
 	sound.whistle()
+	sound.strike(from, false)
 	ui.set_prompt("watch it")
 
 
@@ -509,6 +510,7 @@ func _take_the_next_contact() -> void:
 			_digger = nearest_of(_possession, here)
 			_setter = _closest_to_the_net(_possession, _digger)
 			_digger.dig()
+			sound.strike(here, false)
 			var to_the_setter := _set_point(_possession)
 			_setter.chase(to_the_setter)
 			send(Vector3(here.x, DIG_HEIGHT, here.z), to_the_setter, DIG_ANGLE)
@@ -517,6 +519,7 @@ func _take_the_next_contact() -> void:
 			_beat = Beat.SET
 			if _setter != null:
 				_setter.set_the_ball()
+			sound.strike(here, false)
 			# Whoever attacks is whoever is furthest forward and is not the setter, which
 			# with six people is usually a front-row player and sometimes is not.
 			var hitter := _pick_an_attacker(_possession)
@@ -588,6 +591,8 @@ func _attack(from: Vector3) -> void:
 
 	if _digger != null:
 		_digger.spike()
+	# The one contact in the rally that the back of the stand can hear.
+	sound.strike(from, true)
 	_meet_the_attack(against, from, target)
 	send_over(from, target, [ATTACK_ANGLE, 6.0, 16.0, 28.0])
 
@@ -631,6 +636,7 @@ func _on_ball_landed(point: Vector3) -> void:
 	# later, so an official who calls first has contradicted them rather than dodged it.
 	line_judges_watch(point, rally.margin, rally.was_in)
 	mark_the_landing(point)
+	sound.landing(point)
 	if has_close_cam:
 		ball_cam.aim_at(point)
 		ui.show_close_cam(ball_cam.texture())

@@ -134,6 +134,13 @@ func _ready() -> void:
 	sound.name = "Sound"
 	add_child(sound)
 
+	# The bed behind the match darkens as the room turns against you.
+	#
+	# This is not decoration in a game whose central rule is that there is no suspicion
+	# meter and you read the room instead. Badminton has had it since the sound was
+	# built; both volleyballs shipped without it, so in two sports out of three half the
+	# room was mute and the player was reading a room that could not answer.
+	suspicion.level_changed.connect(sound.set_mood)
 	suspicion.warning_issued.connect(_on_warning)
 	suspicion.removed_from_match.connect(func() -> void:
 		finish("TAKEN OFF THE MATCH", Color(0.96, 0.42, 0.36), true))
