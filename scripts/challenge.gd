@@ -76,14 +76,31 @@ func challenger(rally: Rally) -> Sides.Team:
 	if lost == Sides.Team.NONE or remaining(lost) <= 0:
 		return Sides.Team.NONE
 
-	var wrong := rally.verdict() == Rally.Verdict.WRONG
+	return who_challenges(
+		lost,
+		rally.verdict() == Rally.Verdict.WRONG,
+		rally.visibility(),
+		rally.margin)
+
+
+## Whether the side a call went against spends a review on it.
+##
+## Written in terms of four numbers rather than a rally, so that a sport whose rally is
+## not a badminton rally can ask the same question. Beach volleyball asks it about
+## touches as well as lines, and a touch has no landing to be near or far from — it
+## passes its own visibility in and the arithmetic is unchanged.
+func who_challenges(lost: Sides.Team, wrong: bool, visibility: float,
+		margin: float) -> Sides.Team:
+	if lost == Sides.Team.NONE or remaining(lost) <= 0:
+		return Sides.Team.NONE
+
 	var chance := 0.0
 	if wrong:
-		chance = WRONGED_BASE + rally.visibility() * WRONGED_PER_VISIBILITY
+		chance = WRONGED_BASE + visibility * WRONGED_PER_VISIBILITY
 	else:
-		# Right call, and they think it was not. Only on the close ones — nobody spends a
-		# review on a shuttle that was plainly a metre out.
-		var certainty := clampf(absf(rally.margin) / DOUBT_RANGE, 0.0, 1.0)
+		# Right call, and they think it was not. Only on the close ones — nobody spends
+		# a review on a ball that was plainly a metre out.
+		var certainty := clampf(absf(margin) / DOUBT_RANGE, 0.0, 1.0)
 		chance = MISTAKEN_MOST * (1.0 - certainty)
 
 	if lost == watching:

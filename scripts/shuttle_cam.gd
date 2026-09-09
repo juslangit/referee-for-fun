@@ -32,7 +32,10 @@ const HEIGHT := 440
 ## every centimetre of extra floor makes the shuttle itself smaller, and the shuttle is
 ## what the picture is for. At this framing a two-centimetre miss is about eight pixels
 ## of clear green between the shuttle and the line.
-const VIEW_METRES := 1.12
+## How much floor the view covers. A default for the shuttlecock; the beach match sets
+## it wider, because a volleyball is 21 cm across against a shuttle's 6 and the point of
+## the picture is the ball against the line, at a size that reads.
+var view_metres := 1.12
 const HOVER := 3.0
 
 const COURT_ONLY := 1
@@ -52,7 +55,7 @@ func _ready() -> void:
 	camera = Camera3D.new()
 	camera.name = "OverheadCamera"
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = VIEW_METRES
+	camera.size = view_metres
 	# The court and the shuttle and nothing else. Directly above a landing, a player
 	# standing over the shuttle would otherwise be the entire picture — which settles no
 	# line call at all, and is the same choice a television replay makes.

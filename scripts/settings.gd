@@ -31,7 +31,10 @@ var fullscreen := false
 ## Whether the player has been shown how to referee. Kept with the settings rather than
 ## with the career, because it is a fact about the person at the keyboard: starting a
 ## second career does not make you forget what a carry is.
+## Whether the player has been shown each sport's lesson. Per sport, because knowing
+## what a carry looks like tells you nothing whatever about a block touch.
 var taught := false
+var taught_beach := false
 
 
 static func load_or_default() -> Settings:
@@ -45,6 +48,7 @@ static func load_or_default() -> Settings:
 	settings.sensitivity = file.get_value("look", "sensitivity", settings.sensitivity)
 	settings.fullscreen = file.get_value("window", "fullscreen", settings.fullscreen)
 	settings.taught = file.get_value("player", "taught", settings.taught)
+	settings.taught_beach = file.get_value("player", "taught_beach", settings.taught_beach)
 	return settings
 
 
@@ -56,6 +60,7 @@ func save() -> void:
 	file.set_value("look", "sensitivity", sensitivity)
 	file.set_value("window", "fullscreen", fullscreen)
 	file.set_value("player", "taught", taught)
+	file.set_value("player", "taught_beach", taught_beach)
 	file.save(PATH)
 
 

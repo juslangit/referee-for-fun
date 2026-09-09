@@ -442,7 +442,7 @@ func hide_review() -> void:
 ## Luqman could not tell whether the game was scoring him unfairly or whether he was
 ## simply missing things — and it turned out to be both, which is exactly the confusion
 ## that not explaining yourself produces.
-const LESSONS := [
+const BADMINTON_LESSONS := [
 	{
 		"title": "THE JOB",
 		"body": "You are the umpire, and you never leave the chair.\n\n"
@@ -521,12 +521,83 @@ const LESSONS := [
 	},
 ]
 
+
+## Beach volleyball's own lesson.
+##
+## It needs one for the same reason badminton did, and more urgently: this sport's
+## signature call is a thing nobody can see, made with a key nobody would guess. A
+## player who picks beach volleyball and is never told what TOUCH means is being asked
+## to judge the one call the whole design rests on with no idea it exists — which is
+## exactly the shape of the bug that made fair play feel unfair before.
+const BEACH_LESSONS := [
+	{
+		"title": "THE JOB",
+		"body": "You are the first referee, up on the stand beside the net.\n\n"
+			+ "Two a side, on sand, in the open air. The game plays a real rally and "
+			+ "records exactly where the ball came down, to the millimetre. Nobody else "
+			+ "here will say what happened. You will.\n\n"
+			+ "You can tell the truth. Nothing here requires you to.",
+		"keys": [
+			["SPACE", "whistle the serve"],
+			["LEFT CLICK", "in"],
+			["RIGHT CLICK", "out"],
+			["T", "touched — see page three"],
+			["F", "a fault"],
+			["ESC", "pause"],
+		],
+	},
+	{
+		"title": "IN AND OUT",
+		"body": "The court is sixteen metres by eight, and the tape lying on the sand "
+			+ "is part of it. A ball touching any part of a line is IN.\n\n"
+			+ "There are no service courts. A serve may land anywhere in the other "
+			+ "half, so there is nothing to remember about who serves from where.\n\n"
+			+ "The sand outside the lines is still in play. A player may chase a ball "
+			+ "five metres past the tape and put it back, and the rally goes on — being "
+			+ "outside the court is only the ball's problem, never the player's.",
+	},
+	{
+		"title": "THE TOUCH",
+		"body": "This is the call this sport is about, and it is worth reading twice.\n\n"
+			+ "The ball is attacked, it flies out past the block, and it lands well "
+			+ "outside the court. Everybody saw that. What nobody saw is whether it "
+			+ "grazed a blocker's fingers on the way.\n\n"
+			+ "If it did, the blockers touched it last, so going out is their mistake: "
+			+ "press T for TOUCH and the point goes to the attackers. If it did not, "
+			+ "the attackers hit it out: call OUT and the point goes to the blockers.\n\n"
+			+ "The same ball, the same landing, and two opposite points — decided by "
+			+ "you. Nobody in this venue is in any position to argue, which cuts both "
+			+ "ways: it is the easiest call in the game to get away with, and the one "
+			+ "that costs the most when a slow-motion camera disagrees with you.",
+	},
+	{
+		"title": "FAULTS, AND WHO IS WATCHING",
+		"body": "Press F, then point at whoever did it.\n\n"
+			+ "NET TOUCH   somebody touched the net while the ball was live.\n"
+			+ "CENTRE LINE   a foot went fully under the net into the other court.\n"
+			+ "FOUR HITS   one side touched it four times. Three is the limit.\n"
+			+ "DOUBLE and LIFT   the set came off two hands unevenly, or rested in them "
+			+ "a moment too long. Judged far more tightly here than indoors, and two "
+			+ "honest referees genuinely disagree about it.\n"
+			+ "FOOT FAULT   the server stood on or over the end line.\n\n"
+			+ "From the world tour up, both sides carry two challenges a set. They can "
+			+ "put your line calls and your touches on a screen, and a successful one is "
+			+ "handed back — so a pair with one left is still dangerous.\n\n"
+			+ "There is no suspicion meter in this game and there never will be. The "
+			+ "only thing telling you how much trouble you are in is the crowd.",
+	},
+]
+
 var _lesson := 0
+var _lessons: Array = BADMINTON_LESSONS
 var _teaching: Control
 var _lesson_buttons: HBoxContainer
 
 
-func show_teaching() -> void:
+## `sport` picks which lesson. The two sports share the screen and share nothing else
+## about what they need explaining.
+func show_teaching(sport := Career.BADMINTON) -> void:
+	_lessons = BEACH_LESSONS if sport == Career.BEACH else BADMINTON_LESSONS
 	if _hud != null:
 		_hud.visible = false
 	_lesson = 0
@@ -577,11 +648,11 @@ func _draw_lesson() -> void:
 	# small mistake.
 	column.custom_minimum_size = Vector2(700, 0)
 
-	var lesson: Dictionary = LESSONS[_lesson]
+	var lesson: Dictionary = _lessons[_lesson]
 	column.add_child(_make_label(lesson["title"], TITLE_SIZE, UiTheme.CHALK))
 	column.add_child(_gap(4))
 	column.add_child(_make_label(
-		"%d of %d" % [_lesson + 1, LESSONS.size()], UiTheme.SMALL, UiTheme.MUTED))
+		"%d of %d" % [_lesson + 1, _lessons.size()], UiTheme.SMALL, UiTheme.MUTED))
 	column.add_child(_gap(14))
 
 	if lesson.has("art") and ResourceLoader.exists(lesson["art"]):
@@ -626,10 +697,10 @@ func _draw_lesson() -> void:
 		buttons.add_child(back)
 
 	var onward := Button.new()
-	onward.text = "NEXT" if _lesson < LESSONS.size() - 1 else "GOT IT"
+	onward.text = "NEXT" if _lesson < _lessons.size() - 1 else "GOT IT"
 	onward.custom_minimum_size = Vector2(280, UiTheme.BUTTON_HEIGHT)
 	onward.pressed.connect(func() -> void:
-		if _lesson < LESSONS.size() - 1:
+		if _lesson < _lessons.size() - 1:
 			_lesson += 1
 			_draw_lesson()
 			_teaching.visible = true

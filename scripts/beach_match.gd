@@ -101,6 +101,19 @@ var career: Career
 var settings: Settings
 var sound: Sound
 
+## The review system, and whether this venue carries one. From the world tour up, which
+## is what the two top rungs' blurbs have been promising since they were written.
+var challenge := Challenge.new()
+var has_challenge := false
+var ball_cam: ShuttleCam
+
+## True while a review is on screen, which is the only time the referee is a spectator.
+var _reviewing := false
+
+## How long the venue waits before it finds out, and how long it looks at the answer.
+const REVIEW_SUSPENSE := 1.9
+const REVIEW_VERDICT := 2.3
+
 var players: Array[Player] = []
 var serving := Sides.Team.RED
 
@@ -150,6 +163,13 @@ func _ready() -> void:
 	_ball.landed.connect(_on_ball_landed)
 	_ball.freeze = true
 
+	# The camera that settles it. Wider than badminton's, because a volleyball is 21 cm
+	# across and the picture has to show the ball against the tape at a size that reads.
+	ball_cam = ShuttleCam.new()
+	ball_cam.name = "BallCam"
+	ball_cam.view_metres = 1.75
+	add_child(ball_cam)
+
 	_build_players()
 	_build_camera()
 	_build_sky()
@@ -181,7 +201,13 @@ func _ready() -> void:
 	# straight from the editor has never been through the menu.
 	career.sport = Career.BEACH
 	board = Scoreboard.new(true)
-	ui.show_career(career)
+
+	# Nobody can referee a touch they have never heard of, and the key for it is a key
+	# nobody would guess. So the first time through, they are told before they are asked.
+	if not settings.taught_beach:
+		ui.show_teaching(Career.BEACH)
+	else:
+		ui.show_career(career)
 
 
 func _build_camera() -> void:
@@ -332,14 +358,27 @@ func _connect_menus() -> void:
 	ui.main_menu_requested.connect(func() -> void:
 		get_tree().paused = false
 		get_tree().change_scene_to_file("res://scenes/match.tscn"))
+	ui.teaching_requested.connect(func() -> void: ui.show_teaching(Career.BEACH))
+	ui.teaching_finished.connect(func() -> void:
+		settings.taught_beach = true
+		settings.save()
+		ui.hide_teaching()
+		ui.show_career(career))
 	ui.quit_requested.connect(func() -> void: get_tree().quit())
 
 
 func _on_match_requested() -> void:
 	var venue := career.venue()
 	suspicion.scrutiny = venue["scrutiny"]
+	has_challenge = venue["hawk_eye"]
+	challenge.reset()
 	board = Scoreboard.new(venue["quick"])
-	board.game_won.connect(func(_team: Sides.Team) -> void: ui.set_score(board, serving))
+	# Two challenges a set, as in the real sport, so a new set hands them both back.
+	board.game_won.connect(func(_team: Sides.Team) -> void:
+		challenge.reset()
+		ui.set_reviews(challenge.remaining(Sides.Team.RED),
+			challenge.remaining(Sides.Team.BLUE), has_challenge)
+		ui.set_score(board, serving))
 	board.match_won.connect(_on_match_won)
 
 	ui.hide_menus()
@@ -719,7 +758,24 @@ func make_call(id: StringName, against := Sides.Team.NONE) -> void:
 		false, false,
 		rally.changed_the_result())
 
+	# Before the point is given, whoever it was taken from gets to ask. This is the only
+	# moment in the sport where the truth is put on a screen, and the referee has to sit
+	# through it like everybody else.
 	var winner := rally.point_goes_to()
+	if has_challenge:
+		var asked := _who_would_challenge()
+		if asked != Sides.Team.NONE:
+			var overturned := await _review(asked)
+			if overturned:
+				winner = rally.rightful_winner()
+
+	# A review can be the thing that ends the match: being caught on screen at a world
+	# tour final is enough to be taken off on the spot. If that happened while the
+	# replay was playing, the ending is already up and nothing below may award a point
+	# behind it.
+	if _phase == Phase.REMOVED:
+		return
+
 	if winner != Sides.Team.NONE:
 		board.award(winner)
 		serving = winner
@@ -727,12 +783,78 @@ func make_call(id: StringName, against := Sides.Team.NONE) -> void:
 			Sides.colour(winner))
 
 	ui.react(Crowd.react_to_call(rally.visibility(), suspicion.mood))
+	ui.set_reviews(challenge.remaining(Sides.Team.RED),
+		challenge.remaining(Sides.Team.BLUE), has_challenge)
 
 	if print_truth_while_testing:
 		print("[truth, testing only] %s  |  suspicion %.3f lean %+.2f" % [
 			rally.describe(), suspicion.level, suspicion.lean])
 
 	_enter_ready()
+
+
+## Whether anybody challenges this call, and who.
+##
+## Line calls and touches, and nothing else. A challenge in this sport looks at video of
+## the ball, so it can settle where the ball landed and whether it brushed a hand on the
+## way — but not whether a set came off two fingers unevenly, which is a judgement and
+## not a fact. Those stay the referee's word against the venue's, here and in the real
+## laws.
+func _who_would_challenge() -> Sides.Team:
+	if rally == null or rally.call == null or not rally.is_settled:
+		return Sides.Team.NONE
+	if not (rally.call.judges_the_landing or rally.call.judges_the_touch):
+		return Sides.Team.NONE
+
+	var lost := Sides.opponent(rally.point_goes_to())
+	# A touch has no landing to be near or far from, so how close a call it *felt* is
+	# how slight the deflection was.
+	var closeness := rally.margin
+	if rally.call.judges_the_touch:
+		closeness = (1.0 - rally.touch_visibility) * Challenge.DOUBT_RANGE
+	return challenge.who_challenges(
+		lost, rally.verdict() == BeachRally.Verdict.WRONG, rally.visibility(), closeness)
+
+
+## Plays the review out: the challenge, a pause, and then the answer.
+##
+## The pause is not decoration. A review that resolved instantly would be a line of
+## text; the second and a half between the venue asking and the venue finding out is the
+## only time in this game a referee has to wait to learn whether they got away with it.
+func _review(asked: Sides.Team) -> bool:
+	_reviewing = true
+	var overturned := rally.verdict() == BeachRally.Verdict.WRONG
+
+	ball_cam.aim_at(rally.landing_point)
+	ui.show_review(asked, challenge.remaining(asked), ball_cam.texture())
+	sound.react(false)
+	await get_tree().create_timer(REVIEW_SUSPENSE).timeout
+
+	# What the video showed. For a line call that is the picture on screen; for a touch
+	# the picture cannot show it — a fingertip is not on the sand — so the finding is
+	# stated instead. It is the one thing in this game the screen is allowed to say
+	# outright, because by then the whole venue has seen it too.
+	var truth := ""
+	if rally.call.judges_the_touch:
+		truth = "TOUCHED" if rally.was_touched else "NO TOUCH"
+	else:
+		truth = "IN" if rally.was_in else "OUT"
+
+	if overturned:
+		ui.set_review_verdict("%s  ·  CALL OVERTURNED" % truth, Color(0.96, 0.42, 0.36))
+	else:
+		ui.set_review_verdict("%s  ·  CALL STANDS" % truth, Color(0.55, 0.85, 0.60))
+
+	challenge.settle(asked, overturned)
+	suspicion.register_review_judgement(
+		rally.visibility(), _which_way_it_leaned(), overturned)
+	sound.react(not overturned)
+	ui.react(Crowd.react_to_review(overturned))
+
+	await get_tree().create_timer(REVIEW_VERDICT).timeout
+	ui.hide_review()
+	_reviewing = false
+	return overturned
 
 
 ## +1 if the call helped BLUE, -1 if it helped RED, 0 if it helped nobody.
@@ -758,6 +880,12 @@ func _enter_ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Nothing gets through while a review is on screen. Making a call is a coroutine now
+	# that it can pause for a replay, and the phase does not change until it finishes —
+	# so without this the referee could stand there calling the same rally three more
+	# times while the first call was still being examined.
+	if _reviewing:
+		return
 	if _phase == Phase.REMOVED or _phase == Phase.MENU:
 		return
 

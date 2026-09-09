@@ -200,7 +200,19 @@ func visibility() -> float:
 		return maxf(0.45, 1.0 - touch_visibility)
 
 	if call.judges_the_landing:
-		# The line, priced as it always has been: by how far out it was.
+		# Saying OUT about a ball that really was out, when the thing that decided the
+		# rally was the touch nobody mentioned. The landing was called correctly; the
+		# error is the deflection left unsaid, so that is what it is priced by.
+		#
+		# Pricing this one by the margin — as the first version did — is exactly
+		# backwards. A ball that catches a whole hand is pushed *further* out, so the
+		# more obvious the deflection, the further from the line it lands. That made a
+		# barely-there touch and a blatant one both read as maximum visibility, and one
+		# denied touch at a world tour final took a referee straight off the match.
+		if not was_in and was_touched and not call.asserts_in:
+			return touch_visibility
+
+		# Otherwise the line, priced as it always has been: by how far out it was.
 		return clampf(absf(margin) / BLATANT_MARGIN, 0.0, 1.0)
 
 	return 0.5

@@ -247,6 +247,15 @@ const VINDICATED := 0.05
 ## Folds a review's outcome into the umpire's standing. Called after register(), which has
 ## already priced the call itself.
 func register_review(rally: Rally, overturned: bool) -> float:
+	if rally == null:
+		return 0.0
+	return register_review_judgement(
+		rally.visibility(), _direction_favoured(rally), overturned)
+
+
+## The same, for a sport whose rally is not a badminton rally.
+func register_review_judgement(visibility: float, direction: float,
+		overturned: bool) -> float:
 	if is_removed:
 		return 0.0
 
@@ -259,7 +268,7 @@ func register_review(rally: Rally, overturned: bool) -> float:
 		_settle_mood()
 		return -VINDICATED
 
-	var gain := (CAUGHT_ON_REVIEW + rally.visibility() * CAUGHT_PER_VISIBILITY) * scrutiny
+	var gain := (CAUGHT_ON_REVIEW + visibility * CAUGHT_PER_VISIBILITY) * scrutiny
 	var target := level + gain
 
 	# The same mercy as anywhere else: nobody is removed without having been told once.
@@ -267,7 +276,7 @@ func register_review(rally: Rally, overturned: bool) -> float:
 		target = HELD_AT_WARNING
 
 	level = clampf(target, 0.0, REMOVAL_LEVEL)
-	lean = clampf(lean + _direction_favoured(rally) * 0.5, -1.0, 1.0)
+	lean = clampf(lean + direction * 0.5, -1.0, 1.0)
 	level_changed.emit(level)
 	_settle_mood()
 	return gain
