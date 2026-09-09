@@ -1,5 +1,5 @@
 class_name VolleyMatch
-extends Node3D
+extends OfficiatedMatch
 
 ## An indoor volleyball match, refereed from the stand beside the net.
 ##
@@ -14,7 +14,6 @@ extends Node3D
 ## perfectly certain if they were paying attention twenty seconds ago, and unknowable if
 ## they were not.
 
-enum Phase { MENU, READY, IN_PLAY, AWAITING_CALL, REMOVED }
 enum Beat { SERVE, DIG, SET, ATTACK }
 
 const SERVE_BEHIND := 1.2
@@ -24,7 +23,6 @@ const DIG_ANGLE := 68.0
 const SET_ANGLE := 72.0
 const ATTACK_ANGLE := -5.0
 const SERVE_ANGLES := [14.0, 20.0, 26.0, 34.0, 42.0, 50.0]
-const NET_CLEARANCE := 0.14
 
 const DIG_HEIGHT := 0.55
 const SET_HEIGHT := 1.95
@@ -62,63 +60,51 @@ const FAULT_KINDS := [
 ]
 const FAULT_WEIGHTS := [0.12, 0.16, 0.09, 0.17, 0.15, 0.12, 0.11, 0.08]
 
-const REVIEW_SUSPENSE := 1.9
-const REVIEW_VERDICT := 2.3
 
 var court: VolleyCourt
-var camera: UmpireCamera
-var ui: RefereeUI
 
 var rally: VolleyRally
-var suspicion: Suspicion
-var board: Scoreboard
-var career: Career
-var settings: Settings
-var sound: Sound
 
-var players: Array[Player] = []
-var serving := Sides.Team.RED
 
 ## The lineup of each side, and how far it has turned.
 var rota := {Sides.Team.RED: Rotation.new(), Sides.Team.BLUE: Rotation.new()}
 
-var pressure := Pressure.new()
-var challenge := Challenge.new()
-var has_challenge := false
 
-## Whether this venue has a camera on the line.
-##
-## Badminton has had one from the school hall up: when the shuttle lands the umpire gets
-## an overhead view of it against the paint, every rally. Both volleyball ladders have
-## been promising the same thing in their venue data since they were written, and
-## neither sport read the flag — so the two sports asking for the most precise line
-## calls in the game were the two giving the player the least to judge them with.
-var has_close_cam := true
-var ball_cam: ShuttleCam
 
 var net_toucher := Sides.Team.NONE
 var centre_line_crosser := Sides.Team.NONE
 
-var _phase := Phase.MENU
-var _reviewing := false
-var _ball: Ball
 var _beat := Beat.SERVE
 var _possession := Sides.Team.NONE
-var _aim := Vector3.ZERO
 var _digger: Player
 var _setter: Player
 var _attacker_is_back_row := false
 var _rally_seconds := 0.0
-var _awaiting_since := 0
-
-@export var print_truth_while_testing := true
 
 
-func _ready() -> void:
-	suspicion = Suspicion.new()
-	settings = Settings.load_or_default()
-	settings.apply()
 
+func sport() -> StringName:
+	return Career.INDOOR
+
+
+func net_height() -> float:
+	return VolleySpec.NET_HEIGHT
+
+
+func floor_height() -> float:
+	return VolleyCourt.SURFACE_Y
+
+
+func current_rally():
+	return rally
+
+
+func fault_book() -> Array:
+	return VolleyCallBook.faults()
+
+
+## The hall, the ball, the twelve of them and the lights.
+func build_the_venue() -> void:
 	court = VolleyCourt.new()
 	court.name = "Court"
 	add_child(court)
@@ -139,31 +125,28 @@ func _ready() -> void:
 	_build_camera()
 	_build_lighting()
 
-	ui = RefereeUI.new()
-	ui.name = "UI"
-	add_child(ui)
-	ui.show_hud(false)
-	ui.fault_book = VolleyCallBook.faults()
-	_connect_menus()
 
-	sound = Sound.new()
-	sound.name = "Sound"
-	add_child(sound)
+func dress_the_venue(venue: Dictionary) -> void:
+	court.dress(venue["dressing"], venue["crowd"])
 
-	suspicion.warning_issued.connect(func() -> void:
-		ui.show_banner("THE MATCH REFEREE HAS BEEN CALLED")
-		ui.react("the match referee comes over and stands by the post", 5.0))
-	suspicion.removed_from_match.connect(func() -> void:
-		_finish("TAKEN OFF THE MATCH", Color(0.96, 0.42, 0.36), true))
 
-	career = Career.load_or_start()
-	career.sport = Career.INDOOR
-	board = Scoreboard.new(false)
+func make_the_board(venue: Dictionary) -> Scoreboard:
+	var made := Scoreboard.new(venue["quick"])
+	made.target = SET_TARGET
+	# Volleyball has no cap: a set runs until somebody is two clear, however long that
+	# takes. `cap` is badminton's sudden-death ceiling.
+	made.cap = NO_CAP
+	made.games_needed = 2 if venue["quick"] else SETS_NEEDED
+	made.decider_target = DECIDER_TARGET
+	return made
 
-	if not settings.taught_indoor:
-		ui.show_teaching(Career.INDOOR)
-	else:
-		ui.show_career(career)
+
+## A new set is a new lineup as well as two fresh challenges.
+func _on_set_won(team: Sides.Team) -> void:
+	for side in [Sides.Team.RED, Sides.Team.BLUE]:
+		rota[side].reset(4)
+		_dress_the_libero(side)
+	super(team)
 
 
 func _build_camera() -> void:
@@ -241,18 +224,10 @@ func _player(team: Sides.Team, index: int) -> Player:
 	return null
 
 
-func _pair(team: Sides.Team) -> Array[Player]:
-	var found: Array[Player] = []
-	for player in players:
-		if player.team == team:
-			found.append(player)
-	return found
-
-
-func _nearest(team: Sides.Team, to: Vector3) -> Player:
+func nearest_of(team: Sides.Team, to: Vector3) -> Player:
 	var best: Player = null
 	var closest := 1e9
-	for player in _pair(team):
+	for player in team_of(team):
 		var gap := player.distance_to(to)
 		if gap < closest:
 			closest = gap
@@ -413,41 +388,13 @@ func start_rally() -> void:
 	var target := _somewhere_in(Sides.opponent(serving), 0.7)
 	target.z = Sides.half_sign(Sides.opponent(serving)) * randf_range(
 		3.2, VolleySpec.HALF_LENGTH - 0.7)
-	_send_over(from, target, SERVE_ANGLES)
+	send_over(from, target, SERVE_ANGLES)
 
-	var receiver := _nearest(Sides.opponent(serving), target)
+	var receiver := nearest_of(Sides.opponent(serving), target)
 	receiver.chase(target)
 	_phase = Phase.IN_PLAY
 	sound.whistle()
 	ui.set_prompt("watch it")
-
-
-func _send_over(from: Vector3, to: Vector3, angles: Array) -> void:
-	var flat := Vector2(to.x - from.x, to.z - from.z)
-	var crosses_at := absf(from.z) / maxf(0.001, absf(to.z - from.z))
-	var to_the_net := flat.length() * crosses_at
-	var flight := ShotSolver.ball_flight()
-	for angle in angles:
-		var velocity := ShotSolver.solve(from, to, angle, VolleyCourt.SURFACE_Y, flight)
-		if velocity == Vector3.ZERO:
-			continue
-		var at_net := ShotSolver.height_after(
-			from.y - VolleyCourt.SURFACE_Y, velocity.length(), angle, to_the_net, flight)
-		if at_net > VolleySpec.NET_HEIGHT + NET_CLEARANCE:
-			_aim = to
-			_ball.launch(from, velocity)
-			return
-	_send(from, to, 55.0)
-
-
-func _send(from: Vector3, to: Vector3, angle: float) -> void:
-	_aim = to
-	var velocity := ShotSolver.solve(
-		from, to, angle, VolleyCourt.SURFACE_Y, ShotSolver.ball_flight())
-	if velocity == Vector3.ZERO:
-		velocity = ShotSolver.solve(
-			from, to, 45.0, VolleyCourt.SURFACE_Y, ShotSolver.ball_flight())
-	_ball.launch(from, velocity)
 
 
 func _somewhere_in(team: Sides.Team, inset: float) -> Vector3:
@@ -501,10 +448,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if _beat == Beat.ATTACK:
 		return
-	var here := _ball.global_position
-	if Vector2(here.x - _aim.x, here.z - _aim.z).length() > REACH:
-		return
-	if here.y > 2.8:
+	if not ball_has_arrived(REACH, 2.8):
 		return
 	_take_the_next_contact()
 
@@ -516,12 +460,12 @@ func _take_the_next_contact() -> void:
 			_possession = Sides.opponent(_possession)
 			rally.contacts = 1
 			_beat = Beat.DIG
-			_digger = _nearest(_possession, here)
+			_digger = nearest_of(_possession, here)
 			_setter = _closest_to_the_net(_possession, _digger)
 			_digger.dig()
 			var to_the_setter := _set_point(_possession)
 			_setter.chase(to_the_setter)
-			_send(Vector3(here.x, DIG_HEIGHT, here.z), to_the_setter, DIG_ANGLE)
+			send(Vector3(here.x, DIG_HEIGHT, here.z), to_the_setter, DIG_ANGLE)
 		Beat.DIG:
 			rally.contacts = 2
 			_beat = Beat.SET
@@ -535,7 +479,7 @@ func _take_the_next_contact() -> void:
 			var to_the_hitter := _attack_point(_possession, _attacker_is_back_row, illegal)
 			_digger = hitter
 			hitter.chase(to_the_hitter)
-			_send(Vector3(here.x, SET_HEIGHT, here.z), to_the_hitter, SET_ANGLE)
+			send(Vector3(here.x, SET_HEIGHT, here.z), to_the_hitter, SET_ANGLE)
 		Beat.SET:
 			rally.contacts = 3
 			_beat = Beat.ATTACK
@@ -545,7 +489,7 @@ func _take_the_next_contact() -> void:
 func _closest_to_the_net(team: Sides.Team, other: Player) -> Player:
 	var best: Player = null
 	var nearest := 1e9
-	for player in _pair(team):
+	for player in team_of(team):
 		if player == other:
 			continue
 		if absf(player.position.z) < nearest:
@@ -565,7 +509,7 @@ func _pick_an_attacker(team: Sides.Team) -> Player:
 			var found := _player(team, index)
 			if found != null and found != _setter:
 				return found
-	return _nearest(team, Vector3(0.0, 0.0, Sides.half_sign(team) * 2.0))
+	return nearest_of(team, Vector3(0.0, 0.0, Sides.half_sign(team) * 2.0))
 
 
 func _is_back_row(team: Sides.Team, player: Player) -> bool:
@@ -599,14 +543,14 @@ func _attack(from: Vector3) -> void:
 	if _digger != null:
 		_digger.spike()
 	_meet_the_attack(against, from, target)
-	_send_over(from, target, [ATTACK_ANGLE, 6.0, 16.0, 28.0])
+	send_over(from, target, [ATTACK_ANGLE, 6.0, 16.0, 28.0])
 
 
 ## Two blockers to the net, the rest back to dig.
 func _meet_the_attack(defending: Sides.Team, from: Vector3, target: Vector3) -> void:
 	var side := Sides.half_sign(defending)
 	var blockers := 0
-	for player in _pair(defending):
+	for player in team_of(defending):
 		if blockers < 2 and _is_front_row_player(defending, player):
 			player.chase(Vector3(
 				clampf(from.x + (0.5 if blockers == 0 else -0.5), -3.2, 3.2),
@@ -650,129 +594,24 @@ func make_call(id: StringName, against := Sides.Team.NONE) -> void:
 	if _phase != Phase.AWAITING_CALL:
 		return
 	var call := VolleyCallBook.get_call(id)
-	if call == null:
-		return
-
-	rally.seconds_to_call = float(Time.get_ticks_msec() - _awaiting_since) / 1000.0
-	rally.record_call(call, against)
-	ui.hide_close_cam()
-
-	suspicion.register_judgement(
-		rally.verdict() as int,
-		rally.visibility(),
-		_which_way_it_leaned(),
-		call.severity,
-		rally.seconds_to_call,
-		false, false,
-		rally.changed_the_result())
-
-	var winner := rally.point_goes_to()
-	if has_challenge:
-		var asked := _who_would_challenge()
-		if asked != Sides.Team.NONE:
-			var overturned := await _review(asked)
-			if overturned:
-				winner = rally.rightful_winner()
-
-	if _phase == Phase.REMOVED:
-		return
-
-	if winner != Sides.Team.NONE:
-		# A side that wins the serve back rotates. A side that holds it does not — the
-		# rule most people who have played casually get wrong, and the one that decides
-		# who is allowed to serve next.
-		if winner != serving:
-			rota[winner].rotate()
-		board.award(winner)
-		serving = winner
-		ui.announce("%s   ·   POINT %s" % [call.label, Sides.label(winner)],
-			Sides.colour(winner))
-		court.cheer()
-
-	ui.react(Crowd.react_to_call(rally.visibility(), suspicion.mood))
-	ui.set_reviews(challenge.remaining(Sides.Team.RED),
-		challenge.remaining(Sides.Team.BLUE), has_challenge)
-
-	if print_truth_while_testing:
-		print("[truth, testing only] %s  |  suspicion %.3f lean %+.2f" % [
-			rally.describe(), suspicion.level, suspicion.lean])
-
-	_enter_ready()
+	if call != null:
+		await judge(call, against)
 
 
-func _which_way_it_leaned() -> float:
-	var gained := rally.point_goes_to()
-	var deserved := rally.rightful_winner()
-	if gained == deserved or gained == Sides.Team.NONE:
-		return 0.0
-	return 1.0 if gained == Sides.Team.BLUE else -1.0
+func cheer() -> void:
+	court.cheer()
 
 
-## Line calls and touches only, as on the beach.
-##
-## The positional faults are deliberately not reviewable, and that is not a shortcut. A
-## challenge in this sport looks at video of the *ball*. Where six people were standing
-## twenty seconds earlier is settled by the scoresheet and the second referee, not by a
-## camera — so a rotation call, uniquely, is the referee's word and stays that way.
-func _who_would_challenge() -> Sides.Team:
-	if rally == null or rally.call == null or not rally.is_settled:
-		return Sides.Team.NONE
-	if not (rally.call.judges_the_landing or rally.call.judges_the_touch):
-		return Sides.Team.NONE
-	var lost := Sides.opponent(rally.point_goes_to())
-	var closeness := rally.margin
-	if rally.call.judges_the_touch:
-		closeness = (1.0 - rally.touch_visibility) * Challenge.DOUBT_RANGE
-	return challenge.who_challenges(
-		lost, rally.verdict() == BeachRally.Verdict.WRONG, rally.visibility(), closeness)
+## A side that wins the serve back rotates. A side that holds it does not — the rule
+## most people who have played casually get wrong, and the one that decides who is
+## allowed to serve next.
+func award_the_point(winner: Sides.Team) -> void:
+	if winner != serving:
+		rota[winner].rotate()
+	super(winner)
 
-
-func _review(asked: Sides.Team) -> bool:
-	_reviewing = true
-
-	# Everything this needs is read now, before the first await.
-	#
-	# A review is two seconds of waiting with the game still running, and `rally` is a
-	# reference that the next serve replaces. Reading `rally.call` on the far side of a
-	# timer worked until something started a rally during one, and then crashed on a
-	# call that no longer existed. Nothing below touches the rally again.
-	var overturned := rally.verdict() == BeachRally.Verdict.WRONG
-	var about_a_touch: bool = rally.call != null and rally.call.judges_the_touch
-	var truth := ""
-	if about_a_touch:
-		truth = "TOUCHED" if rally.was_touched else "NO TOUCH"
-	else:
-		truth = "IN" if rally.was_in else "OUT"
-	var seen := rally.visibility()
-	var leaned := _which_way_it_leaned()
-
-	ball_cam.aim_at(rally.landing_point)
-	ui.show_review(asked, challenge.remaining(asked), ball_cam.texture())
-	sound.react(false)
-	await get_tree().create_timer(REVIEW_SUSPENSE).timeout
-
-	if overturned:
-		ui.set_review_verdict("%s  ·  CALL OVERTURNED" % truth, Color(0.96, 0.42, 0.36))
-	else:
-		ui.set_review_verdict("%s  ·  CALL STANDS" % truth, Color(0.55, 0.85, 0.60))
-
-	challenge.settle(asked, overturned)
-	suspicion.register_review_judgement(seen, leaned, overturned)
-	sound.react(not overturned)
-	ui.react(Crowd.react_to_review(overturned))
-
-	await get_tree().create_timer(REVIEW_VERDICT).timeout
-	ui.hide_review()
-	_reviewing = false
-	return overturned
-
-
-func _enter_ready() -> void:
-	if suspicion.is_removed or board.is_over:
-		return
-	_phase = Phase.READY
-	ui.set_score(board, serving)
-	ui.set_prompt("SPACE  whistle the serve      R  rotation      F  fault")
+func enter_ready() -> void:
+	ui.set_prompt("SPACE  whistle the serve      F  fault, including the rotation")
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -780,9 +619,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		camera.set_active(false)
-		ui.show_pause_menu()
-		get_tree().paused = true
+		pause_the_match()
 		return
 
 	match _phase:
@@ -801,121 +638,3 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # --- the front of the match -----------------------------------------------------
 
-func _connect_menus() -> void:
-	ui.match_requested.connect(_on_match_requested)
-	ui.briefing_acknowledged.connect(func() -> void:
-		ui.hide_briefing()
-		begin_match())
-	ui.continue_requested.connect(func() -> void: get_tree().reload_current_scene())
-	ui.career_screen_requested.connect(func() -> void: ui.show_career(career))
-	ui.teaching_requested.connect(func() -> void: ui.show_teaching(Career.INDOOR))
-	ui.teaching_finished.connect(func() -> void:
-		settings.taught_indoor = true
-		settings.save()
-		ui.hide_teaching()
-		ui.show_career(career))
-	for restart in [ui.new_career_requested, ui.career_restart_requested]:
-		restart.connect(func() -> void:
-			career = Career.start_again()
-			career.sport = Career.INDOOR
-			career.save()
-			ui.show_career(career))
-	ui.resume_requested.connect(func() -> void:
-		get_tree().paused = false
-		ui.hide_pause_menu()
-		camera.set_active(true))
-	ui.walk_out_requested.connect(func() -> void:
-		get_tree().paused = false
-		_finish("YOU WALKED OFF", Color(0.85, 0.62, 0.32), true))
-	ui.main_menu_requested.connect(func() -> void:
-		get_tree().paused = false
-		get_tree().change_scene_to_file("res://scenes/match.tscn"))
-	ui.quit_requested.connect(func() -> void: get_tree().quit())
-
-
-func _on_match_requested() -> void:
-	var venue := career.venue()
-	suspicion.scrutiny = venue["scrutiny"]
-	has_challenge = venue["hawk_eye"]
-	has_close_cam = venue["close_cam"]
-	challenge.reset()
-	court.dress(venue["dressing"], venue["crowd"])
-
-	# Sets to 25 rather than 21, and best of five rather than three.
-	board = Scoreboard.new(venue["quick"])
-	board.target = SET_TARGET
-	# Volleyball has no cap: a set runs until somebody is two clear, however long that
-	# takes. `cap` is badminton's sudden-death ceiling and the scoreboard treats
-	# reaching it as an instant win — set to zero it ends the set on the first point,
-	# which is a very short match indeed.
-	board.cap = NO_CAP
-	board.games_needed = 2 if venue["quick"] else SETS_NEEDED
-	board.decider_target = DECIDER_TARGET
-	board.game_won.connect(func(_team: Sides.Team) -> void:
-		# A new set is a new lineup and two fresh challenges.
-		for team in [Sides.Team.RED, Sides.Team.BLUE]:
-			rota[team].reset(4)
-			_dress_the_libero(team)
-		challenge.reset()
-		ui.set_score(board, serving))
-	board.match_won.connect(func(team: Sides.Team) -> void:
-		_finish("%s WIN" % Sides.label(team), Sides.colour(team), false))
-
-	ui.hide_menus()
-	ui.hide_career()
-
-	pressure = Pressure.for_match(career)
-	if pressure.exists():
-		ui.show_briefing(pressure)
-	else:
-		begin_match()
-
-
-func begin_match(_unused := Sides.Team.NONE) -> void:
-	camera.set_active(true)
-	_enter_ready()
-
-
-func _finish(headline: String, tint: Color, removed: bool) -> void:
-	if _phase == Phase.REMOVED:
-		return
-	_phase = Phase.REMOVED
-	camera.set_active(false)
-	ui.hide_close_cam()
-	ui.set_prompt("")
-
-	var detail := _reckoning()
-	var pressures: Array = []
-	if pressure.exists():
-		pressure.resolve(board, suspicion)
-		pressures.append(pressure)
-
-	var note := career.finish_match(suspicion.level, removed, pressures)
-	career.remember_grudge(
-		String(Pressure.NAMES.pick_random()),
-		suspicion.wrong_calls, suspicion.stolen_rallies, suspicion.lean)
-	career.save()
-	detail += "\n\n%s\n\nReputation  %d / 100" % [note, roundi(career.reputation * 100.0)]
-	ui.show_ending(headline, detail, tint)
-
-
-func _reckoning() -> String:
-	var lines := []
-	lines.append("%d wrong calls, %d of which decided the rally." % [
-		suspicion.wrong_calls, suspicion.stolen_rallies])
-
-	if absf(suspicion.lean) < 0.15:
-		lines.append("They went both ways. You were not bent. You were just bad at this.")
-	else:
-		var helped := Sides.Team.BLUE if suspicion.lean > 0.0 else Sides.Team.RED
-		lines.append("Almost every one of them helped %s." % Sides.label(helped))
-		if pressure.exists() and pressure.wants == helped:
-			lines.append("Which is the result somebody mentioned to you before you went out.")
-		else:
-			lines.append("Nobody asked you to. That is the part people find hard to believe.")
-
-	lines.append("")
-	lines.append("Final score  RED %d — %d BLUE      sets  %d — %d" % [
-		board.points[Sides.Team.RED], board.points[Sides.Team.BLUE],
-		board.games[Sides.Team.RED], board.games[Sides.Team.BLUE]])
-	return "\n".join(lines)
