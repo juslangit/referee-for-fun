@@ -212,6 +212,9 @@ var menu_camera: MenuCamera
 ## decides where GOT IT leads.
 var _teaching_leads_to_play := false
 
+## Whether the lesson was opened from the career ladder rather than the title screen.
+var _teaching_returns_to_career := false
+
 var _all_line_judges: Array[LineJudge] = []
 var serving := Sides.Team.RED
 
@@ -408,7 +411,10 @@ func _on_sport_chosen(id: StringName) -> void:
 	_on_career_screen_requested()
 
 
+## Where GOT IT leads is decided by where the lesson was opened from — the title screen
+## goes back to the title screen, the career ladder goes back to the ladder.
 func _on_teaching_requested() -> void:
+	_teaching_returns_to_career = ui.career_is_showing()
 	ui.hide_menus()
 	_menu_view()
 	ui.show_teaching()
@@ -418,8 +424,9 @@ func _on_teaching_finished() -> void:
 	ui.hide_teaching()
 	settings.taught = true
 	settings.save()
-	if _teaching_leads_to_play:
+	if _teaching_leads_to_play or _teaching_returns_to_career:
 		_teaching_leads_to_play = false
+		_teaching_returns_to_career = false
 		_on_career_screen_requested()
 	else:
 		_on_main_menu_requested()

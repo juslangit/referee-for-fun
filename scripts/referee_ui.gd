@@ -1039,6 +1039,21 @@ func show_career(career: Career) -> void:
 	_career_column.add_child(_make_wide_button("REFEREE THIS MATCH", func() -> void:
 		match_requested.emit()
 	))
+	# And a way back to the rules of whichever sport this is.
+	#
+	# The lesson used to be shown once, on the way into a first match, and then be
+	# unreachable — the title screen's HOW TO REFEREE only ever had badminton's. That is
+	# worst for indoor volleyball, whose lesson is the only one in the game explaining
+	# something the player has to carry in their head rather than look at.
+	_career_column.add_child(_gap(6))
+	_career_column.add_child(_make_wide_button("HOW TO REFEREE", func() -> void:
+		teaching_requested.emit()
+	))
+
+
+## Whether the career ladder is the screen currently showing.
+func career_is_showing() -> bool:
+	return _career_panel != null and _career_panel.visible
 
 
 func hide_career() -> void:

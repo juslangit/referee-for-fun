@@ -184,7 +184,9 @@ func _connect_menus() -> void:
 		begin_match())
 	ui.continue_requested.connect(func() -> void: get_tree().reload_current_scene())
 	ui.career_screen_requested.connect(func() -> void: ui.show_career(career))
-	ui.teaching_requested.connect(func() -> void: ui.show_teaching(sport()))
+	ui.teaching_requested.connect(func() -> void:
+		ui.hide_career()
+		ui.show_teaching(sport()))
 	ui.teaching_finished.connect(func() -> void:
 		_remember_being_taught()
 		ui.hide_teaching()

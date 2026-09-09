@@ -40,6 +40,15 @@ const COURT_SPEED := 4.2
 const SET_TARGET := 25
 const SETS_NEEDED := 3
 
+## The short form, for the two league rungs that offer one: a single set to fifteen,
+## which is what a deciding set is and what everybody plays when time is short.
+##
+## It used to be sets to 25, best of three — measured at about 123 rallies, which made
+## the first match a new player was ever given roughly six times longer than badminton's
+## or beach's introduction, and gave it to them before they understood the sport. A
+## match nobody finishes teaches nothing.
+const QUICK_TARGET := 15
+
 ## The fifth set is to fifteen, not twenty-five. Every other set in the sport is the
 ## same length and the last one is not, which is the detail anybody who watches
 ## volleyball would notice missing.
@@ -143,12 +152,17 @@ func dress_the_venue(venue: Dictionary) -> void:
 
 func make_the_board(venue: Dictionary) -> Scoreboard:
 	var made := Scoreboard.new(venue["quick"])
-	made.target = SET_TARGET
 	# Volleyball has no cap: a set runs until somebody is two clear, however long that
-	# takes. `cap` is badminton's sudden-death ceiling.
+	# takes. `cap` is badminton's sudden-death ceiling and does not apply.
 	made.cap = NO_CAP
-	made.games_needed = 2 if venue["quick"] else SETS_NEEDED
-	made.decider_target = DECIDER_TARGET
+	if venue["quick"]:
+		made.target = QUICK_TARGET
+		made.games_needed = 1
+		made.decider_target = 0
+	else:
+		made.target = SET_TARGET
+		made.games_needed = SETS_NEEDED
+		made.decider_target = DECIDER_TARGET
 	return made
 
 

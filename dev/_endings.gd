@@ -25,6 +25,8 @@ func _play_to_the_end(scene: String) -> void:
 	var beach: bool = scene.ends_with("beach.tscn")
 	arena.career = Career.new()
 	arena.career.sport = Career.BEACH if beach else Career.INDOOR
+	if OS.has_environment("TIER"):
+		arena.career.tier = int(OS.get_environment("TIER"))
 	if beach:
 		arena.settings.taught_beach = true
 	else:
@@ -40,7 +42,7 @@ func _play_to_the_end(scene: String) -> void:
 	for f in 3:
 		await get_tree().process_frame
 
-	print("=== %s, first venue: %s" % ["beach" if beach else "indoor", venue["name"]])
+	print("=== %s, %s" % ["beach" if beach else "indoor", venue["name"]])
 	print("   sets to %d, decider to %d, first to %d sets" % [
 		arena.board.target, arena.board.decider_target, arena.board.games_needed])
 
