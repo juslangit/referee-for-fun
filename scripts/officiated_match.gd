@@ -254,6 +254,7 @@ func _on_match_requested() -> void:
 ## this and call up to it.
 func _on_set_won(_team: Sides.Team) -> void:
 	challenge.reset()
+	show_where_you_stand()
 	_show_reviews()
 	ui.set_score(board, serving)
 
@@ -720,6 +721,22 @@ func _start_watching_reputation() -> void:
 		return
 	_reputation_showing = roundi(
 		career.reputation_as_it_stands(suspicion.level, false) * 100.0)
+	show_where_you_stand()
+
+
+## Puts the meter up whether or not the number has moved.
+##
+## Only-on-change is right for the middle of a match and wrong at its edges. A referee
+## who has a clean night never sees the bar at all and reasonably concludes it is
+## broken — which is exactly what happened. So it is also shown once as you go out, and
+## again at the end of every set: three times a match on a clean one, and never often
+## enough to become the permanent readout the game was built not to have.
+func show_where_you_stand() -> void:
+	if career == null or ui == null:
+		return
+	var now := career.reputation_as_it_stands(suspicion.level, suspicion.is_removed)
+	_reputation_showing = roundi(now * 100.0)
+	ui.show_reputation(now, 0.0, true)
 
 
 # --- the line judges ------------------------------------------------------------
@@ -818,11 +835,19 @@ func _announce_after_a_beat(judge: LineJudge) -> void:
 	if _phase != Phase.AWAITING_CALL or not is_instance_valid(judge):
 		return
 	judge.announce(_judge_said_in)
+	# Said as well as shown. The bubble is over their head, and in tennis their head is
+	# fourteen metres away in a corner the chair is not looking at.
+	ui.show_line_judge(_judge_said_in)
+	if not _judge_said_in:
+		# Only OUT is called aloud, which is what a line judge actually does — a ball
+		# they thought was good gets a hand signal and nothing else.
+		sound.judge_calls_out(judge.global_position)
 
 
 func hush_the_line_judges() -> void:
 	for judge in line_judges:
 		judge.silence()
+	ui.hide_line_judge()
 
 
 # --- accusing somebody ----------------------------------------------------------

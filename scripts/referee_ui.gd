@@ -118,6 +118,11 @@ var _message_timer := 0.0
 var _reaction_timer := 0.0
 var _banner_timer := 0.0
 
+## What the line judge called, and how long it stays up.
+var _judge_label: Label
+var _judge_plate: PanelContainer
+var _judge_timer := 0.0
+
 ## The reputation meter, and where it is in its three seconds. `_meter_left` counts down
 ## through fade-in, hold and fade-out together, so re-triggering it while it is already
 ## up simply refills the clock rather than starting the fade again — which matters,
@@ -174,6 +179,9 @@ func _process(delta: float) -> void:
 	_message_timer = _tick(delta, _message_timer, _message_label)
 	_reaction_timer = _tick(delta, _reaction_timer, _reaction_label)
 	_banner_timer = _tick(delta, _banner_timer, _banner_label)
+	_judge_timer = _tick(delta, _judge_timer, _judge_label)
+	if _judge_plate != null and _judge_timer <= 0.0:
+		_judge_plate.visible = false
 	_tick_the_meter(delta)
 
 
@@ -1250,10 +1258,13 @@ func _build_reputation_meter() -> PanelContainer:
 ## `value` is where reputation stands from nought to one; `moved` is how far it just
 ## went, in the same units, signed. A move of zero is not shown at all — the meter is
 ## only ever news.
-func show_reputation(value: float, moved: float) -> void:
+## `regardless` shows it even though nothing has moved, which is how the start of a
+## match and the end of a set put it up. Everywhere else a move of nothing is not news
+## and the meter stays down.
+func show_reputation(value: float, moved: float, regardless := false) -> void:
 	if _meter == null or _hud == null or not _hud.visible:
 		return
-	if is_zero_approx(moved):
+	if is_zero_approx(moved) and not regardless:
 		return
 
 	var out_of_100 := roundi(clampf(value, 0.0, 1.0) * 100.0)
@@ -1263,10 +1274,15 @@ func show_reputation(value: float, moved: float) -> void:
 	_meter.add_theme_stylebox_override("panel", UiTheme.plate(band, 0.86))
 
 	# Down is the news, so down is the colour the eye goes to.
-	var arrow := "\u25b2" if moved > 0.0 else "\u25bc"
-	_meter_value.text = "%s %d" % [arrow, out_of_100]
-	_meter_value.add_theme_color_override("font_color",
-		Color(0.55, 0.85, 0.60) if moved > 0.0 else Color(0.96, 0.42, 0.36))
+	# No arrow when nothing moved: this is where you stand, not news about a change.
+	if is_zero_approx(moved):
+		_meter_value.text = "%d" % out_of_100
+		_meter_value.add_theme_color_override("font_color", band)
+	else:
+		var arrow := "\u25b2" if moved > 0.0 else "\u25bc"
+		_meter_value.text = "%s %d" % [arrow, out_of_100]
+		_meter_value.add_theme_color_override("font_color",
+			Color(0.55, 0.85, 0.60) if moved > 0.0 else Color(0.96, 0.42, 0.36))
 
 	_meter.visible = true
 	# Refilled rather than restarted: if it is already showing, it stays showing and
@@ -1323,6 +1339,7 @@ func clear_messages() -> void:
 	_message_timer = 0.0
 	_reaction_timer = 0.0
 	_banner_timer = 0.0
+	hide_line_judge()
 	hide_reputation()
 
 
@@ -1649,6 +1666,19 @@ func _build_hud() -> void:
 	_reaction_label.position = Vector2(0, -110)
 	hud.add_child(_reaction_label)
 
+	# What the line judge said, in words, near the middle of the screen.
+	#
+	# The bubble over their head is not enough on its own. A badminton court is small and
+	# both judges are in shot; a tennis court is twenty-four metres long and its judges
+	# sit at the corners, fourteen metres from the chair and usually outside an eighty
+	# degree view — so their call was going up where nobody could see it, which read as
+	# them having nothing to say.
+	_judge_label = _make_label("", REACTION_SIZE + 4, Color(0.86, 0.88, 0.94))
+	hud.add_child(_plate_for(_judge_label, Control.PRESET_CENTER_BOTTOM,
+		Vector2(0, -216), 0.72))
+	_judge_plate = _judge_label.get_parent() as PanelContainer
+	_judge_plate.visible = false
+
 	_banner_label = _make_label("", BANNER_SIZE, Color(0.96, 0.42, 0.36))
 	_banner_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	_banner_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -1777,6 +1807,27 @@ func react(line: String, seconds := 2.6) -> void:
 		return
 	_reaction_label.text = line
 	_reaction_timer = seconds
+
+
+## What the line judge called. `says_in` colours it: a judge who says a ball was good is
+## agreeing with nobody in particular, and one who calls it out has just put a number on
+## the board that you are about to either echo or contradict in public.
+func show_line_judge(says_in: bool, seconds := 2.4) -> void:
+	if _judge_label == null:
+		return
+	_judge_label.text = "LINE JUDGE   ·   %s" % ("IN" if says_in else "OUT")
+	_judge_label.add_theme_color_override("font_color",
+		Color(0.72, 0.86, 0.74) if says_in else Color(0.96, 0.62, 0.52))
+	_judge_plate.add_theme_stylebox_override("panel", UiTheme.plate(
+		Color(0.55, 0.85, 0.60) if says_in else Color(0.96, 0.42, 0.36), 0.72))
+	_judge_plate.visible = true
+	_judge_timer = seconds
+
+
+func hide_line_judge() -> void:
+	if _judge_plate != null:
+		_judge_plate.visible = false
+	_judge_timer = 0.0
 
 
 func show_banner(text: String, seconds := 5.0) -> void:
@@ -2005,6 +2056,7 @@ func show_ending(headline: String, detail: String, tint := Color(0.96, 0.42, 0.3
 	hide_close_cam()
 	hide_briefing()
 	hide_reputation()
+	hide_line_judge()
 	clear_messages()
 	_main_menu.visible = false
 	_pause_menu.visible = false

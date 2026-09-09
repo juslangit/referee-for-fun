@@ -807,6 +807,7 @@ func _start_rally() -> void:
 	_rally_seconds = 0.0
 	for judge in line_judges:
 		judge.silence()
+	ui.hide_line_judge()
 	rally = Rally.new(serving, true)
 	rally.service_court_error = service_error
 
@@ -1293,6 +1294,13 @@ func _announce_line_judge(judge: LineJudge) -> void:
 	if _phase != Phase.AWAITING_CALL or not is_instance_valid(judge):
 		return
 	judge.announce(rally.line_judge_said_in)
+	# Said as well as shown, the same as the other three sports. The bubble sits over
+	# their head, and their head is in a corner the chair is not necessarily facing.
+	ui.show_line_judge(rally.line_judge_said_in)
+	if not rally.line_judge_said_in:
+		# Only OUT is called aloud. A line judge who thought it was good signals with
+		# their hands and says nothing at all.
+		sound.judge_calls_out(judge.global_position)
 
 
 func _make_call(id: StringName, against := Sides.Team.NONE) -> void:
@@ -1479,6 +1487,17 @@ func _start_watching_reputation() -> void:
 		return
 	_reputation_showing = roundi(
 		career.reputation_as_it_stands(suspicion.level, false) * 100.0)
+	show_where_you_stand()
+
+
+## Puts the meter up whether or not the number has moved — once as you go out, and again
+## at the end of every game. See OfficiatedMatch.show_where_you_stand for why.
+func show_where_you_stand() -> void:
+	if career == null or ui == null:
+		return
+	var now := career.reputation_as_it_stands(suspicion.level, suspicion.is_removed)
+	_reputation_showing = roundi(now * 100.0)
+	ui.show_reputation(now, 0.0, true)
 
 
 func _finish_match(headline: String, tint: Color, removed: bool) -> void:
@@ -1637,6 +1656,7 @@ func _update_score() -> void:
 
 
 func _on_game_won(team: Sides.Team) -> void:
+	show_where_you_stand()
 	challenge.reset()
 	if board.is_over:
 		return

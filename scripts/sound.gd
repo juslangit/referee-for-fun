@@ -12,9 +12,22 @@ extends Node3D
 ## Two crowd beds play at once, all match, and the mix between them follows suspicion.
 ## Nobody is meant to notice the crossfade — only that the room has got tighter.
 
-const CALM := "res://assets/audio/crowd_calm.wav"
-const TENSE := "res://assets/audio/crowd_tense.wav"
-const WHISTLE := "res://assets/audio/whistle.wav"
+## The shared half of the hall: the two crowd beds, the whistle, and what the room makes
+## of a call. All replaced once, because the first set were placeholders and sounded it —
+## a whistle nobody would blow, a bed that was obviously eight seconds long, and applause
+## that had no room in it.
+const CALM := "res://assets/audio/crowd_calm.mp3"
+const TENSE := "res://assets/audio/crowd_tense.mp3"
+const WHISTLE := "res://assets/audio/whistle.mp3"
+
+## The line judge, calling a ball out.
+##
+## **Only OUT is ever called.** A line judge who thinks a ball was in says nothing and
+## signals with their hands — so silence here is information, and a shout always means
+## the same thing. Calling both would make the loudest event in a rally happen on every
+## rally, which is the same as it happening on none.
+const JUDGE_OUT := "res://assets/audio/judge_out.mp3"
+const JUDGE_DB := -7.0
 const HIT_SOFT := "res://assets/audio/hit_soft.wav"
 const HIT_HARD := "res://assets/audio/hit_hard.wav"
 const LAND := "res://assets/audio/shuttle_land.wav"
@@ -55,8 +68,8 @@ const KITS := {
 
 ## Which sport this hall is currently hosting. Set once, when the match is built.
 var kit := &"badminton"
-const APPLAUSE := "res://assets/audio/applause.wav"
-const GROAN := "res://assets/audio/groan.wav"
+const APPLAUSE := "res://assets/audio/applause.mp3"
+const GROAN := "res://assets/audio/groan.mp3"
 
 ## How loud each thing sits, in decibels. The crowd is deliberately well down: it is a
 ## bed to be felt rather than listened to, and a hall you have to talk over is a hall
@@ -142,6 +155,14 @@ static func _looping(path: String) -> AudioStream:
 		# quietly set the loop to the first second of a six second bed, and the hall
 		# would have hiccupped once a second all match.
 		wav.loop_end = int(wav.get_length() * float(wav.mix_rate))
+	elif stream is AudioStreamMP3:
+		# An mp3 loops with a flag rather than with sample positions, and the beds are
+		# mp3 now because that is what Freesound hands out without a login. Without this
+		# branch the hall played its crowd once, stopped, and stayed silent for the rest
+		# of the match — which is worse than the placeholder it replaced.
+		(stream as AudioStreamMP3).loop = true
+	elif stream is AudioStreamOggVorbis:
+		(stream as AudioStreamOggVorbis).loop = true
 	return stream
 
 
@@ -171,6 +192,10 @@ func strike(where: Vector3, hard: bool) -> void:
 	var voice := _strikes[_next_strike]
 	_next_strike = (_next_strike + 1) % _strikes.size()
 	voice.stream = load(path)
+	# Set every time rather than once at build. The four players are shared, and the
+	# line judge's call is louder than a contact — one shout would otherwise leave
+	# whichever player it used turned up for the rest of the match.
+	voice.volume_db = HIT_DB
 	voice.global_position = where
 	voice.play()
 
@@ -183,6 +208,7 @@ func landing(where: Vector3) -> void:
 	var voice := _strikes[_next_strike]
 	_next_strike = (_next_strike + 1) % _strikes.size()
 	voice.stream = load(path)
+	voice.volume_db = HIT_DB
 	voice.global_position = where
 	voice.play()
 
@@ -194,6 +220,21 @@ func _from_kit(which: String) -> String:
 	if path.is_empty() or not ResourceLoader.exists(path):
 		return String(KITS[&"badminton"][which])
 	return path
+
+
+## A line judge calling a ball out, from where they are sitting rather than from the
+## middle of your head. It is the only thing in a rally that comes from the corner of
+## the court, and in tennis that is fourteen metres away and usually off the side of the
+## screen — which is exactly why it needs a sound as well as a flag.
+func judge_calls_out(where: Vector3) -> void:
+	if not ResourceLoader.exists(JUDGE_OUT):
+		return
+	var voice := _strikes[_next_strike]
+	_next_strike = (_next_strike + 1) % _strikes.size()
+	voice.stream = load(JUDGE_OUT)
+	voice.volume_db = JUDGE_DB
+	voice.global_position = where
+	voice.play()
 
 
 ## The hall's verdict on the call. Applause if it liked it, a groan if it did not — and

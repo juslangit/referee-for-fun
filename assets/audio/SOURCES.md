@@ -19,11 +19,25 @@ To fetch the originals again:
 
 ## Shared
 
+Replaced wholesale on 2026-09-09. The first set were placeholders and sounded it: a
+whistle nobody would blow, a bed obviously eight seconds long, and applause with no room
+in it.
+
 | File | What it is | Source |
 |---|---|---|
-| `crowd_calm.wav`, `crowd_tense.wav` | the two crowd beds | CC0 |
-| `whistle.wav` | the umpire's whistle | CC0 |
-| `applause.wav`, `groan.wav` | what the room makes of a call | CC0 |
+| `whistle.mp3` | the umpire's whistle | Referee whistle sound by Rosa-Orenes256, CC0 |
+| `crowd_calm.mp3` | the hall when it is settled | Small Crowd Walla by IENBA, CC0 |
+| `crowd_tense.mp3` | the hall when it is not | Norwegian football match ambience by Vogyik, CC0 |
+| `applause.mp3` | the room liking a call | Crowd Cheer by FoolBoyMedia, CC0 |
+| `groan.mp3` | the room not liking one | Crowd Groans by ShangusBurger, CC0 |
+| `judge_out.mp3` | a line judge calling a ball out | Displeasure - No by Sadiquecat, CC0 |
+
+**`judge_out.mp3` is a stand-in.** There is no CC0 recording anywhere of a person saying
+the word "out", so this is a short, curt male vocal that reads as a call against at the
+distance a line judge sits. Only OUT is ever played — a judge who thought the ball was
+good signals with their hands and says nothing, which is what really happens and what
+keeps the shout meaning one thing. A real "OUT!" is one `sfx make` away if
+`ELEVENLABS_API_KEY` is ever put in `~/.claude/.env`.
 
 ## Per sport
 
