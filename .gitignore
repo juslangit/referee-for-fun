@@ -18,8 +18,10 @@ build/
 # macOS
 .DS_Store
 
-# Debug screenshots, and the sidecar files Godot writes beside them. The dev scenes
-# write into dev/shots/; the pictures are output, not source.
+# Debug screenshots, and the sidecar files Godot writes beside them. Every dev scene
+# writes into dev/shots/ now; the pictures are output, not source. The root patterns
+# below are kept because twenty-one harnesses used to write there and an old checkout
+# will still have them lying about.
 dev/shots/
 _shot.png
 _shot_*.png

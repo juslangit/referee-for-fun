@@ -2,16 +2,28 @@
 
 Scenes that exist to look at the game rather than to be part of it.
 
-None of these ship. Each one loads `scenes/match.tscn`, drives it from the outside, and
-either prints numbers or saves a picture into `shots/`. They live here because a game
-about millimetres cannot be checked by eye, and almost every real bug in this project was
-found by one of them printing something that disagreed with what the screen appeared to
-show — a shuttle landing a centimetre inside the floor, a crowd stretched five times its
-height, a racket balanced across a player's fist, a whistle that measured 0 Hz.
+None of these ship. Each one loads a game scene, drives it from the outside, and either
+prints numbers or saves a picture. They live here because a game about millimetres cannot
+be checked by eye, and almost every real bug in this project was found by one of them
+printing something that disagreed with what the screen appeared to show — a shuttle
+landing a centimetre inside the floor, a crowd stretched five times its height, a racket
+balanced across a player's fist, a whistle that measured 0 Hz.
+
+They are sorted by what they do with what they find:
+
+| folder | what is in it |
+|---|---|
+| `checks/` | **61 scenes that print numbers.** Everything with an answer that can be wrong: fair play, aim, scoring, rotation, pricing, whether a match can finish. These are the ones to run after changing anything. |
+| `looks/` | **39 scenes that take pictures.** The hall from the chair, a lesson page, a pose held at the frame that matters. Judged by eye, because some things only a person can see. |
+| `shots/` | Where the pictures land. Ignored by git — output, not source. |
 
 Run one with:
 
-    /Applications/Godot.app/Contents/MacOS/Godot --path . res://dev/_fairplay.tscn --quit-after 20000
+    /Applications/Godot.app/Contents/MacOS/Godot --path . res://dev/checks/_fairplay.tscn --quit-after 20000
+
+And the whole of `checks/` will tell you whether the game still works. `_selfcheck`
+answers the narrower question of whether every scene in both folders still *loads*, which
+is what catches a move like this one going wrong.
 
 The ones worth keeping in mind:
 
@@ -57,4 +69,6 @@ The ones worth keeping in mind:
 | `_debt` | Does the umpire's own first visible mistake trap them? Checks both that the trap fires and that it never fires on a call the hall could not see. |
 | `_props`, `_people` | Every downloaded model in a row, at the size it is used, so a model that arrived upside down is seen before three hundred of it are put in the stands. |
 
-`shots/` is where they write. It is ignored by git — the pictures are output, not source.
+Every one of these writes its pictures into `shots/`. Twenty-one of them used to write
+into the project root instead, which left a dozen large PNGs sitting next to
+`project.godot` — tidied on 2026-09-09, and the reason the folder split happened at all.
