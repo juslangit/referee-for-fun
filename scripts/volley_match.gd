@@ -442,6 +442,15 @@ func start_rally() -> void:
 	var target := _somewhere_in(Sides.opponent(serving), 0.7)
 	target.z = Sides.half_sign(Sides.opponent(serving)) * randf_range(
 		3.2, VolleySpec.HALF_LENGTH - 0.7)
+	# Whoever is nearest the spot the serve comes from is the one who plays it, and they
+	# play it with the serve clip — which has been on the character since the beach
+	# animations were authored and which no sport has ever asked for. Both volleyballs
+	# have served several thousand times with nobody moving.
+	var server := nearest_of(serving, Vector3(from.x, 0.0, from.z))
+	if server != null:
+		server.position = Vector3(from.x, 0.0, from.z)
+		server.serve_the_ball()
+
 	send_over(from, target, SERVE_ANGLES)
 
 	var receiver := nearest_of(Sides.opponent(serving), target)
@@ -631,6 +640,8 @@ func _meet_the_attack(defending: Sides.Team, from: Vector3, target: Vector3) -> 
 			player.chase(Vector3(
 				clampf(from.x + (0.5 if blockers == 0 else -0.5), -3.2, 3.2),
 				0.0, side * 1.0))
+			# Both arms over the tape, which is what a block is. See BeachMatch.
+			player.block()
 			blockers += 1
 		else:
 			player.chase(Vector3(
@@ -681,6 +692,10 @@ func make_call(id: StringName, against := Sides.Team.NONE) -> void:
 
 func cheer() -> void:
 	court.cheer()
+
+
+func jeer(share: float) -> void:
+	court.jeer(share)
 
 
 ## A side that wins the serve back rotates. A side that holds it does not — the rule

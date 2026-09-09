@@ -200,6 +200,18 @@ func change_ends() -> void:
 	ui.announce("CHANGE OF ENDS", UiTheme.ACCENT, CHANGEOVER_SECONDS)
 	ui.react("they swap ends and towel off at the net", CHANGEOVER_SECONDS)
 	sound.whistle()
+	_sit_down_when_they_get_there()
+
+
+## They walk to the other end and sit. The `sit` clip has been on the character since it
+## was forged and nothing had ever asked a player to use it — which was fine while no
+## sport had a changeover, and stopped being fine the moment tennis got one.
+func _sit_down_when_they_get_there() -> void:
+	await get_tree().create_timer(CHANGEOVER_SECONDS * 0.8).timeout
+	if _phase == Phase.REMOVED:
+		return
+	for player in players:
+		player.sit_down()
 
 
 # --- the venue ------------------------------------------------------------------
@@ -238,6 +250,10 @@ func make_the_board(venue: Dictionary) -> Scoreboard:
 
 func cheer() -> void:
 	court.cheer()
+
+
+func jeer(share: float) -> void:
+	court.jeer(share)
 
 
 ## Two of them, at diagonally opposite corners, behind the baselines and outside the
@@ -390,13 +406,43 @@ func start_rally() -> void:
 	if rally.clipped_the_cord:
 		target = _drag_it_over_the_cord(target)
 
-	server.swing(true)
+	server.serve_for_tennis()
 	sound.whistle()
-	sound.strike(from, true)
 	_aimed_to_end = false
-	send_over(from, target, SERVE_ANGLES)
 	_phase = Phase.IN_PLAY
 	ui.set_prompt("watch it")
+	_toss_it_up(from, target)
+
+
+## The ball leaves the other hand before it is hit.
+##
+## It used to appear at 2.55 m already travelling, which is the one part of a tennis
+## serve nobody would fail to notice missing: the toss is the slowest, highest and most
+## deliberate thing that happens in the sport, and it is thrown by the hand that is not
+## holding the racket. It is also what a foot fault is judged against — the server may
+## move their feet right up until the ball is struck, not until it is thrown.
+##
+## The gap is the clip's own: `tn_serve` tosses on frame 8 and makes contact on frame 22,
+## which at 24 fps is fourteen frames. The ball and the animation therefore agree by
+## construction rather than by being tuned against each other.
+const TOSS_SECONDS := 14.0 / 24.0
+
+## Thrown from about shoulder height, hard enough to arrive at the contact point just as
+## the racket does. Higher would be a better serve and a worse animation: the ball would
+## still be climbing when the arm came through.
+const TOSS_FROM_BELOW := 0.9
+const TOSS_SPEED := 4.4
+
+
+func _toss_it_up(from: Vector3, target: Vector3) -> void:
+	_ball.launch(from - Vector3(0.0, TOSS_FROM_BELOW, 0.0),
+		Vector3(0.0, TOSS_SPEED, 0.0))
+	await get_tree().create_timer(TOSS_SECONDS).timeout
+	# The rally can have been abandoned, paused or walked out of while the ball was up.
+	if _phase != Phase.IN_PLAY:
+		return
+	sound.strike(from, true)
+	send_over(from, target, SERVE_ANGLES)
 
 
 ## Where the serve is aimed.

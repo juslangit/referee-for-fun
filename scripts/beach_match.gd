@@ -288,6 +288,11 @@ func _meet_the_attack(defending: Sides.Team, from: Vector3, target: Vector3) -> 
 	var side := Sides.half_sign(defending)
 	var blocker := nearest_of(defending, Vector3(from.x, 0.0, side * 1.1))
 	blocker.chase(Vector3(clampf(from.x, -2.8, 2.8), 0.0, side * 1.1))
+	# Arms up over the tape. The clip was authored with the beach set and no sport ever
+	# played it, so the block this whole sport's signature call is about — did the ball
+	# graze a blocker's fingers — was made by somebody standing at the net with their
+	# hands by their sides.
+	blocker.block()
 	_partner(defending, blocker).chase(Vector3(
 		clampf(target.x, -3.2, 3.2), 0.0, side * clampf(absf(target.z), 3.4, 7.2)))
 
@@ -329,6 +334,15 @@ func start_rally() -> void:
 	var target := _somewhere_in(Sides.opponent(serving), 0.55)
 	target.z = Sides.half_sign(Sides.opponent(serving)) * randf_range(
 		2.8, BeachSpec.HALF_LENGTH - 0.55)
+	# Whoever is nearest the spot the serve comes from is the one who plays it, and they
+	# play it with the serve clip — which has been on the character since the beach
+	# animations were authored and which no sport has ever asked for. Both volleyballs
+	# have served several thousand times with nobody moving.
+	var server := nearest_of(serving, Vector3(from.x, 0.0, from.z))
+	if server != null:
+		server.position = Vector3(from.x, 0.0, from.z)
+		server.serve_the_ball()
+
 	send_over(from, target, SERVE_ANGLES)
 	# The receiving pair read the serve and one of them goes to meet it.
 	var receiver := nearest_of(Sides.opponent(serving), target)
@@ -574,6 +588,10 @@ func before_pricing() -> void:
 
 func cheer() -> void:
 	court.cheer()
+
+
+func jeer(share: float) -> void:
+	court.jeer(share)
 
 func enter_ready() -> void:
 	ui.set_prompt("SPACE  whistle the serve")

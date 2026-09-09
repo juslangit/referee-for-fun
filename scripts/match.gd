@@ -1634,6 +1634,15 @@ func _react_to_call(winner: Sides.Team) -> void:
 		if court.venue != null:
 			court.venue.flash()
 
+	# And what the hall made of the person awarding it, which is a different thing from
+	# what it made of the rally. Until now the stands celebrated every point, stolen or
+	# not, and had no way to object to anything. See Stands.jeer.
+	if rally != null and rally.verdict() == Rally.Verdict.WRONG:
+		var seen: float = rally.visibility()
+		var short_fuse: float = 1.0 if suspicion.mood >= Suspicion.Mood.HOSTILE else 0.0
+		if seen >= 0.30 - short_fuse * 0.12:
+			court.stands.jeer(0.55 * clampf(seen, 0.0, 1.0))
+
 	# A groan every time the hall catches something, and applause only sometimes —
 	# a room that claps every single point stops meaning anything by the third game.
 	if robbed != Sides.Team.NONE:

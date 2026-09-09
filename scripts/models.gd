@@ -398,6 +398,35 @@ static func make_looping(player: AnimationPlayer, clip: String) -> void:
 	animation.loop_mode = Animation.LOOP_LINEAR
 
 
+## The skeleton inside a model, for anything that wants to pose it by hand.
+static func skeleton_of(node: Node) -> Skeleton3D:
+	return _find_skeleton(node)
+
+
+## The upper arm bones, under whichever names this rig gave them.
+##
+## Every downloaded rig calls them something different, the same way every rig has its
+## own word for a hand — see RACKET_HANDS. Returns the two bone indices, or -1 for one
+## it could not find, so a caller can pose whichever arm it did get.
+const ARM_BONES := {
+	"right": ["RightArm", "upper_arm.R", "R.upperArm_026", "R.upperArm_04", "arm.R"],
+	"left": ["LeftArm", "upper_arm.L", "L.upperArm_06", "L.upperArm_04", "arm.L"],
+}
+
+
+static func arms_of(skeleton: Skeleton3D) -> Dictionary:
+	var found := {"right": -1, "left": -1}
+	if skeleton == null:
+		return found
+	for side in ARM_BONES:
+		for candidate in ARM_BONES[side]:
+			var at := skeleton.find_bone(candidate)
+			if at >= 0:
+				found[side] = at
+				break
+	return found
+
+
 static func _find_skeleton(node: Node) -> Skeleton3D:
 	for child in _every(node):
 		if child is Skeleton3D:

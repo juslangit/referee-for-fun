@@ -9,9 +9,10 @@ extends Node
 
 ## Every clip name that appears in a `_play(...)` anywhere in player.gd.
 const ASKED_FOR := [
-	"idle", "ready", "run", "walk", "tired", "argue",
+	"idle", "ready", "vb_ready", "run", "walk", "tired", "argue",
 	"smash", "forehand", "backhand", "celebrate", "serve",
 	"vb_dig", "vb_set", "vb_spike", "vb_block", "vb_serve",
+	"tn_serve", "lunge", "sit",
 ]
 
 

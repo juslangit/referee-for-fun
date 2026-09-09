@@ -98,6 +98,20 @@ const CROWD_FACING := 180.0
 const CHEER_HEIGHT := 0.22
 const CHEER_SECONDS := 0.9
 
+## Standing up, which is a different thing from cheering and reads as one.
+##
+## A cheer is an arc — up and straight back down, everybody landing before the shout
+## finishes. Getting to your feet over a call you did not like is a rise, a long hold and
+## a grudging sit, and the hold is the whole of it: a hall that bobs is pleased, a hall
+## that is **still standing** four seconds later is not.
+##
+## This is the only thing on screen that answers the official back rather than the
+## rally. Until now the stands celebrated every point, honest or stolen, and had no
+## way at all to express what they made of the person awarding it.
+const STAND_HEIGHT := 0.30
+const STAND_SECONDS := 4.2
+const STAND_RISE := 0.16
+
 ## What fraction of the hall bothers to get up for any one rally.
 const CHEER_SHARE := 0.45
 
@@ -110,6 +124,11 @@ var _crowds: Array[MultiMeshInstance3D] = []
 var _crowd_seats: Array = []
 var _crowd_shapes: Array[Transform3D] = []
 var _crowd_jumps: Array = []
+
+## Which of the two reactions each seat is in the middle of. Parallel to `_crowd_jumps`,
+## a flag per instance rather than a second timer, because a spectator is doing one or
+## the other and never both.
+var _crowd_holds: Array = []
 
 ## Where everybody sits, and how far through their jump each of them is. Kept so a
 ## cheer can be drawn by moving instances rather than by animating three hundred
@@ -145,6 +164,7 @@ func dress(which: Venue.Tier) -> void:
 	_crowd_seats.clear()
 	_crowd_shapes.clear()
 	_crowd_jumps.clear()
+	_crowd_holds.clear()
 	_seats.clear()
 	_build_seating()
 	_build_crowd()
@@ -157,12 +177,28 @@ func dress(which: Venue.Tier) -> void:
 ## not match. Moving the instances instead means the whole hall reacts and there is
 ## only ever one kind of person in the stands.
 func cheer() -> void:
+	_react(CHEER_SHARE, CHEER_SECONDS, false)
+
+
+## A share of the hall gets to its feet over a call, and stays up.
+##
+## `share` is how much of the room bothered, which is what the visibility of a bad call
+## buys: a shaved line nobody could see moves nobody, and a ball given three feet out
+## empties the seats.
+func jeer(share: float) -> void:
+	_react(clampf(share, 0.0, 1.0), STAND_SECONDS, true)
+
+
+func _react(share: float, seconds: float, standing: bool) -> void:
 	for group in _crowd_jumps.size():
 		var jumps: PackedFloat32Array = _crowd_jumps[group]
+		var holds: PackedFloat32Array = _crowd_holds[group]
 		for i in jumps.size():
-			if jumps[i] <= 0.0 and randf() < CHEER_SHARE:
-				jumps[i] = CHEER_SECONDS
+			if jumps[i] <= 0.0 and randf() < share:
+				jumps[i] = seconds
+				holds[i] = 1.0 if standing else 0.0
 		_crowd_jumps[group] = jumps
+		_crowd_holds[group] = holds
 	_cheering = not _crowds.is_empty()
 
 
@@ -174,6 +210,7 @@ func _process(delta: float) -> void:
 	for group in _crowds.size():
 		var multi: MultiMesh = _crowds[group].multimesh
 		var jumps: PackedFloat32Array = _crowd_jumps[group]
+		var holds: PackedFloat32Array = _crowd_holds[group]
 		var seats: Array[Transform3D] = _crowd_seats[group]
 		var shape: Transform3D = _crowd_shapes[group]
 		for i in jumps.size():
@@ -181,10 +218,21 @@ func _process(delta: float) -> void:
 				continue
 			jumps[i] = maxf(jumps[i] - delta, 0.0)
 			still_going = still_going or jumps[i] > 0.0
-			# One arc up and back down, so nobody lands before the shout has finished.
-			var through := 1.0 - jumps[i] / CHEER_SECONDS
 			var seat := seats[i]
-			seat.origin.y += sin(through * PI) * CHEER_HEIGHT
+			if holds[i] > 0.5:
+				# On their feet: up quickly, held for as long as it lasts, and back
+				# down at the end. Nothing in the middle, which is the point of it.
+				var left := jumps[i] / STAND_SECONDS
+				var up := 1.0
+				if left > 1.0 - STAND_RISE:
+					up = (1.0 - left) / STAND_RISE
+				elif left < STAND_RISE:
+					up = left / STAND_RISE
+				seat.origin.y += clampf(up, 0.0, 1.0) * STAND_HEIGHT
+			else:
+				# One arc up and back down, so nobody lands before the shout is over.
+				var through := 1.0 - jumps[i] / CHEER_SECONDS
+				seat.origin.y += sin(through * PI) * CHEER_HEIGHT
 			multi.set_instance_transform(i, seat * shape)
 		_crowd_jumps[group] = jumps
 	_cheering = still_going
@@ -344,6 +392,10 @@ func _build_crowd() -> void:
 		var jumps := PackedFloat32Array()
 		jumps.resize(slice.size())
 		_crowd_jumps.append(jumps)
+		var holds := PackedFloat32Array()
+		holds.resize(jumps.size())
+		holds.fill(0.0)
+		_crowd_holds.append(holds)
 
 	if not _crowds.is_empty():
 		_heads = null

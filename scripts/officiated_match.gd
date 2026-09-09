@@ -657,6 +657,13 @@ func judge(call: CallType, against: Sides.Team) -> void:
 		ui.announce("%s   ·   POINT %s" % [call.label, Sides.label(winner)],
 			Sides.colour(winner))
 		cheer()
+		_the_players_react(winner, rally)
+
+	# And what the room made of the person awarding it. Separate from the cheer on
+	# purpose: the cheer is about the rally and fires whoever won it, and this is about
+	# the call. A hall that celebrates every point and never objects to anything is not
+	# reading anything back to you, which is what it did until now.
+	_the_room_reacts(rally)
 
 	ui.react(Crowd.react_to_call(rally.visibility(), suspicion.mood))
 	_show_reviews()
@@ -681,10 +688,56 @@ func award_the_point(winner: Sides.Team) -> void:
 	serving = winner
 
 
-## The stand coming out of its seats, which is the only thing on screen that answers the
-## official back.
+## The stand coming out of its seats for a point.
 func cheer() -> void:
 	pass
+
+
+## The stand coming out of its seats at **you**. Overridden per sport, like cheer().
+func jeer(_share: float) -> void:
+	pass
+
+
+## How plainly wrong a call has to be before anybody gets out of their seat, and how much
+## of the hall does when it is beyond argument.
+const JEER_THRESHOLD := 0.30
+const MOST_OF_THE_HALL := 0.55
+
+
+## The stands answering the call rather than the rally.
+##
+## Priced by the same visibility everything else is: a shaved line nobody could see moves
+## nobody, and a ball given three feet out empties the seats. A hall already hostile is
+## quicker off its seat than one that still trusts you, which is what the mood is for.
+func _the_room_reacts(rally) -> void:
+	if rally == null or rally.verdict() != Rally.Verdict.WRONG:
+		return
+	var seen: float = rally.visibility()
+	var short_fuse: float = 1.0 if suspicion.mood >= Suspicion.Mood.HOSTILE else 0.0
+	if seen < JEER_THRESHOLD - short_fuse * 0.12:
+		return
+	jeer(MOST_OF_THE_HALL * clampf(seen, 0.0, 1.0))
+
+
+## The two sides answering a call: one celebrates, the other turns round.
+##
+## Both clips have been on the character from the start and **only badminton ever played
+## them** — so in three sports out of four nobody on court ever reacted to anything. That
+## matters more here than it sounds. This game's feedback loop is reading the room, and
+## the players are the closest part of the room to the chair.
+##
+## The losing side only argues when the call was plainly wrong. A player who turns on the
+## umpire after every point they lose is not reading anything back to you.
+const ARGUES_WHEN_SEEN := 0.35
+
+func _the_players_react(winner: Sides.Team, rally) -> void:
+	var seen: float = rally.visibility() if rally != null else 0.0
+	var wrong: bool = rally != null and rally.verdict() == Rally.Verdict.WRONG
+	for player in players:
+		if player.team == winner:
+			player.celebrate()
+		elif wrong and seen >= ARGUES_WHEN_SEEN:
+			player.argue()
 
 
 # --- the reputation meter -------------------------------------------------------

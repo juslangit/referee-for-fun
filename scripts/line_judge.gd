@@ -26,6 +26,29 @@ const WORST_ERROR := 0.45
 ## How long the bubble stays up.
 const BUBBLE_SECONDS := 2.4
 
+## The OUT signal: both arms straight out to the sides, held, and then dropped.
+##
+## It is the real badminton signal, and it is a signal rather than a shout for a reason —
+## it reads from the far end of a hall, which is where the umpire is. Posed in code
+## rather than keyed in Blender because the officials are a downloaded model on a
+## different rig from the athletes, so the clip pipeline that authored every other
+## animation in this game does not reach them.
+const SIGNAL_SECONDS := 2.1
+const SIGNAL_RAISE := 0.22
+
+## How far the upper arms swing out from where the idle clip left them, in degrees, and
+## about which axis. Tuned by rendering it: see dev/looks/_judgesignal.
+const SIGNAL_SWING := 78.0
+
+## Which way the arms swing.
+##
+## A downloaded rig says nothing about how its bones rest, so this was found by rendering
+## all six candidate axes side by side rather than guessed — see dev/looks/_judgesignal,
+## which still does it and is the only honest way to answer the question. +Y puts both
+## arms out to the sides and slightly up, which is the badminton signal. Every other axis
+## folded them across his chest or waved one of them behind him.
+var signal_axis := Vector3.UP
+
 const BODY_HEIGHT := 1.34
 const BODY_RADIUS := 0.24
 
@@ -44,6 +67,13 @@ var _bubble: Node3D
 var _label: Label3D
 var _timer := 0.0
 
+## The arms, for the OUT signal. The idle clip writes every bone every frame, so it has
+## to be paused while the arms are held out or the pose is overwritten before it is seen.
+var _skeleton: Skeleton3D
+var _arms := {"right": -1, "left": -1}
+var _animator: AnimationPlayer
+var _signalling := 0.0
+
 
 func _ready() -> void:
 	_build_body()
@@ -51,11 +81,48 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	_hold_the_signal(delta)
 	if _timer <= 0.0:
 		return
 	_timer -= delta
 	if _timer <= 0.0:
 		_bubble.visible = false
+
+
+## Both arms out to the sides for as long as the call lasts, then back to the idle.
+func _hold_the_signal(delta: float) -> void:
+	if _signalling <= 0.0:
+		return
+	_signalling -= delta
+	if _signalling <= 0.0:
+		_drop_the_arms()
+		return
+	# Eased in and out, so the arms go up and come down rather than snapping.
+	var through := 1.0 - clampf(_signalling / SIGNAL_SECONDS, 0.0, 1.0)
+	var swing := sin(clampf(through / SIGNAL_RAISE, 0.0, 1.0) * PI * 0.5)
+	if _signalling < SIGNAL_SECONDS * SIGNAL_RAISE:
+		swing = _signalling / (SIGNAL_SECONDS * SIGNAL_RAISE)
+	_pose_arms(swing)
+
+
+func _pose_arms(amount: float) -> void:
+	if _skeleton == null:
+		return
+	for side in ["right", "left"]:
+		var bone: int = _arms[side]
+		if bone < 0:
+			continue
+		var rest := _skeleton.get_bone_rest(bone).basis.get_rotation_quaternion()
+		var away := deg_to_rad(SIGNAL_SWING) * amount * (1.0 if side == "right" else -1.0)
+		_skeleton.set_bone_pose_rotation(bone, rest * Quaternion(signal_axis, away))
+
+
+func _drop_the_arms() -> void:
+	_signalling = 0.0
+	_pose_arms(0.0)
+	if _animator != null and not _animator.current_animation.is_empty():
+		# Back to whatever they were doing, which is standing there.
+		_animator.play(_animator.current_animation)
 
 
 ## A line judge on their feet, which is what both volleyballs use.
@@ -98,17 +165,41 @@ func judge(rally: Rally) -> bool:
 	return decide(rally.margin, rally.was_in)
 
 
-## Puts their call in the air above their head.
+## Puts their call in the air above their head, and — for an OUT — makes the signal
+## with their arms.
+##
+## Only OUT is signalled with the body. A judge who thought the ball was good keeps their
+## hands where they are, which is the real thing and which keeps the gesture meaning
+## something: a pair of arms coming out is always the same news.
 func announce(says_in: bool) -> void:
 	_label.text = "IN" if says_in else "OUT"
 	_label.modulate = Color(0.12, 0.30, 0.16) if says_in else Color(0.55, 0.10, 0.10)
 	_bubble.visible = true
 	_timer = BUBBLE_SECONDS
+	if not says_in:
+		signal_out()
+
+
+## Both arms straight out to the sides. The idle clip is stopped for the duration —
+## an AnimationPlayer writes every bone it owns every frame, so a pose set underneath
+## one is overwritten before anybody sees it.
+func signal_out() -> void:
+	if _skeleton == null:
+		_skeleton = Models.skeleton_of(self)
+		_arms = Models.arms_of(_skeleton)
+		_animator = Models.animator(self)
+	if _skeleton == null or (_arms["right"] < 0 and _arms["left"] < 0):
+		return
+	if _animator != null:
+		_animator.pause()
+	_signalling = SIGNAL_SECONDS
 
 
 func silence() -> void:
 	_bubble.visible = false
 	_timer = 0.0
+	if _signalling > 0.0:
+		_drop_the_arms()
 
 
 func _build_body() -> void:

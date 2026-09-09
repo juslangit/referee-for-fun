@@ -278,6 +278,12 @@ func cheer() -> void:
 		stands.cheer()
 
 
+## The hall getting to its feet over a call rather than a rally.
+func jeer(share: float) -> void:
+	if stands != null:
+		stands.jeer(share)
+
+
 func _add_box(name: String, size: Vector3, at: Vector3,
 		material: StandardMaterial3D) -> MeshInstance3D:
 	var node := MeshInstance3D.new()

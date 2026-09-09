@@ -193,6 +193,18 @@ func serve_the_ball() -> void:
 	_play("vb_serve", true)
 
 
+## A tennis serve, which is its own action and not a smash.
+##
+## It was played with the badminton smash until now, and the two have almost nothing in
+## common: a smash is a short flat strike from a square stance, and a serve is the
+## slowest and largest movement in any of these four sports — the ball thrown up by the
+## other hand, the racket dropped behind the back, contact at full stretch off the
+## ground. It is also the only shot the umpire watches from beginning to end, because
+## the foot fault is at the start of it and the net cord is at the end.
+func serve_for_tennis() -> void:
+	_play("tn_serve", true)
+
+
 ## A serve played with the racket head above the hand, which is a fault.
 ##
 ## The legal shape is the shaft pointing downwards at the moment of contact — so the
@@ -210,6 +222,12 @@ func serve_with_the_racket_up() -> void:
 ## How long the racket stays turned up: the whole service action.
 const RACKET_UP_SECONDS := 1.1
 var _racket_upside_down := 0.0
+
+
+## Sitting down, which is what players do at a changeover and nothing has ever asked
+## them to do. The clip has been on the character all along.
+func sit_down() -> void:
+	_play("sit", true)
 
 
 ## Winning the point.
@@ -294,9 +312,15 @@ func stand_off() -> void:
 
 ## Throws the player at a spot for a moment, overriding wherever they were going.
 ## Used to send them reaching over the net, which is what obstruction looks like.
+##
+## There is a `lunge` clip on the character and this never played it, so a player
+## reaching over the net travelled there in their run cycle, upright, at a jog. The
+## whole point of the movement is that it looks like somebody going where they should
+## not, and a jog does not.
 func lunge(spot: Vector3, seconds := 0.7) -> void:
 	_lunge_spot = Vector3(spot.x, 0.0, spot.z)
 	_lunge_left = seconds
+	_play("lunge", true)
 
 
 func go_home() -> void:
