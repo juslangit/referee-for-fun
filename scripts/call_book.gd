@@ -48,6 +48,15 @@ static func _build() -> void:
 		_fault(&"carry", "CARRY", "Fault. Carried.", Incident.Kind.CARRY, 1.0),
 		_fault(&"double_hit", "DOUBLE HIT", "Fault. Double hit.", Incident.Kind.DOUBLE_HIT, 1.0),
 		_fault(&"obstruction", "OBSTRUCTION", "Fault. Obstruction.", Incident.Kind.OBSTRUCTION, 1.2),
+		# The three service faults. Heavier than a rally fault of the same visibility,
+		# because a serve is the one moment when everybody is still and looking at one
+		# person: there is nowhere for a wrong call to hide.
+		_fault(&"serve_too_high", "SERVICE — ABOVE 1.15", "Fault. Above one fifteen.",
+			Incident.Kind.SERVICE_TOO_HIGH, 1.15),
+		_fault(&"serve_racket_up", "SERVICE — RACKET UP", "Fault. Racket not down.",
+			Incident.Kind.SERVICE_RACKET_UP, 1.15),
+		_fault(&"serve_feet", "SERVICE — FOOT MOVED", "Fault. Foot moved.",
+			Incident.Kind.SERVICE_FEET, 1.1),
 	]
 
 	for call in [shuttle_in, shuttle_out, let_call] + faults:
@@ -92,11 +101,6 @@ static func all() -> Array:
 	return _calls.values()
 
 
-# Still to come:
-#   service fault  — racket head above the hand, shuttle above the waist, feet moving.
-#                    Deliberately left out: it needs the serve itself modelled, down
-#                    to where the racket is relative to the server's waist, and none
-#                    of that exists yet.
 #
 # Two things the umpire can say are deliberately not in this book.
 #

@@ -184,6 +184,25 @@ func serve_the_ball() -> void:
 	_play("vb_serve", true)
 
 
+## A serve played with the racket head above the hand, which is a fault.
+##
+## The legal shape is the shaft pointing downwards at the moment of contact — so the
+## illegal one is the racket turned up, and that is what this shows. It has to be
+## visible from the chair or the call is a coin toss, so the turn is a large one and it
+## is held for the whole of the delivery rather than flashed.
+func serve_with_the_racket_up() -> void:
+	_play("serve", true)
+	if _racket == null:
+		return
+	_racket.rotation = _racket_rest + Vector3(PI * 0.72, 0.0, 0.0)
+	_racket_upside_down = RACKET_UP_SECONDS
+
+
+## How long the racket stays turned up: the whole service action.
+const RACKET_UP_SECONDS := 1.1
+var _racket_upside_down := 0.0
+
+
 ## Winning the point.
 func celebrate() -> void:
 	_play("celebrate", true)
@@ -211,6 +230,12 @@ func _animate(delta: float, running: bool) -> void:
 
 	_lean = move_toward(_lean, RUN_LEAN if running else 0.0, delta * LEAN_SPEED)
 	_figure.rotation.x = -_lean
+
+	if _racket != null and _racket_upside_down > 0.0:
+		_racket_upside_down -= delta
+		if _racket_upside_down <= 0.0:
+			_racket.rotation = _racket_rest
+		return
 
 	if _swing_left <= 0.0 or _racket == null:
 		return

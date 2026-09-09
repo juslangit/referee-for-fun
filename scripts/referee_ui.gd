@@ -472,7 +472,7 @@ const BADMINTON_LESSONS := [
 			+ "lines it landed.",
 	},
 	{
-		"title": "THE FOUR FAULTS",
+		"title": "THE FAULTS",
 		"body": "Press F, then point at whoever did it.\n\n"
 			+ "NET TOUCH   the net shakes. Somebody was touching it with the shuttle "
 			+ "still live.\n\n"
@@ -482,6 +482,24 @@ const BADMINTON_LESSONS := [
 			+ "OBSTRUCTION   a player reaches over the net.\n\n"
 			+ "Missing one is not free. If the point then goes to the side that cheated, "
 			+ "the hall saw what you did not.",
+	},
+	{
+		"title": "THE SERVE",
+		"body": "A serve is the one moment in badminton when everything stops. Both "
+			+ "players are still, nobody is scrambling, and the whole hall is watching "
+			+ "one person do one thing slowly. Three things can be wrong with it, and "
+			+ "all three are on the F panel.\n\n"
+			+ "ABOVE 1.15   the whole shuttle must be below 1.15 metres when it is "
+			+ "struck. Not the server's waist — a fixed height, measured, since 2018. A "
+			+ "waist is an argument; a number is a fact.\n\n"
+			+ "RACKET UP   the shaft must be pointing downwards at the moment of "
+			+ "contact. If the head is up, it is a fault however good the serve was.\n\n"
+			+ "FOOT MOVED   both feet stay still, and on the floor, from the start of "
+			+ "the service until it is delivered.\n\n"
+			+ "A real match gives these their own official, sitting at the side of the "
+			+ "court with nothing else to look at. You do not get one. But you also have "
+			+ "nowhere to hide: everybody was watching the same thing you were, which "
+			+ "makes a service fault you invent the least deniable call in the sport.",
 	},
 	{
 		"title": "THE SERVICE COURTS",

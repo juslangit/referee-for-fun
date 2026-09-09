@@ -19,7 +19,24 @@ const CHAIR_OFFSET := 0.9
 
 ## Where a serve is struck from, and how high.
 const SERVE_DISTANCE := 3.0
-const SERVE_HEIGHT := 2.45
+
+## Where the shuttle is struck for a serve.
+##
+## This used to be 2.45 m, which is not a serve — it is a smash. Every serve in the
+## game was struck from over the server's head, which looked wrong to anybody who plays
+## and made the whole service law unbuildable: there is no point calling a fault for a
+## contact above 1.15 m when every legal serve is already at 2.45.
+##
+## **1.15 m is the law, and it is a fixed height rather than the server's waist.** BWF
+## replaced "below the lowest rib" with a measured number in 2018 for exactly the reason
+## this game cares about: a waist is an argument and a number is a fact.
+const SERVE_HEIGHT := 1.02
+const SERVICE_HEIGHT_LIMIT := 1.15
+
+## How often a serve is illegal. Low, because it is the most watched moment in the sport
+## — everybody is still and looking at one person — so a server who kept doing it would
+## be a different game.
+const SERVICE_FAULT_CHANCE := 0.055
 
 ## Where the four players stand when the shuttle is not their problem. Front and
 ## back, which is how a doubles pair defends.
@@ -772,11 +789,21 @@ func _start_rally() -> void:
 	var court := _serve_court
 	var served_from := -court if service_error == serving else court
 
+	# Whether this serve is a legal one, and if not, which of the three it breaks.
+	var illegal := _roll_for_a_service_fault()
+	var contact := SERVE_HEIGHT
+	if illegal == Incident.Kind.SERVICE_TOO_HIGH:
+		# Above the line, and by how much is how visible it is. A centimetre over is a
+		# judgement even the service judge would hesitate on; fifteen is a shot played
+		# from the chest in front of everybody.
+		contact = SERVICE_HEIGHT_LIMIT + randf_range(0.02, 0.22)
+
 	var from := Vector3(
 		served_from * randf_range(0.65, 1.55),
-		SERVE_HEIGHT,
+		contact,
 		Sides.half_sign(serving) * SERVE_DISTANCE
 	)
+	_show_the_service_fault(illegal, from, contact)
 	var target := _pick_serve_target(
 		Sides.half_sign(Sides.opponent(serving)), -served_from)
 
@@ -923,6 +950,73 @@ func _hit_or_something_safer(from: Vector3, target: Vector3, striker: Sides.Team
 	return false
 
 
+## Whether this serve is illegal, and how.
+##
+## Rolled once, before the shuttle is struck, and recorded on the rally like any other
+## offence — so everything downstream already knows what to do with it. What is
+## different is that the umpire can see it coming: the four rally offences happen in a
+## scramble, and this one happens while everybody is standing still.
+func _roll_for_a_service_fault() -> Incident.Kind:
+	if randf() > SERVICE_FAULT_CHANCE:
+		return Incident.Kind.NONE
+	var kinds := [
+		Incident.Kind.SERVICE_TOO_HIGH,
+		Incident.Kind.SERVICE_RACKET_UP,
+		Incident.Kind.SERVICE_FEET,
+	]
+	return kinds.pick_random()
+
+
+## Puts the fault on court, so there is something to have seen.
+##
+## Every offence in this game has to have a visible manifestation or the call is a coin
+## toss. For the serve, all three are about the server's body at the moment of contact:
+## the shuttle starting from higher than it should, the racket head turned up instead of
+## down, or a foot that moves when it is supposed to be still.
+func _show_the_service_fault(kind: Incident.Kind, from: Vector3, contact: float) -> void:
+	if kind == Incident.Kind.NONE:
+		return
+
+	var seen := 0.0
+	match kind:
+		Incident.Kind.SERVICE_TOO_HIGH:
+			# How far over the line it was, against the width of the range it can be
+			# over by. Judged the way the real fault is: by height, not by feel.
+			seen = clampf((contact - SERVICE_HEIGHT_LIMIT) / 0.22, 0.08, 1.0)
+		Incident.Kind.SERVICE_RACKET_UP:
+			seen = randf_range(0.30, 0.90)
+		Incident.Kind.SERVICE_FEET:
+			seen = randf_range(0.25, 0.85)
+
+	rally.incident = Incident.new(kind, serving, seen, from)
+
+	var server := _server_of(serving)
+	if server == null:
+		return
+	match kind:
+		Incident.Kind.SERVICE_RACKET_UP:
+			server.serve_with_the_racket_up()
+		Incident.Kind.SERVICE_FEET:
+			# A step taken during the delivery, which is what a foot fault looks like.
+			server.lunge(server.position + Vector3(
+				signf(randf() - 0.5) * 0.34, 0.0,
+				Sides.half_sign(serving) * -0.30), 0.9)
+
+
+## Whoever is standing in the service court about to serve.
+func _server_of(team: Sides.Team) -> Player:
+	var best: Player = null
+	var nearest := 1e9
+	for player in players:
+		if player.team != team:
+			continue
+		var gap: float = absf(player.position.z) - SERVE_DISTANCE
+		if absf(gap) < nearest:
+			nearest = absf(gap)
+			best = player
+	return best
+
+
 ## Decides whether this stroke goes wrong, and in what way.
 ##
 ## Only one offence per rally. Two would be unfair on the umpire, who would then have
@@ -960,6 +1054,11 @@ func _how_visible(kind: Incident.Kind) -> float:
 			return randf_range(0.30, 0.80)
 		Incident.Kind.OBSTRUCTION:
 			return randf_range(0.40, 0.95)
+		Incident.Kind.SERVICE_TOO_HIGH, Incident.Kind.SERVICE_RACKET_UP, \
+		Incident.Kind.SERVICE_FEET:
+			# Set when the serve is struck rather than rolled here, because how visible
+			# a serve above the limit was is a matter of how far above it went.
+			return rally.incident.visibility
 	return 0.0
 
 

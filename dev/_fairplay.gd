@@ -48,13 +48,20 @@ func _ready() -> void:
 		# impossible standard, and the point: if even that umpire accrues suspicion,
 		# the fault is in the scoring rather than in the player.
 		if OS.get_environment("UMPIRE") == "perfect" and rally.incident.happened():
+			# Every offence in the book, including the three service faults. A
+			# dictionary that only knew the original four crashed the moment one of the
+			# new ones came up — an umpire who does not know a rule cannot be the
+			# yardstick for whether the rules are fair.
 			var names := {
 				Incident.Kind.NET_TOUCH: &"net_touch",
 				Incident.Kind.CARRY: &"carry",
 				Incident.Kind.DOUBLE_HIT: &"double_hit",
 				Incident.Kind.OBSTRUCTION: &"obstruction",
+				Incident.Kind.SERVICE_TOO_HIGH: &"serve_too_high",
+				Incident.Kind.SERVICE_RACKET_UP: &"serve_racket_up",
+				Incident.Kind.SERVICE_FEET: &"serve_feet",
 			}
-			var fault: StringName = names[rally.incident.kind]
+			var fault: StringName = names.get(rally.incident.kind, &"in")
 			arena._make_call(fault, rally.incident.by)
 		else:
 			arena._make_call(&"in" if landed_inside else &"out")

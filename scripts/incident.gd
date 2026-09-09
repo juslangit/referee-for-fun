@@ -25,6 +25,24 @@ enum Kind {
 	DOUBLE_HIT,
 	## A player reached over the net, or otherwise got in the opponent's way.
 	OBSTRUCTION,
+
+	# --- and three that happen before the rally has properly begun ---------------
+	#
+	# A service fault is not like the four above. Those are things that go wrong in the
+	# middle of a rally, in a scramble, when nobody was quite watching. A serve is the
+	# one moment in badminton when everything stops, both players are still, and the
+	# whole hall is looking at one person doing one thing slowly. So these are the most
+	# *watched* offences in the game and among the easiest to see — which is exactly
+	# why a real match gives them their own official, sitting at the side of the court
+	# with nothing else to do.
+
+	## The shuttle was struck above 1.15 m. Since 2018 that is a fixed height rather
+	## than the server's waist, precisely so that it can be judged rather than argued.
+	SERVICE_TOO_HIGH,
+	## The shaft of the racket was not pointing downwards at the moment of contact.
+	SERVICE_RACKET_UP,
+	## A foot moved, or left the floor, between the start of the service and the hit.
+	SERVICE_FEET,
 }
 
 ## What happened.
@@ -52,6 +70,11 @@ func happened() -> bool:
 	return kind != Kind.NONE
 
 
+## Whether this is one of the three things that can go wrong with a serve.
+func is_a_service_fault() -> bool:
+	return kind in [Kind.SERVICE_TOO_HIGH, Kind.SERVICE_RACKET_UP, Kind.SERVICE_FEET]
+
+
 ## What the umpire would announce.
 static func label(what: Kind) -> String:
 	match what:
@@ -59,6 +82,9 @@ static func label(what: Kind) -> String:
 		Kind.CARRY: return "CARRY"
 		Kind.DOUBLE_HIT: return "DOUBLE HIT"
 		Kind.OBSTRUCTION: return "OBSTRUCTION"
+		Kind.SERVICE_TOO_HIGH: return "SERVICE ABOVE 1.15"
+		Kind.SERVICE_RACKET_UP: return "SERVICE RACKET UP"
+		Kind.SERVICE_FEET: return "SERVICE FOOT MOVED"
 		_: return "NOTHING"
 
 

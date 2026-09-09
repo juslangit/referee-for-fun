@@ -24,6 +24,7 @@ The ones worth keeping in mind:
 | `_menus` | The three front-of-game screens. |
 | `_seat`, `_layout`, `_close` | The hall from the chair, from above, and up close. `TIER=0..2` picks the venue. |
 | `_card`, `_courtmap` | Regenerate the artwork in `assets/ui/`. |
+| `_servelaw` | Can a serve struck below 1.15 m still clear the net and reach the service box, and does each of the three service faults price correctly called, missed and invented? |
 | `_lessonback` | Can a player read the rules again, in every sport? Checks the ladder offers HOW TO REFEREE, that it opens that sport's lesson, and that GOT IT comes back to the ladder. |
 | `_endings` | Can a match in each sport actually finish, and how many rallies does the shortest one take? Every other harness stops after a fixed count, so the ending screen and the career fold-in had never been reached in either volleyball. |
 | `_faultkey` | Does F open the fault panel and complete a call, in both volleyballs? Written after both prompts turned out to advertise a key nothing was listening to. |
