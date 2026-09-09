@@ -293,6 +293,14 @@ func _build_body() -> void:
 	if model != null:
 		add_child(model)
 		_figure = model
+		# On the people layer, so the camera on the line can leave them out.
+		#
+		# Only the boxes in figure.gd were ever put there. The downloaded characters
+		# never were, so the overhead camera — whose entire job is to show the landing
+		# against the line — would photograph whoever happened to be standing over it.
+		# Rare in badminton, where the view is a metre across; constant in volleyball,
+		# where six people share a court and the ball lands at somebody's feet.
+		Models.set_layer(model, PEOPLE_LAYER)
 		if Models.is_forged(model):
 			# Already the right size and the right way up. Dress it and go.
 			Models.dress_player(model, not volleyball)

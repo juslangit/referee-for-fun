@@ -24,6 +24,7 @@ The ones worth keeping in mind:
 | `_menus` | The three front-of-game screens. |
 | `_seat`, `_layout`, `_close` | The hall from the chair, from above, and up close. `TIER=0..2` picks the venue. |
 | `_card`, `_courtmap` | Regenerate the artwork in `assets/ui/`. |
+| `_sets` | Is the last set shorter than the rest? Drives each sport's match to its decider and prints what every set was played to. |
 | `_rotate` | Does the rotation rotate the way volleyball rotates? Six turns, who serves, and whether the legality test catches the arrangements it should. Pure arithmetic, checked before anything was built on it. |
 | `_indoorrules` | The four positional calls, made, missed and invented, one at a time. Waiting for a rotation fault to come up on its own takes forty rallies; this builds each by hand. |
 | `_indoorplay` | Indoor's fair-play check. `WATCHING=no` gives a referee who judges the ball perfectly and never looks at the lineup. |

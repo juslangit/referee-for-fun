@@ -81,6 +81,7 @@ var _ending_button: Button
 var _length_panel: Control
 
 ## The screen that gives you a reason before it asks you the question.
+var _close_cam_caption: Label
 var _briefing: Control
 var _briefing_headline: Label
 var _briefing_detail: Label
@@ -580,6 +581,9 @@ const BEACH_LESSONS := [
 			+ "a moment too long. Judged far more tightly here than indoors, and two "
 			+ "honest referees genuinely disagree about it.\n"
 			+ "FOOT FAULT   the server stood on or over the end line.\n\n"
+			+ "When the ball comes down you get an overhead view of it against the tape, "
+			+ "in the corner of the screen. Use it. It is the only thing in this sport "
+			+ "that will ever tell you something you could not see from the stand.\n\n"
 			+ "From the world tour up, both sides carry two challenges a set. They can "
 			+ "put your line calls and your touches on a screen, and a successful one is "
 			+ "handed back — so a pair with one left is still dangerous.\n\n"
@@ -658,6 +662,9 @@ const INDOOR_LESSONS := [
 		"body": "Press F, then point at whoever did it.\n\n"
 			+ "NET TOUCH, CENTRE LINE, FOUR HITS, DOUBLE, LIFT and FOOT FAULT are the "
 			+ "same as they are on the sand.\n\n"
+			+ "When the ball lands you get an overhead view of it against the line. That "
+			+ "settles where it came down; nothing settles where six people were "
+			+ "standing except you.\n\n"
 			+ "From the champions cup up, both sides carry challenges. They can put your "
 			+ "line calls and your touches on a screen — but NOT your rotation calls. A "
 			+ "camera looks at the ball. Where six people were standing is settled by "
@@ -1486,15 +1493,31 @@ func _build_shuttle_cam() -> void:
 	_shuttle_cam_view.stretch_mode = TextureRect.STRETCH_SCALE
 	_shuttle_cam_panel.add_child(_shuttle_cam_view)
 
-	var caption := _make_label("SHUTTLE CAM", PROMPT_SIZE - 3, Color(0.72, 0.74, 0.78))
-	caption.position = Vector2(0, ShuttleCam.HEIGHT + 4)
-	caption.size = Vector2(ShuttleCam.WIDTH, 18)
-	_shuttle_cam_panel.add_child(caption)
+	_close_cam_caption = _make_label(
+		"SHUTTLE CAM", PROMPT_SIZE - 3, Color(0.72, 0.74, 0.78))
+	_close_cam_caption.position = Vector2(0, ShuttleCam.HEIGHT + 4)
+	_close_cam_caption.size = Vector2(ShuttleCam.WIDTH, 18)
+	_shuttle_cam_panel.add_child(_close_cam_caption)
 
 
 ## Shows the line camera's view of where the shuttle came down. The picture is
 ## deliberately small: it settles the obvious ones and settles nothing else, which
 ## is the only way it can exist without answering the question for the player.
+## The camera on the line, whatever is flying over it.
+##
+## Named for the shuttlecock because badminton was the only sport when it was written.
+## Both volleyballs use the same panel for a ball, so these are the names to call it by;
+## the shuttle_cam pair below remain as badminton's.
+func show_close_cam(view: Texture2D, caption := "BALL CAM") -> void:
+	if _close_cam_caption != null:
+		_close_cam_caption.text = caption
+	show_shuttle_cam(view)
+
+
+func hide_close_cam() -> void:
+	hide_shuttle_cam()
+
+
 func show_shuttle_cam(view: Texture2D) -> void:
 	if _shuttle_cam_view.texture != view:
 		_shuttle_cam_view.texture = view

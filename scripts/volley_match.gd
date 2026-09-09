@@ -42,6 +42,11 @@ const COURT_SPEED := 4.2
 const SET_TARGET := 25
 const SETS_NEEDED := 3
 
+## The fifth set is to fifteen, not twenty-five. Every other set in the sport is the
+## same length and the last one is not, which is the detail anybody who watches
+## volleyball would notice missing.
+const DECIDER_TARGET := 15
+
 ## Volleyball has no sudden-death ceiling — you win by two or you keep playing. High
 ## enough never to be reached, rather than a special case in the scoreboard.
 const NO_CAP := 9999
@@ -80,6 +85,15 @@ var rota := {Sides.Team.RED: Rotation.new(), Sides.Team.BLUE: Rotation.new()}
 var pressure := Pressure.new()
 var challenge := Challenge.new()
 var has_challenge := false
+
+## Whether this venue has a camera on the line.
+##
+## Badminton has had one from the school hall up: when the shuttle lands the umpire gets
+## an overhead view of it against the paint, every rally. Both volleyball ladders have
+## been promising the same thing in their venue data since they were written, and
+## neither sport read the flag — so the two sports asking for the most precise line
+## calls in the game were the two giving the player the least to judge them with.
+var has_close_cam := true
 var ball_cam: ShuttleCam
 
 var net_toucher := Sides.Team.NONE
@@ -623,6 +637,9 @@ func _on_ball_landed(point: Vector3) -> void:
 	_setter = null
 	_phase = Phase.AWAITING_CALL
 	_awaiting_since = Time.get_ticks_msec()
+	if has_close_cam:
+		ball_cam.aim_at(point)
+		ui.show_close_cam(ball_cam.texture())
 	ui.set_prompt(
 		"LEFT CLICK  in    RIGHT CLICK  out    T  touch    R  rotation    F  fault")
 
@@ -638,6 +655,7 @@ func make_call(id: StringName, against := Sides.Team.NONE) -> void:
 
 	rally.seconds_to_call = float(Time.get_ticks_msec() - _awaiting_since) / 1000.0
 	rally.record_call(call, against)
+	ui.hide_close_cam()
 
 	suspicion.register_judgement(
 		rally.verdict() as int,
@@ -819,6 +837,7 @@ func _on_match_requested() -> void:
 	var venue := career.venue()
 	suspicion.scrutiny = venue["scrutiny"]
 	has_challenge = venue["hawk_eye"]
+	has_close_cam = venue["close_cam"]
 	challenge.reset()
 	court.dress(venue["dressing"], venue["crowd"])
 
@@ -831,6 +850,7 @@ func _on_match_requested() -> void:
 	# which is a very short match indeed.
 	board.cap = NO_CAP
 	board.games_needed = 2 if venue["quick"] else SETS_NEEDED
+	board.decider_target = DECIDER_TARGET
 	board.game_won.connect(func(_team: Sides.Team) -> void:
 		# A new set is a new lineup and two fresh challenges.
 		for team in [Sides.Team.RED, Sides.Team.BLUE]:
@@ -861,6 +881,7 @@ func _finish(headline: String, tint: Color, removed: bool) -> void:
 		return
 	_phase = Phase.REMOVED
 	camera.set_active(false)
+	ui.hide_close_cam()
 	ui.set_prompt("")
 
 	var detail := _reckoning()

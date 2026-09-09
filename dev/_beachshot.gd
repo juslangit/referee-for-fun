@@ -40,7 +40,7 @@ func _ready() -> void:
 		await get_tree().physics_frame
 	await _shot("res://dev/shots/beach_rally.png")
 
-	# And the moment of the call.
+	# And the moment of the call, with the camera on the line showing.
 	var waited := 0
 	while arena._phase != arena.Phase.AWAITING_CALL and waited < 4000:
 		await get_tree().physics_frame

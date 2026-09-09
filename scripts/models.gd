@@ -279,6 +279,11 @@ static func _world_aabb(node: Node3D) -> AABB:
 ## reason the different-shirt rule exists in the sport. A tint will not do it: the kit
 ## is painted into the texture, so multiplying it by yellow gives a dirty version of
 ## whatever it already was rather than a yellow shirt.
+## Puts a whole figure, and everything hanging off it, on one visual layer.
+static func set_layer(node: Node, layer: int) -> void:
+	_set_layer(node, layer)
+
+
 static func wear_bib(figure: Node3D, colour: Color) -> void:
 	if figure == null:
 		return

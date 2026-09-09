@@ -73,6 +73,12 @@ const REACH := 0.9
 ## in any position to know.
 const BLOCK_TOUCHES := 0.45
 
+## Beach sets are to 21 and the third one is to 15, with no cap either way — you win by
+## two or you keep playing.
+const SET_TARGET := 21
+const DECIDER_TARGET := 15
+const NO_CAP := 9999
+
 ## How long the ball may be up before the rally is abandoned. A rally that never ends
 ## is worse than one that ends oddly.
 const RALLY_LIMIT := 22.0
@@ -105,6 +111,15 @@ var sound: Sound
 ## is what the two top rungs' blurbs have been promising since they were written.
 var challenge := Challenge.new()
 var has_challenge := false
+
+## Whether this venue has a camera on the line.
+##
+## Badminton has had one from the school hall up: when the shuttle lands the umpire gets
+## an overhead view of it against the paint, every rally. Both volleyball ladders have
+## been promising the same thing in their venue data since they were written, and
+## neither sport read the flag — so the two sports asking for the most precise line
+## calls in the game were the two giving the player the least to judge them with.
+var has_close_cam := true
 var ball_cam: ShuttleCam
 
 ## True while a review is on screen, which is the only time the referee is a spectator.
@@ -372,6 +387,7 @@ func _on_match_requested() -> void:
 	var venue := career.venue()
 	suspicion.scrutiny = venue["scrutiny"]
 	has_challenge = venue["hawk_eye"]
+	has_close_cam = venue["close_cam"]
 	challenge.reset()
 	court.dress(venue["dressing"], venue["crowd"])
 	board = Scoreboard.new(venue["quick"])
@@ -419,6 +435,7 @@ func _finish(headline: String, tint: Color, removed: bool) -> void:
 		return
 	_phase = Phase.REMOVED
 	camera.set_active(false)
+	ui.hide_close_cam()
 	ui.set_prompt("")
 
 	var detail := _reckoning()
@@ -731,6 +748,9 @@ func _on_ball_landed(point: Vector3) -> void:
 	_setter = null
 	_phase = Phase.AWAITING_CALL
 	_awaiting_since = Time.get_ticks_msec()
+	if has_close_cam:
+		ball_cam.aim_at(point)
+		ui.show_close_cam(ball_cam.texture())
 	ui.set_prompt("LEFT CLICK  in    RIGHT CLICK  out    T  touch    F  fault")
 
 
@@ -745,6 +765,7 @@ func make_call(id: StringName, against := Sides.Team.NONE) -> void:
 
 	rally.seconds_to_call = float(Time.get_ticks_msec() - _awaiting_since) / 1000.0
 	rally.record_call(call, against)
+	ui.hide_close_cam()
 	# Net touch and crossing under the net are things a person did, so they are recorded
 	# on the match rather than on the ball's rally. The rally has to know about them
 	# before it can say who should have won the point.
