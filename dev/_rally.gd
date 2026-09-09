@@ -9,7 +9,7 @@ func _ready() -> void:
 	arena.print_truth_while_testing = false
 	add_child(arena)
 	await get_tree().physics_frame
-	arena._on_length_chosen(true)
+	arena._set_up_the_match(true)
 	arena.begin_match()
 
 	print("%-4s %-6s %-24s %-30s %s" % ["#", "shots", "truth", "offence", "score"])

@@ -38,7 +38,7 @@ func _ready() -> void:
 	arena.ui.hide_briefing()
 
 	# 4. The chair, mid-rally, which is where the game actually happens.
-	arena._on_length_chosen(false)
+	arena._set_up_the_match(false)
 	arena.ui.hide_briefing()
 	arena.begin_match()
 	# Two rallies of warm-up, so the score is not 0-0 but the run still finishes.

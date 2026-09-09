@@ -91,12 +91,24 @@ func _ready() -> void:
 	print("scored WRONG:   %d  (%.0f%%)" % [wrong, 100.0 * float(wrong) / maxf(1.0, float(judged))])
 	print("suspicion:      %.3f   (warning at %.2f, removed at %.2f)" % [
 		arena.suspicion.level, Suspicion.WARNING_LEVEL, Suspicion.REMOVAL_LEVEL])
-	print("   of which the harness's own slowness (hesitation):   %.3f" % dithered)
-	print("   service court errors it sat through:                %d, costing %.3f" % [
-		missed_courts, missed_courts * Suspicion.MISSED_SERVICE_COURT * arena.suspicion.scrutiny])
-	print("   left over, which is what the rules actually charged: %.3f" % (
-		arena.suspicion.level - dithered
-		- missed_courts * Suspicion.MISSED_SERVICE_COURT * arena.suspicion.scrutiny))
+	# Gross charges and the recovery separately, never subtracted from each other.
+	#
+	# The old breakdown took the components off `suspicion.level` and called the
+	# remainder "what the rules actually charged" — but `level` is a **net** figure:
+	# every correct call hands some of it back, and the total is floored at zero. So a
+	# perfect umpire who was charged 0.098 for three service court errors and then
+	# recovered all of it printed a left-over of **-0.098**, which is not a number
+	# suspicion can hold and told the reader something false about a run that was fine.
+	var sat_through: float = (float(missed_courts) * Suspicion.MISSED_SERVICE_COURT
+		* arena.suspicion.scrutiny)
+	print("   charged along the way")
+	print("      the harness's own slowness (hesitation)      %.3f" % dithered)
+	print("      service court errors it sat through          %.3f  (%d of them)" % [
+		sat_through, missed_courts])
+	print("   handed back by correct calls, up to             %.3f  (%d of them, at %.3f each)" % [
+		float(judged - wrong) * Suspicion.RECOVERY_PER_CORRECT_CALL,
+		judged - wrong, Suspicion.RECOVERY_PER_CORRECT_CALL])
+	print("   the level above is what is left of that, floored at zero")
 	for why in reasons:
 		print("   %-58s %d" % [why, reasons[why]])
 	get_tree().quit()

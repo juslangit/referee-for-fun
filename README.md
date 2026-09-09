@@ -105,6 +105,11 @@ project settings — Godot refuses a universal or arm64 export without it. The a
 was an Intel-only build running under Rosetta on the machine this game is developed on,
 which is the wrong way round.
 
+That setting is asserted by `dev/_selfcheck.tscn`, because a comment cannot protect it:
+Godot rewrites `project.godot` every time the editor opens, reorders the keys and
+deletes every `;` line, so the note explaining it survived until the next editor run and
+left a setting sitting there looking like nobody meant it.
+
 ## Running it from source
 
 Open the project in **Godot 4.7.2** and run `scenes/match.tscn`. That is the only scene

@@ -17,7 +17,7 @@ func _ready() -> void:
 	add_child(arena)
 	await get_tree().physics_frame
 
-	arena._on_length_chosen(false)
+	arena._set_up_the_match(false)
 	arena.begin_match()
 
 	print("leaning towards RED, and lying only when the margin is under %.0f cm\n" % (Rally.BLATANT_MARGIN * NERVE * 100.0))

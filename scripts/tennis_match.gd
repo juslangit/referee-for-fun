@@ -111,6 +111,9 @@ var net_toucher := Sides.Team.NONE
 var reached_over_by := Sides.Team.NONE
 var _incident_visibility := 0.0
 
+## Whether the point's one incident has already been put on screen.
+var _incident_shown := false
+
 
 func sport() -> StringName:
 	return Career.TENNIS
@@ -305,6 +308,7 @@ func start_rally() -> void:
 	net_toucher = Sides.Team.NONE
 	reached_over_by = Sides.Team.NONE
 	_incident_visibility = 0.0
+	_incident_shown = false
 	_rally_seconds = 0.0
 	_letting_it_go = false
 	_not_up_visibility = 0.0
@@ -475,7 +479,7 @@ func _take_the_stroke(here: Vector3) -> void:
 
 	# Somebody who is about to touch the net, or play the ball before it has crossed,
 	# does it here — on their way to a shot, at the net, where both happen.
-	_stage_any_incident(hitter)
+	_stage_any_incident()
 
 	_striker.swing(here.y > 1.6)
 	sound.strike(here, going_for_it)
@@ -540,17 +544,25 @@ func _line_ball(against: Sides.Team) -> Vector3:
 ## told the game that somebody had reached over the net during a delivery nobody had
 ## returned. An umpire who correctly called the serve a fault was then charged for
 ## missing an offence that had not happened.
-func _stage_any_incident(hitter: Sides.Team) -> void:
+func _stage_any_incident() -> void:
+	# Once a point, whoever it is. It used to happen only when the culprit was the
+	# player about to hit, which quietly meant that about half of every net touch and
+	# every reach over the net was rolled and then never occurred — the defender is at
+	# the net as often as the striker is. Without the guard it would now happen on every
+	# stroke instead, which is the same mistake the other way round.
+	if _incident_shown:
+		return
 	var culprit := Sides.Team.NONE
 	if net_toucher != Sides.Team.NONE:
 		culprit = net_toucher
 	elif reached_over_by != Sides.Team.NONE:
 		culprit = reached_over_by
-	if culprit == Sides.Team.NONE or culprit != hitter:
+	if culprit == Sides.Team.NONE:
 		return
 	var offender := _player(culprit)
 	if offender == null:
 		return
+	_incident_shown = true
 	if net_toucher == culprit:
 		rally.net_toucher = culprit
 	else:

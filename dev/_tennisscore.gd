@@ -18,6 +18,7 @@ func _ready() -> void:
 	_a_tiebreak()
 	print()
 	_a_match()
+	_fast4()
 	get_tree().quit()
 
 
@@ -106,3 +107,30 @@ func _take_a_game(board: TennisScore, team: Sides.Team) -> void:
 	var sets_had: int = board.sets[team]
 	while board.games[team] == had and board.sets[team] == sets_had and not board.is_over:
 		board.award(team)
+
+## Fast4, which is what the opening venues are played under.
+func _fast4() -> void:
+	print()
+	print("Fast4 — four games, tiebreak at three-all, no advantage")
+	var board := TennisScore.new(true)
+	print("   a set is %d games, tiebreak at %d, no advantage: %s" % [
+		board.games_to_win, board.tiebreak_at, board.no_advantage])
+
+	for i in 3:
+		board.award(Sides.Team.RED)
+		board.award(Sides.Team.BLUE)
+	print("   three points each: %s" % board.called_score(Sides.Team.RED))
+	board.award(Sides.Team.RED)
+	print("   RED takes the deciding point — game: %s" % board.games_line())
+
+	# Three games each, which under Fast4 is a tiebreak.
+	while board.games[Sides.Team.RED] < 3:
+		for i in 4:
+			board.award(Sides.Team.RED)
+	while board.games[Sides.Team.BLUE] < 3:
+		for i in 4:
+			board.award(Sides.Team.BLUE)
+	print("   at three all: %s, tiebreak: %s" % [board.games_line(), board.in_tiebreak])
+	for i in 7:
+		board.award(Sides.Team.RED)
+	print("   RED takes the tiebreak: %s, over: %s" % [board.games_line(), board.is_over])

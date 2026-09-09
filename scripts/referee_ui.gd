@@ -8,7 +8,6 @@ extends CanvasLayer
 ## hall can see. Whether the call was true is not among them. The moment this screen
 ## can tell the player they got it right, the game stops being about judgement.
 
-signal length_chosen(quick: bool)
 signal briefing_acknowledged()
 signal punishment_chosen(id: StringName, team: Sides.Team)
 signal match_requested()
@@ -57,21 +56,22 @@ const METER_SHAKY := 0.30
 var _root: Control
 var _hud: Control
 
-## The sports, in the order they appear. Only one of them is a game so far; the rest
-## are here because a selection screen with one thing to select is a strange object, and
+## The sports, in the order they appear. Four of them are games; the other two are here
 ## because saying out loud what is coming is more honest than pretending it is finished.
 ##
-## Badminton's picture is a photograph of this game, rendered by _card.gd. The others are
-## public-domain Olympic pictograms — see assets/ui/ATTRIBUTION.md.
+## The four finished sports are photographs of this game, rendered by dev/_cards.gd. The
+## two that are not built yet are public-domain Olympic pictograms — see
+## assets/ui/ATTRIBUTION.md. That split is the whole point of the row: a real picture
+## means a sport you can actually walk into.
 const SPORTS := [
 	{"id": &"badminton", "name": "Badminton", "art": "res://assets/ui/card_badminton.png",
 		"tint": Color(0.16, 0.44, 0.30), "ready": true},
 	{"id": &"beach", "name": "Beach Volleyball",
-		"art": "res://assets/ui/sport_beachvolleyball.png",
+		"art": "res://assets/ui/card_beachvolleyball.png",
 		"tint": Color(0.78, 0.52, 0.20), "ready": true},
-	{"id": &"indoor", "name": "Volleyball", "art": "res://assets/ui/sport_volleyball.png",
+	{"id": &"indoor", "name": "Volleyball", "art": "res://assets/ui/card_volleyball.png",
 		"tint": Color(0.44, 0.24, 0.52), "ready": true},
-	{"id": &"tennis", "name": "Tennis", "art": "res://assets/ui/sport_tennis.png",
+	{"id": &"tennis", "name": "Tennis", "art": "res://assets/ui/card_tennis.png",
 		"tint": Color(0.20, 0.38, 0.58), "ready": true},
 	{"id": &"table_tennis", "name": "Table Tennis", "art": "res://assets/ui/sport_tabletennis.png",
 		"tint": Color(0.60, 0.34, 0.16), "ready": false},
@@ -91,7 +91,6 @@ var _pause_menu: Control
 var _career_panel: Control
 var _career_column: VBoxContainer
 var _ending_button: Button
-var _length_panel: Control
 
 ## The screen that gives you a reason before it asks you the question.
 var _close_cam_caption: Label
@@ -130,6 +129,11 @@ var _meter_fill: StyleBoxFlat
 var _meter_left := 0.0
 var _meter_shown := 0.0
 
+## The pause menu's free exit, and the line under it. Both hidden once the match has
+## begun to matter.
+var _leave_button: Button
+var _leave_note: Label
+
 
 func _ready() -> void:
 	layer = 10
@@ -148,13 +152,11 @@ func _ready() -> void:
 	_build_review()
 	_build_pause_menu()
 	_build_career_panel()
-	_build_length_panel()
 	_build_briefing()
 	_build_hud()
 	_build_ending()
 	_build_shuttle_cam()
 	_build_fault_panel()
-	_length_panel.visible = false
 	_briefing.visible = false
 
 
@@ -1108,6 +1110,24 @@ func _build_pause_menu() -> void:
 	column.add_child(_make_label("PAUSED", TITLE_SIZE, Color(0.96, 0.96, 0.94)))
 	column.add_child(_gap(22))
 	column.add_child(_centred(_make_wide_button("RESUME", func() -> void: resume_requested.emit())))
+
+	# A way out that costs nothing, offered only before the match has begun to matter.
+	#
+	# Until now the only exits were WALK OUT, which counts the same as being thrown off,
+	# and QUIT, which closes the game — so somebody who opened the wrong sport had to
+	# damage a career to get out of it. This appears only while no call has been made
+	# yet, because a free exit from a match already going badly would be a way to dodge
+	# every consequence in the game.
+	column.add_child(_gap(6))
+	_leave_button = _make_wide_button("BACK TO THE MENU", func() -> void:
+		main_menu_requested.emit())
+	column.add_child(_centred(_leave_button))
+	_leave_note = _make_label(
+		"Nothing has happened yet. Leaving now costs nothing.",
+		PROMPT_SIZE - 1, Color(0.55, 0.62, 0.55)
+	)
+	column.add_child(_leave_note)
+
 	column.add_child(_gap(6))
 	column.add_child(_centred(_make_wide_button("WALK OUT", func() -> void: walk_out_requested.emit())))
 	column.add_child(_make_label(
@@ -1118,10 +1138,16 @@ func _build_pause_menu() -> void:
 	column.add_child(_centred(_make_wide_button("QUIT", func() -> void: quit_requested.emit())))
 
 
-func show_pause_menu() -> void:
+## `can_leave_freely` is whether the match has yet cost anybody anything — in practice,
+## whether a single call has been made.
+func show_pause_menu(can_leave_freely := false) -> void:
 	# Whatever was still fading in the middle of the screen would otherwise sit
 	# straight across the RESUME button.
 	clear_messages()
+	hide_reputation()
+	if _leave_button != null:
+		_leave_button.visible = can_leave_freely
+		_leave_note.visible = can_leave_freely
 	_pause_menu.visible = true
 
 
@@ -1285,10 +1311,6 @@ func hide_pause_menu() -> void:
 	_pause_menu.visible = false
 
 
-func is_paused_menu_open() -> bool:
-	return _pause_menu.visible
-
-
 func _centred(control: Control) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1428,7 +1450,6 @@ func hide_menus() -> void:
 	_main_menu.visible = false
 	_career_panel.visible = false
 	_pause_menu.visible = false
-	_length_panel.visible = false
 	_briefing.visible = false
 
 
@@ -1445,56 +1466,6 @@ func _make_wide_button(text: String, on_press: Callable) -> Button:
 	button.pressed.connect(on_press)
 	var row := button
 	return row
-
-
-func _build_length_panel() -> void:
-	_length_panel = Control.new()
-	_length_panel.name = "MatchLength"
-	_length_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_length_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	_root.add_child(_length_panel)
-
-	var backdrop := ColorRect.new()
-	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	backdrop.color = Color(0.03, 0.04, 0.06, 0.55)
-	_length_panel.add_child(backdrop)
-
-	var column := VBoxContainer.new()
-	column.set_anchors_preset(Control.PRESET_CENTER)
-	column.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	column.grow_vertical = Control.GROW_DIRECTION_BOTH
-	column.alignment = BoxContainer.ALIGNMENT_CENTER
-	column.add_theme_constant_override("separation", 18)
-	_length_panel.add_child(column)
-
-	column.add_child(_make_label("HOW LONG HAVE YOU GOT?", TITLE_SIZE, Color(0.95, 0.95, 0.93)))
-	column.add_child(_make_label(
-		"A longer match gives you more chances, and more chances to be caught taking them.",
-		PROMPT_SIZE,
-		Color(0.62, 0.64, 0.68)
-	))
-
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 14)
-	column.add_child(spacer)
-
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 14)
-	column.add_child(row)
-
-	row.add_child(_make_length_button("QUICK GAME\nfirst to 11", true))
-	row.add_child(_make_length_button("FULL MATCH\nbest of 3 to 21", false))
-
-
-func _make_length_button(text: String, quick: bool) -> Button:
-	var button := Button.new()
-	button.text = text
-	button.custom_minimum_size = Vector2(210, 66)
-	# The button only reports the choice. Which screen comes next is the match's
-	# decision, not this file's — otherwise the flow only works when a human clicks.
-	button.pressed.connect(func() -> void: length_chosen.emit(quick))
-	return button
 
 
 # --- the reason ----------------------------------------------------------------
@@ -1559,7 +1530,6 @@ func _build_briefing() -> void:
 
 
 func show_briefing(pressure: Pressure) -> void:
-	_length_panel.visible = false
 	_briefing_headline.text = pressure.headline.to_upper()
 	_briefing_detail.text = pressure.detail
 	_briefing_ask.text = pressure.ask
@@ -1955,8 +1925,32 @@ func _build_ending() -> void:
 
 ## The reckoning. Once the match is over the truth is finally allowed on screen —
 ## this is the only place in the whole game where that is true.
+## The last screen, and the only one allowed to state the truth.
+##
+## It puts everything else away first. Every other `show_*` in this file does that and
+## this one did not — it set `_ending.visible = true` twice and hid nothing — so whatever
+## happened to be on screen when the match ended stayed behind it: the score bug, the
+## review that was still up at the moment you were taken off, and, coming from the title
+## screen, the whole main menu reading through the sheet.
+##
+## `hide_menus` is deliberately not used. It turns the HUD back **on**, because it is
+## what a match beginning calls.
 func show_ending(headline: String, detail: String, tint := Color(0.96, 0.42, 0.36)) -> void:
-	_ending.visible = true
+	hide_sport_menu()
+	hide_settings()
+	hide_teaching()
+	hide_career()
+	hide_review()
+	hide_fault_panel()
+	hide_close_cam()
+	hide_briefing()
+	hide_reputation()
+	clear_messages()
+	_main_menu.visible = false
+	_pause_menu.visible = false
+	if _hud != null:
+		_hud.visible = false
+
 	_ending_headline.text = headline
 	_ending_headline.add_theme_color_override("font_color", tint)
 	_ending_detail.text = detail

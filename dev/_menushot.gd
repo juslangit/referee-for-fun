@@ -18,7 +18,20 @@ func _ready() -> void:
 
 	arena.ui._main_menu.visible = false
 	arena._on_match_requested()
+	# Whoever is leaning on you this week has their say first, and the briefing has to be
+	# acknowledged rather than left standing — going straight to begin_match left it on
+	# screen for the whole run, and the pause menu was then photographed underneath it.
+	if arena.pressure.exists():
+		arena.ui.hide_briefing()
 	arena.begin_match()
+
+	# Paused before a single call has been made, which is the only time the game offers
+	# a way back to the menu that costs nothing.
+	arena._pause()
+	await _shot("res://_shot_pause_early.png")
+	get_tree().paused = false
+	arena.ui.hide_pause_menu()
+
 	for r in range(2):
 		arena._start_rally()
 		var waited := 0

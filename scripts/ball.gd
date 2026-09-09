@@ -51,6 +51,21 @@ var bounces := 0
 ## Below this the ball is treated as at rest and stops being pushed around.
 const REST_SPEED := 0.05
 
+## How long the ball is allowed to carry on after the point is over.
+##
+## It is not stopped the instant it lands, because the bounce is how a landing reads —
+## the ball hits, the sand kicks up, and everybody looks at the mark. It is stopped a
+## moment later, because a ball nobody is playing any more should not still be crossing
+## the court while the official decides.
+const SETTLE_SECONDS := 1.1
+
+var settle_seconds := SETTLE_SECONDS
+
+## How quickly the ball is brought to a stop after that, per physics tick, and the
+## speed below which it is simply put down.
+const SETTLE_DAMPING := 0.80
+const SETTLE_REST_SPEED := 1.2
+
 ## The layer the ball is drawn on. Stated, not defaulted, because the overhead camera
 ## draws this layer and nothing else, and the ball is the one thing it exists to show.
 const COURT_LAYER := 1
@@ -58,6 +73,17 @@ const COURT_LAYER := 1
 var has_landed := false
 var landing_point := Vector3.ZERO
 var landing_speed := 0.0
+
+## Whether the point is over and the ball is being taken out of play, and how much is
+## left of the moment it is given to bounce first.
+##
+## Two fields rather than one signed countdown, deliberately. A single float that used
+## its sign to mean "not stopping" runs its expiry branch for exactly one tick — the tick
+## it crosses zero — and is then indistinguishable from a live ball, so the damping below
+## was applied once and never again. Beach and indoor happened to be slow enough for that
+## one tick to be enough. Tennis was not, and stayed 14 m from its own mark.
+var _stopping := false
+var _settling := 0.0
 
 ## The height the sand is at. Set by the court.
 var floor_height := 0.0
@@ -94,6 +120,8 @@ func _ready() -> void:
 func launch(from: Vector3, velocity: Vector3) -> void:
 	has_landed = false
 	bounces = 0
+	_stopping = false
+	_settling = 0.0
 	landing_point = Vector3.ZERO
 	freeze = false
 	global_position = from
@@ -112,7 +140,8 @@ func launch(from: Vector3, velocity: Vector3) -> void:
 ##
 ## Nothing about volleyball changes: the truth is taken on the way down, on the first
 ## bounce, and whatever the ball does afterwards cannot reach it.
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	_settle(delta)
 	var velocity := linear_velocity
 	var speed := velocity.length()
 	if speed > REST_SPEED:
@@ -166,6 +195,46 @@ func _check_for_landing() -> void:
 	global_position = landing_point + Vector3(0.0, radius, 0.0)
 	_bounce_again()
 	landed.emit(landing_point)
+
+
+## The point is over: give the ball a moment and then stop it where it lies.
+##
+## Needed because the ball is simulated for as long as the match lasts now, and nothing
+## used to end that. On sand it hardly mattered — a volleyball off dry sand keeps about a
+## third of its speed and is at rest inside two metres. A tennis ball keeps nearly three
+## quarters of it off a hard court, and measured, it was **13.6 m from the mark on
+## average and still travelling at 10.6 m/s** three seconds after the point ended. The
+## official was being asked to judge a landing while the ball sailed out of the stadium.
+func let_it_settle(seconds := -1.0) -> void:
+	if freeze:
+		return
+	_stopping = true
+	_settling = seconds if seconds >= 0.0 else settle_seconds
+
+
+func _settle(delta: float) -> void:
+	if not _stopping:
+		return
+	if _settling > 0.0:
+		_settling -= delta
+		return
+
+	# Once the moment is up the ball is taken out of the point rather than switched off.
+	#
+	# Waiting for it to be near the floor and freezing it there does not work on a fast
+	# ball: at 120 Hz a tennis ball falling at 11 m/s moves 9 cm a tick and the ball is
+	# 6.7 cm across, so it steps straight over its own resting height and bounces away
+	# again. Measured, that left it 13 m from the mark and still going. Damping it hard
+	# instead kills any speed in about a tenth of a second, which reads as a ball losing
+	# its life rather than as a dropped frame.
+	linear_velocity *= SETTLE_DAMPING
+	angular_velocity *= SETTLE_DAMPING
+	if linear_velocity.length() > SETTLE_REST_SPEED:
+		return
+	linear_velocity = Vector3.ZERO
+	angular_velocity = Vector3.ZERO
+	freeze = true
+	_stopping = false
 
 
 ## Kicks it back up off the ground, keeping some of the speed it arrived with.

@@ -56,11 +56,18 @@ static func _fault(id: StringName, label: String, announcement: String,
 	return call
 
 
+## What goes on the fault panel: the things you point at somebody for.
+##
+## The net cord is deliberately not among them. It is a conduct call in the sense that
+## it judges an event rather than a landing, so it came back from a plain
+## `judges_conduct` filter — and the panel then asked the umpire to point at a player
+## and accuse them of a let, which is not a thing anybody does. A let takes the point
+## away from nobody. It has the L key of its own and that is the whole of it.
 static func faults() -> Array:
 	_build()
 	var found := []
 	for call in _calls.values():
-		if call.judges_conduct:
+		if call.judges_conduct and call.id != &"let":
 			found.append(call)
 	return found
 

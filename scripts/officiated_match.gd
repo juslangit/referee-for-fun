@@ -58,6 +58,10 @@ var _phase := Phase.MENU
 var _reviewing := false
 var _awaiting_since := 0
 
+## How many calls this official has made in this match. Only used to decide whether
+## leaving costs anything: before the first call there is nothing to answer for.
+var calls_made := 0
+
 @export var print_truth_while_testing := true
 
 
@@ -259,6 +263,7 @@ func _on_set_won(_team: Sides.Team) -> void:
 ## between asking for a match and the first serve, and capturing the cursor for the
 ## camera leaves both of them showing buttons that cannot be clicked.
 func begin_match(_unused := Sides.Team.NONE) -> void:
+	calls_made = 0
 	camera.set_active(true)
 	_start_watching_reputation()
 	go_ready()
@@ -427,7 +432,8 @@ func _reckoning() -> String:
 ## click is not a menu.
 func pause_the_match() -> void:
 	camera.set_active(false)
-	ui.show_pause_menu()
+	# The free exit is offered only while nothing has happened. See show_pause_menu.
+	ui.show_pause_menu(calls_made == 0)
 	get_tree().paused = true
 
 
@@ -549,6 +555,7 @@ func judge(call: CallType, against: Sides.Team) -> void:
 	if rally == null:
 		return
 
+	calls_made += 1
 	rally.seconds_to_call = float(Time.get_ticks_msec() - _awaiting_since) / 1000.0
 	rally.record_call(call, against)
 	rally.line_judge_called = _judge_called
@@ -831,6 +838,12 @@ func _build_the_mark() -> void:
 
 
 func mark_the_landing(point: Vector3) -> void:
+	# The point is over — every sport on this spine marks the landing at exactly that
+	# moment — so the ball is given a beat to bounce and is then stopped. See
+	# Ball.let_it_settle: without it a tennis ball was 13.6 m from its own mark and
+	# still travelling while the official decided.
+	if _ball != null:
+		_ball.let_it_settle()
 	if _landing_mark == null:
 		return
 	_landing_mark.global_position = point + Vector3(0.0, 0.002, 0.0)

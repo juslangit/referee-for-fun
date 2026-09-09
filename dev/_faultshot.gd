@@ -8,7 +8,7 @@ func _ready() -> void:
 	arena.print_truth_while_testing = false
 	add_child(arena)
 	await get_tree().physics_frame
-	arena._on_length_chosen(false)
+	arena._set_up_the_match(false)
 	arena.begin_match()
 
 	for r in range(3):

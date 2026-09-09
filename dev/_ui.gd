@@ -13,7 +13,7 @@ func _ready() -> void:
 	await _shot("res://_shot_ui_menu.png")
 
 	ui.hide_menus()
-	arena._on_length_chosen(false)
+	arena._set_up_the_match(false)
 	arena.begin_match()
 	arena.court.dress(Venue.Tier.ARENA)
 	arena.court.stands.set_density(1.0)

@@ -28,8 +28,4 @@ common/physics_ticks_per_second=120
 [rendering]
 
 anti_aliasing/quality/msaa_3d=2
-; Needed to export a universal macOS build: Apple Silicon requires ASTC-compressed
-; textures, and Godot refuses a universal or arm64 export without this on. The
-; alternative was an Intel-only build running under Rosetta on the machine this game
-; is developed and played on, which is the wrong way round.
 textures/vram_compression/import_etc2_astc=true

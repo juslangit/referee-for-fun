@@ -215,12 +215,6 @@ func is_a_let() -> bool:
 	return is_a_serve and clipped_the_cord and serve_was_good
 
 
-## Whether the server gets another go rather than losing the point.
-func earns_a_second_serve() -> bool:
-	return is_a_serve and serve_number == 1 and (foot_fault or not serve_was_good) \
-		and not is_a_let()
-
-
 ## Whether the official has publicly contradicted the line judge, or hidden behind them.
 func overrules_line_judge() -> bool:
 	if call == null or not call.judges_the_landing or not line_judge_called:

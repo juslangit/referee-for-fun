@@ -26,11 +26,23 @@ const TENNIS_TERMINAL := 30.0
 const HARD_COURT_BOUNCE := 0.72
 
 
+## How long the ball is left alone after the point is over, which has to be far shorter
+## here than on sand.
+##
+## A volleyball off dry sand keeps a third of its speed and is at rest inside two metres.
+## A tennis ball keeps nearly three quarters of it, so the same second of grace carried
+## it **13.5 m from its own mark** — out of the court, past the run-back and into the
+## stands, while the official was still looking at where it landed. One bounce is enough
+## to read the landing, and one bounce is what it gets.
+const SETTLE_AFTER_ONE_BOUNCE := 0.35
+
+
 func _init() -> void:
 	mass_kg = TENNIS_MASS
 	radius = TENNIS_RADIUS
 	terminal_velocity = TENNIS_TERMINAL
 	bounce = HARD_COURT_BOUNCE
+	settle_seconds = SETTLE_AFTER_ONE_BOUNCE
 
 
 func _build_body() -> void:

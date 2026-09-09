@@ -31,11 +31,32 @@ const GAMES_MARGIN := 2
 ## Where a set stops being about games and becomes a tiebreak.
 const TIEBREAK_AT := 6
 
+## The short format the opening venues are played under: **Fast4**, which is a real
+## thing rather than a convenience invented here — four games to a set, a tiebreak at
+## three-all, and no advantage, so a game standing at deuce is settled by one point.
+##
+## It exists because tennis's own scoring made the first match on the ladder three times
+## longer than any other sport's. Measured, a full set took 80 calls and seven and a half
+## minutes, against 29 calls for beach and 26 for indoor — a tutorial nobody would sit
+## through. Every other sport shortens its first venue; tennis had nothing to shorten
+## except the number of sets, and one set is already the whole match.
+const FAST4_GAMES := 4
+const FAST4_TIEBREAK_AT := 3
+
 ## Points to win a tiebreak, by two.
 const TIEBREAK_TARGET := 7
 
 var sets := {Sides.Team.RED: 0, Sides.Team.BLUE: 0}
 var sets_needed := 2
+
+## The format this match is played under. Full tennis at the venues that deserve it,
+## Fast4 at the ones you are still learning on.
+var games_to_win := GAMES_TO_WIN
+var tiebreak_at := TIEBREAK_AT
+
+## Whether a game standing at deuce is decided by a single point rather than by two
+## clear. Real, and used in Fast4 and in most doubles.
+var no_advantage := false
 
 ## Whether the current game is a tiebreak, which is scored in plain numbers — the one
 ## part of a tennis match that counts the way everything else in this game does.
@@ -47,6 +68,10 @@ func _init(quick := false) -> void:
 	# margin. `target` is left alone so anything reading it gets a sane number.
 	sets_needed = 1 if quick else 2
 	games_needed = sets_needed
+	if quick:
+		games_to_win = FAST4_GAMES
+		tiebreak_at = FAST4_TIEBREAK_AT
+		no_advantage = true
 
 
 ## One point to somebody.
@@ -61,7 +86,7 @@ func award(team: Sides.Team) -> void:
 	points[Sides.Team.RED] = 0
 	points[Sides.Team.BLUE] = 0
 	games[team] += 1
-	in_tiebreak = games[Sides.Team.RED] == TIEBREAK_AT and games[Sides.Team.BLUE] == TIEBREAK_AT
+	in_tiebreak = games[Sides.Team.RED] == tiebreak_at and games[Sides.Team.BLUE] == tiebreak_at
 
 	if not _has_won_set(team):
 		return
@@ -91,16 +116,18 @@ func _has_won_game(team: Sides.Team) -> bool:
 	var mine: int = points[team]
 	var theirs: int = points[Sides.opponent(team)]
 	var needed := TIEBREAK_TARGET if in_tiebreak else 4
-	return mine >= needed and mine - theirs >= 2
+	# No-advantage: three-all is a deciding point, so the fourth wins it outright.
+	var margin := 1 if (no_advantage and not in_tiebreak and mine >= 4 and theirs >= 3) else 2
+	return mine >= needed and mine - theirs >= margin
 
 
 func _has_won_set(team: Sides.Team) -> bool:
 	var mine: int = games[team]
 	var theirs: int = games[Sides.opponent(team)]
-	# A tiebreak game settles the set outright, 7-6.
-	if mine == TIEBREAK_AT + 1 and theirs == TIEBREAK_AT:
+	# A tiebreak game settles the set outright, 7-6 — or 4-3 under Fast4.
+	if mine == tiebreak_at + 1 and theirs == tiebreak_at:
 		return true
-	return mine >= GAMES_TO_WIN and mine - theirs >= GAMES_MARGIN
+	return mine >= games_to_win and mine - theirs >= GAMES_MARGIN
 
 
 ## What the umpire would call this score, from the serving side's point of view.
@@ -118,7 +145,9 @@ func called_score(serving: Sides.Team) -> String:
 
 	if mine >= 3 and theirs >= 3:
 		if mine == theirs:
-			return "DEUCE"
+			# Under no-advantage there is nothing after deuce, so it is worth saying so:
+			# the next point is the game, and everybody on court knows it.
+			return "DECIDING POINT" if no_advantage else "DEUCE"
 		return "ADVANTAGE %s" % Sides.label(serving if mine > theirs else receiving)
 
 	if mine == theirs:

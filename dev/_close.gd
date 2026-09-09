@@ -7,7 +7,7 @@ func _ready() -> void:
 	var arena: Node = load("res://scenes/match.tscn").instantiate()
 	add_child(arena)
 	await get_tree().physics_frame
-	arena._on_length_chosen(false)
+	arena._set_up_the_match(false)
 	arena.begin_match()
 	arena.ui.visible = false
 	await get_tree().process_frame

@@ -293,7 +293,6 @@ func _ready() -> void:
 
 	ui = RefereeUI.new()
 	ui.name = "RefereeUI"
-	ui.length_chosen.connect(_on_length_chosen)
 	ui.briefing_acknowledged.connect(_on_briefing_acknowledged)
 	ui.punishment_chosen.connect(_on_punishment_chosen)
 	ui.match_requested.connect(_on_match_requested)
@@ -370,7 +369,7 @@ func _on_match_requested() -> void:
 	# seating and everybody in it, and a density set before that is thrown away.
 	court.dress(venue["dressing"])
 	court.stands.set_density(venue["crowd"])
-	_on_length_chosen(venue["quick"])
+	_set_up_the_match(venue["quick"])
 
 
 func _set_line_judges_present(present: bool) -> void:
@@ -519,9 +518,16 @@ func _on_quit_requested() -> void:
 
 ## Stops the match dead. The mouse goes back to the player, because a menu you cannot
 ## click is not a menu.
+## How many calls this umpire has made in this match. Only used to decide whether
+## leaving costs anything: before the first call there is nothing to answer for.
+var calls_made := 0
+
+
 func _pause() -> void:
 	camera.set_active(false)
-	ui.show_pause_menu()
+	# The free exit is offered only while nothing has happened yet. Same rule as the
+	# other three sports get from OfficiatedMatch.
+	ui.show_pause_menu(calls_made == 0)
 	get_tree().paused = true
 
 
@@ -545,7 +551,15 @@ func _on_career_restart_requested() -> void:
 	get_tree().reload_current_scene()
 
 
-func _on_length_chosen(quick: bool) -> void:
+
+
+## Everything a match needs before the first serve, whatever route brought us here.
+##
+## It used to be called `_on_length_chosen`, after a QUICK GAME / FULL MATCH panel the
+## player was once shown. The venue has decided the format for a long time now, the
+## panel was built and hidden and never shown again, and its signal could not fire — but
+## this function was never dead. It only carried the dead panel's name.
+func _set_up_the_match(quick: bool) -> void:
 	# A match is starting, however it was started. Putting this here rather than in
 	# the career screen's button means it holds for every route in — including the
 	# development scenes, which were leaving the menu sitting over the court.
@@ -579,6 +593,7 @@ func begin_match(_unused := Sides.Team.NONE) -> void:
 		board = Scoreboard.new(false)
 		board.game_won.connect(_on_game_won)
 		board.match_won.connect(_on_match_won)
+	calls_made = 0
 	camera.set_active(true)
 	_start_watching_reputation()
 	_enter_ready()
@@ -1281,6 +1296,7 @@ func _make_call(id: StringName, against := Sides.Team.NONE) -> void:
 	if call == null:
 		return
 
+	calls_made += 1
 	rally.seconds_to_call = float(Time.get_ticks_msec() - _awaiting_since) / 1000.0
 	rally.record_call(call, against)
 	ui.hide_shuttle_cam()
