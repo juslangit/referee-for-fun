@@ -52,7 +52,7 @@ static func _build() -> void:
 			"Fault. Illegal action by the libero.", 1.1),
 	]
 
-	for call in [ball_in, ball_out, touch] + faults + positional:
+	for call in [ball_in, ball_out, touch, _antenna()] + faults + positional:
 		_calls[call.id] = call
 
 
@@ -71,6 +71,20 @@ static func _positional(id: StringName, label: String, announcement: String,
 		severity: float) -> CallType:
 	var call := _fault(id, label, announcement, severity)
 	call.judges_position = true
+	return call
+
+
+## The ball passing outside an antenna, which is out however cleanly it lands.
+##
+## The only boundary in this sport that is vertical, and the only one with no mark to
+## walk over and argue about afterwards. It happens in the air, at the net, and the
+## referee is the one person standing level with the rod.
+static func _antenna() -> CallType:
+	var call := CallType.new(
+		&"antenna", "OUTSIDE THE ANTENNA", "Outside the antenna.",
+		CallType.Outcome.POINT_AGAINST_THE_OFFENDER)
+	call.judges_conduct = true
+	call.severity = 1.0
 	return call
 
 

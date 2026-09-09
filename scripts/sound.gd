@@ -18,6 +18,43 @@ const WHISTLE := "res://assets/audio/whistle.wav"
 const HIT_SOFT := "res://assets/audio/hit_soft.wav"
 const HIT_HARD := "res://assets/audio/hit_hard.wav"
 const LAND := "res://assets/audio/shuttle_land.wav"
+
+## What each sport is made of.
+##
+## All four used to share these three files, so a shuttlecock landing was also a
+## volleyball dropping into sand and a tennis ball off a hard court. Those are three
+## completely different noises, and **the surface is half of what a landing tells you** —
+## a ball hitting sand is a thud you feel and a ball hitting a hard court is a crack you
+## hear from the back row. In a game whose whole subject is judging where something
+## landed, that is not decoration.
+##
+## Missing files fall back to the badminton set rather than to silence: this is a look-up
+## of what a sport would like, not a promise that it has been sourced yet.
+const KITS := {
+	&"badminton": {
+		"soft": HIT_SOFT,
+		"hard": HIT_HARD,
+		"land": LAND,
+	},
+	&"beach": {
+		"soft": HIT_SOFT,
+		"hard": "res://assets/audio/hit_volley_hard.mp3",
+		"land": "res://assets/audio/land_sand.mp3",
+	},
+	&"indoor": {
+		"soft": HIT_SOFT,
+		"hard": "res://assets/audio/hit_volley_hard.mp3",
+		"land": "res://assets/audio/land_wood.ogg",
+	},
+	&"tennis": {
+		"soft": "res://assets/audio/hit_tennis.mp3",
+		"hard": "res://assets/audio/hit_tennis.mp3",
+		"land": "res://assets/audio/land_hardcourt.mp3",
+	},
+}
+
+## Which sport this hall is currently hosting. Set once, when the match is built.
+var kit := &"badminton"
 const APPLAUSE := "res://assets/audio/applause.wav"
 const GROAN := "res://assets/audio/groan.wav"
 
@@ -126,9 +163,9 @@ func whistle() -> void:
 		_whistle.play()
 
 
-## The shuttle being struck, at the racket rather than in the middle of your head.
+## The ball being struck, at the racket rather than in the middle of your head.
 func strike(where: Vector3, hard: bool) -> void:
-	var path := HIT_HARD if hard else HIT_SOFT
+	var path := _from_kit("hard" if hard else "soft")
 	if not ResourceLoader.exists(path):
 		return
 	var voice := _strikes[_next_strike]
@@ -138,14 +175,25 @@ func strike(where: Vector3, hard: bool) -> void:
 	voice.play()
 
 
+## The ball arriving, on whatever this sport is played on.
 func landing(where: Vector3) -> void:
-	if not ResourceLoader.exists(LAND):
+	var path := _from_kit("land")
+	if not ResourceLoader.exists(path):
 		return
 	var voice := _strikes[_next_strike]
 	_next_strike = (_next_strike + 1) % _strikes.size()
-	voice.stream = load(LAND)
+	voice.stream = load(path)
 	voice.global_position = where
 	voice.play()
+
+
+## One sound out of this sport's kit, falling back to badminton's if it is not there.
+func _from_kit(which: String) -> String:
+	var chosen: Dictionary = KITS.get(kit, KITS[&"badminton"])
+	var path := String(chosen.get(which, ""))
+	if path.is_empty() or not ResourceLoader.exists(path):
+		return String(KITS[&"badminton"][which])
+	return path
 
 
 ## The hall's verdict on the call. Applause if it liked it, a groan if it did not — and

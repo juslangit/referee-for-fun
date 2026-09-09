@@ -79,8 +79,8 @@ const RALLY_LIMIT := 22.0
 ## neighbouring version of this lesson the hard way: rolling per stroke at seven percent
 ## put a fault in a third of all rallies and made an honest umpire look bent.
 const FAULT_CHANCE := 0.11
-const FAULT_KINDS := [&"foot_fault", &"net_touch", &"centre_line", &"handling"]
-const FAULT_WEIGHTS := [0.22, 0.30, 0.16, 0.32]
+const FAULT_KINDS := [&"foot_fault", &"net_touch", &"centre_line", &"handling", &"antenna"]
+const FAULT_WEIGHTS := [0.19, 0.24, 0.13, 0.26, 0.18]
 
 var court: BeachCourt
 
@@ -123,6 +123,11 @@ var _rally_seconds := 0.0
 ## person did rather than things the ball did.
 var net_toucher := Sides.Team.NONE
 var centre_line_crosser := Sides.Team.NONE
+
+## Whether this rally's attacker has been run out past the sideline. A ball played from
+## out there crosses the net near where it was struck, which is the only way it ever
+## passes outside an antenna.
+var _chasing_it_wide := false
 
 
 
@@ -305,6 +310,7 @@ func start_rally() -> void:
 	centre_line_crosser = Sides.Team.NONE
 	_rally_seconds = 0.0
 
+	_chasing_it_wide = false
 	_roll_for_one_fault()
 
 	_possession = serving
@@ -360,6 +366,11 @@ func _roll_for_one_fault() -> void:
 		&"handling":
 			rally.handling_fault = true
 			rally.handling_visibility = randf_range(0.25, 0.85)
+		&"antenna":
+			# Not recorded here. It has to actually happen, and it happens by the
+			# attacker being run out wide and playing the ball back round the rod —
+			# which is where the call comes from in the real sport too.
+			_chasing_it_wide = true
 
 
 ## Launches a shot that has to cross the net, at the flattest angle that actually gets
@@ -459,6 +470,12 @@ func _set_point(team: Sides.Team) -> Vector3:
 ## Where the third touch is played from: at the net, ready to hit over it.
 func _attack_point(team: Sides.Team) -> Vector3:
 	var side := Sides.half_sign(team)
+	if _chasing_it_wide:
+		# Out past the sideline, level with the net. From here the ball crosses the net
+		# roughly where it was struck, and the antenna is what it has to get past.
+		var wide := BeachSpec.ANTENNA_X + randf_range(0.12, 0.55)
+		return Vector3((1.0 if randf() < 0.5 else -1.0) * wide,
+			BeachCourt.SURFACE_Y, side * randf_range(0.9, 1.6))
 	return Vector3(randf_range(-2.4, 2.4), BeachCourt.SURFACE_Y, side * 1.5)
 
 
@@ -474,6 +491,16 @@ func _attack(from: Vector3) -> void:
 	rally.receiving = against
 
 	var target := _attack_target(against)
+	if _chasing_it_wide:
+		target = _around_the_antenna(against, from)
+	# Where it passes the net, which is what the antenna is about. Measured from the
+	# flight rather than asserted by whoever rolled the fault: a ball struck from out
+	# past the sideline crosses near where it was hit, and one struck from inside the
+	# court does not, whatever anybody intended.
+	var at_the_net := crossing_x(from, target)
+	rally.inside_the_antennae = BeachSpec.inside_the_antennae(Vector3(at_the_net, 0.0, 0.0))
+	rally.antenna_margin = BeachSpec.ANTENNA_X - absf(at_the_net)
+
 	# A block can only touch a ball that was going out behind it, which in practice
 	# means one aimed at or past the end line.
 	var going_long: bool = absf(target.z) >= BeachSpec.HALF_LENGTH - 0.05
@@ -558,6 +585,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	# so without this the referee could stand there calling the same rally three more
 	# times while the first call was still being examined.
 	if _reviewing:
+		# The only key a review listens to, and only once the answer is on screen. The
+		# wait before that is the point of a review and is not skippable.
+		if (_can_skip_review and event is InputEventKey and event.pressed
+				and event.keycode == KEY_SPACE):
+			_review_skipped = true
 		return
 	if _phase == Phase.REMOVED or _phase == Phase.MENU:
 		return
@@ -587,3 +619,26 @@ func _unhandled_input(event: InputEvent) -> void:
 					make_call(&"out")
 			elif event is InputEventKey and event.pressed and event.keycode == KEY_T:
 				make_call(&"touch")
+
+
+## Where a player run out past the sideline hooks the ball back.
+##
+## The aim is **solved** rather than nudged, which took two attempts. A wide contact on
+## its own does not send a ball outside the antenna: the net is a metre and a half in
+## front of the attacker and the ball has covered barely a sixth of its flight by the
+## time it reaches it, so a shot struck from 4.3 m out and aimed anywhere near the middle
+## still crosses at about 3.6 m — comfortably inside the rod. Nudging the target outward
+## by a metre only worked when the ball happened to arrive where it was sent; measured,
+## that was under half the time, because the digger's set lands anywhere within reach.
+##
+## So this asks for a crossing and works backwards to the target that produces it. The
+## ball then lands a long way wide, which is what an around-the-antenna shot does.
+func _around_the_antenna(against: Sides.Team, from: Vector3) -> Vector3:
+	var side := Sides.half_sign(against)
+	var out := signf(from.x) if not is_zero_approx(from.x) else 1.0
+	var depth := side * randf_range(2.5, BeachSpec.HALF_LENGTH - 0.4)
+	var wanted := out * (BeachSpec.ANTENNA_X + randf_range(0.05, 0.45))
+	# How far along its own flight the ball is when it reaches the net.
+	var at := absf(from.z) / maxf(0.001, absf(depth - from.z))
+	var x := from.x + (wanted - from.x) / maxf(0.05, at)
+	return Vector3(x, BeachCourt.SURFACE_Y, depth)

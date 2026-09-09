@@ -35,6 +35,11 @@ extends RefCounted
 ## the only one who might know.
 const OBVIOUS_TOUCH := 0.55
 
+## How far outside the antenna counts as beyond argument. Tighter than the line margin
+## because the rod is a fixed object a metre from the referee's face: a ball that misses
+## it by half a metre is not a close call to anybody in the stand either.
+const BLATANT_ANTENNA := 0.50
+
 ## How far outside the lines counts as beyond argument, in metres. A ball landing this
 ## far out and given IN is the beach equivalent of badminton's blatant margin.
 const BLATANT_MARGIN := 1.10
@@ -57,6 +62,12 @@ var margin := 0.0
 ## Whether it crossed the net inside the antennae. A ball passing outside one is out
 ## however cleanly it lands, which is the only vertical boundary in the sport.
 var inside_the_antennae := true
+
+## How far inside the antenna the ball crossed, in metres. Negative outside. What makes
+## this call the referee's and nobody else's is that it is judged **in the air, at the
+## net, side on** — there is no mark to walk over and look at afterwards, which is what
+## settles every other line in this sport.
+var antenna_margin := 0.0
 
 # --- who touched it -------------------------------------------------------------
 
@@ -228,6 +239,12 @@ func visibility() -> float:
 	if call.judges_conduct and not _the_claimed_fault_happened():
 		return FABRICATION_VISIBILITY * call.severity
 
+	# The antenna, claimed or denied. Priced by how far outside the rod the ball went:
+	# a hand's width is the referee's word against nobody's, and a metre is a thing the
+	# whole beach watched happen.
+	if call.id == &"antenna" or (not inside_the_antennae and call.judges_the_landing):
+		return clampf(absf(antenna_margin) / BLATANT_ANTENNA, 0.0, 1.0)
+
 	# A touch claimed or denied. What the room could see is the deflection itself.
 	if call.judges_the_touch:
 		if was_touched:
@@ -260,6 +277,8 @@ func _the_claimed_fault_happened() -> bool:
 	if call == null:
 		return false
 	match call.id:
+		&"antenna":
+			return not inside_the_antennae and struck_by == call_against
 		&"four_hits":
 			return contacts > 3 and struck_by == call_against
 		&"double_contact", &"lift":

@@ -53,6 +53,10 @@ var team := Sides.Team.NONE
 ## than it is a small one.
 var volleyball := false
 
+## Which racket they carry. Tennis and badminton are near enough the same length and
+## nothing else about them is alike, so the sport says which.
+var racket_kind := &"badminton"
+
 ## Where they stand when the shuttle is not their problem.
 var home := Vector3.ZERO
 
@@ -96,12 +100,17 @@ func _settle_when_posed(model: Node3D) -> void:
 	if not is_instance_valid(model):
 		return
 	Models.settle(model)
-	Models.dress_player(model, not volleyball)
+	Models.dress_player(model, _carries())
 	_take_up_racket(model)
 
 
 ## Picks up the racket, if this sport has one. Asking for the meta unconditionally is
 ## an error rather than a null once nobody is carrying anything.
+## What goes in their hand, if anything.
+func _carries() -> StringName:
+	return &"" if volleyball else racket_kind
+
+
 func _take_up_racket(model: Node3D) -> void:
 	if not model.has_meta("racket"):
 		return
@@ -328,7 +337,7 @@ func _build_body() -> void:
 		Models.set_layer(model, PEOPLE_LAYER)
 		if Models.is_forged(model):
 			# Already the right size and the right way up. Dress it and go.
-			Models.dress_player(model, not volleyball)
+			Models.dress_player(model, _carries())
 			_take_up_racket(model)
 			_set_up_clips(model)
 		else:

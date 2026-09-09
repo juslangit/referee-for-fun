@@ -109,6 +109,8 @@ func _truth(rally: VolleyRally, arena: Node) -> Dictionary:
 		return {"id": &"libero_fault", "against": rally.libero_fault_by}
 	if rally.back_row_attack_by != Sides.Team.NONE:
 		return {"id": &"back_row_attack", "against": rally.back_row_attack_by}
+	if not rally.inside_the_antennae:
+		return {"id": &"antenna", "against": rally.struck_by}
 	if rally.foot_fault:
 		return {"id": &"foot_fault", "against": rally.served_by}
 	if rally.handling_fault:

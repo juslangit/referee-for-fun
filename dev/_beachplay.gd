@@ -63,7 +63,9 @@ func _ready() -> void:
 		# LINES ONLY umpire, and reading its suspicion as unfairness was a mistake
 		# once already.
 		arena._awaiting_since = Time.get_ticks_msec()
-		if rally.foot_fault:
+		if not rally.inside_the_antennae:
+			arena.make_call(&"antenna", rally.struck_by)
+		elif rally.foot_fault:
 			arena.make_call(&"foot_fault", arena.serving)
 		elif rally.handling_fault:
 			arena.make_call(&"double_contact", rally.struck_by)

@@ -47,7 +47,7 @@ static func _build() -> void:
 		_fault(&"foot_fault", "FOOT FAULT", "Fault. Foot on the line.", 0.8),
 	]
 
-	for call in [ball_in, ball_out, touch] + faults:
+	for call in [ball_in, ball_out, touch, _antenna()] + faults:
 		_calls[call.id] = call
 
 
@@ -61,6 +61,20 @@ static func _fault(id: StringName, label: String, announcement: String,
 
 
 ## Every call that accuses somebody, in the order they appear on the referee's panel.
+## The ball passing outside an antenna, which is out however cleanly it lands.
+##
+## The only boundary in this sport that is vertical, and the only one with no mark to
+## walk over and argue about afterwards. It happens in the air, at the net, and the
+## referee is the one person standing level with the rod.
+static func _antenna() -> CallType:
+	var call := CallType.new(
+		&"antenna", "OUTSIDE THE ANTENNA", "Outside the antenna.",
+		CallType.Outcome.POINT_AGAINST_THE_OFFENDER)
+	call.judges_conduct = true
+	call.severity = 1.0
+	return call
+
+
 static func faults() -> Array:
 	_build()
 	var found := []

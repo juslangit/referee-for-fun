@@ -155,6 +155,53 @@ func score_line() -> String:
 		tennis.sets[Sides.Team.RED], tennis.sets[Sides.Team.BLUE]]
 
 
+# --- changing ends --------------------------------------------------------------
+#
+# Tennis is the only sport in this project where which half a side occupies is not
+# fixed. Players change ends after the first, third, fifth game of a set and after every
+# six points of a tiebreak, and the reason is not decoration: one end has the sun or the
+# wind behind it, and a match decided by which end somebody served the last game from
+# would not be a fair match.
+#
+# It is done here rather than in `Sides`, which is deliberate. `Sides.half_sign` is a
+# static fact for the other three sports — RED plays -Z, always — and making it mutable
+# to satisfy tennis would put a moving part underneath badminton and both volleyballs
+# for no reason. So tennis asks these two instead of asking Sides, and everything
+# physical (the chair, the line judges' corners, the landing mark, the ball camera)
+# still speaks in plain -Z and +Z, which is what those things are actually about.
+
+## Which way round the two sides currently are.
+var _ends_swapped := false
+
+## How long the players take to walk to the other end.
+const CHANGEOVER_SECONDS := 2.4
+
+
+## Which end this side is at, as a sign along Z.
+func end_of(team: Sides.Team) -> float:
+	var side := Sides.half_sign(team)
+	return -side if _ends_swapped else side
+
+
+## Whose half a point on the floor is in, given who is standing where at the moment.
+func side_defending(z: float) -> Sides.Team:
+	var team := Sides.half_containing(z)
+	return Sides.opponent(team) if _ends_swapped else team
+
+
+## Walks them to the other end and turns them round.
+func change_ends() -> void:
+	_ends_swapped = not _ends_swapped
+	for player in players:
+		player.home = _home_of(player.team)
+		player.go_home()
+		# Facing across the net, which is now the other way.
+		player.rotation.y = PI if end_of(player.team) > 0.0 else 0.0
+	ui.announce("CHANGE OF ENDS", UiTheme.ACCENT, CHANGEOVER_SECONDS)
+	ui.react("they swap ends and towel off at the net", CHANGEOVER_SECONDS)
+	sound.whistle()
+
+
 # --- the venue ------------------------------------------------------------------
 
 func build_the_venue() -> void:
@@ -250,7 +297,7 @@ func _build_sky() -> void:
 ## Where a singles player stands when the ball is not in their half: on the middle of
 ## the baseline, which is the one place from which both corners are the same distance.
 func _home_of(team: Sides.Team) -> Vector3:
-	return Vector3(0.0, 0.0, Sides.half_sign(team) * (TennisSpec.HALF_LENGTH + 0.7))
+	return Vector3(0.0, 0.0, end_of(team) * (TennisSpec.HALF_LENGTH + 0.7))
 
 
 func _build_players() -> void:
@@ -260,6 +307,7 @@ func _build_players() -> void:
 		# A racket sport, so they carry one — the flag that hides it is the volleyball
 		# one, and a tennis player without a racket is a stranger who has walked on.
 		player.volleyball = false
+		player.racket_kind = &"tennis"
 		player.speed = COURT_SPEED
 		player.reach = RACKET_REACH
 		add_child(player)
@@ -292,7 +340,7 @@ func enter_ready() -> void:
 func _service_court_for(server: Sides.Team) -> float:
 	var played: int = board.points[Sides.Team.RED] + board.points[Sides.Team.BLUE]
 	var deuce := (played % 2) == 0
-	return Sides.half_sign(server) * (1.0 if deuce else -1.0)
+	return end_of(server) * (1.0 if deuce else -1.0)
 
 
 func start_rally() -> void:
@@ -322,7 +370,7 @@ func start_rally() -> void:
 	_striker = server
 	_defender = receiver
 
-	var side := Sides.half_sign(serving)
+	var side := end_of(serving)
 	var stand_x := _service_court_for(serving)
 	_service_court = -stand_x
 
@@ -357,7 +405,7 @@ func start_rally() -> void:
 ## a little long, a little wide, or a hand inside the line — and those are the ones the
 ## point stops for.
 func _serve_target() -> Vector3:
-	var into := Sides.half_sign(Sides.opponent(serving))
+	var into := end_of(Sides.opponent(serving))
 	var floor := TennisCourt.SURFACE_Y
 
 	if randf() >= SERVE_IS_LOOSE:
@@ -466,7 +514,7 @@ func _physics_process(delta: float) -> void:
 ## The next groundstroke. Whoever the ball is on the side of plays it.
 func _take_the_stroke(here: Vector3) -> void:
 	_beat = Beat.RALLY
-	var hitter := Sides.half_containing(here.z)
+	var hitter := side_defending(here.z)
 	_striker = _player(hitter)
 	_defender = _player(Sides.opponent(hitter))
 	rally.struck_by = hitter
@@ -501,7 +549,7 @@ func _take_the_stroke(here: Vector3) -> void:
 
 ## A ball hit safely inside, which the other player will reach and return.
 func _safe_ball(against: Sides.Team) -> Vector3:
-	var into := Sides.half_sign(against)
+	var into := end_of(against)
 	return Vector3(
 		randf_range(-TennisSpec.HALF_WIDTH_SINGLES + 0.7,
 			TennisSpec.HALF_WIDTH_SINGLES - 0.7),
@@ -512,7 +560,7 @@ func _safe_ball(against: Sides.Team) -> Vector3:
 ## A ball hit at a line, which is where the point is decided and where the umpire earns
 ## whatever they are being paid.
 func _line_ball(against: Sides.Team) -> Vector3:
-	var into := Sides.half_sign(against)
+	var into := end_of(against)
 	# Not every winner is a line ball. About a third are struck cleanly into the middle
 	# of the court and simply not reached, which matters for the same reason a beach
 	# attack is sometimes aimed safely inside: if every decisive shot lands on paint,
@@ -571,7 +619,7 @@ func _stage_any_incident() -> void:
 	# Over the tape if they reached over it, right up against it if they touched it.
 	var beyond := -0.35 if reached_over_by == culprit else 0.45
 	offender.lunge(Vector3(offender.position.x, 0.0,
-		Sides.half_sign(culprit) * beyond), 0.8)
+		end_of(culprit) * beyond), 0.8)
 	court.shake(0.6)
 
 
@@ -599,7 +647,7 @@ func _on_ball_landed(point: Vector3) -> void:
 ## that may or may not have been clipped, or a ball close enough to the line that the
 ## receiver looks at the chair instead of playing it.
 func _the_serve_landed(point: Vector3) -> void:
-	var into := Sides.half_sign(Sides.opponent(serving))
+	var into := end_of(Sides.opponent(serving))
 	rally.record_serve_landing(point, Sides.opponent(serving), into, _service_court)
 
 	var worth_asking := (
@@ -643,7 +691,7 @@ func _end_the_point(point: Vector3) -> void:
 	if _phase != Phase.IN_PLAY:
 		return
 	if not rally.is_settled:
-		rally.record_landing(point, Sides.half_containing(point.z))
+		rally.record_landing(point, side_defending(point.z))
 	for player in players:
 		player.go_home()
 	_phase = Phase.AWAITING_CALL
@@ -677,21 +725,30 @@ func make_call(id: StringName, against := Sides.Team.NONE) -> void:
 func award_the_point(winner: Sides.Team) -> void:
 	var tennis := board as TennisScore
 	var was_a_tiebreak := tennis != null and tennis.in_tiebreak
+	# Counted before the award, because a set that ends puts the games back to nothing
+	# and the changeover rule is about how many were played in the set that just ended.
+	var games_before: int = board.games[Sides.Team.RED] + board.games[Sides.Team.BLUE]
 	board.award(winner)
 
 	# A game has just ended if the point score has gone back to nothing, which after an
 	# awarded point can only mean the game was won by it.
 	if board.points[Sides.Team.RED] == 0 and board.points[Sides.Team.BLUE] == 0:
 		serving = Sides.opponent(serving)
+		# Ends change after the first, third, fifth game — every odd one.
+		if (games_before + 1) % 2 == 1:
+			change_ends()
 		return
 
 	# A tiebreak is the exception to the exception. Inside one the serve changes after
 	# the first point and then every two, so that neither player serves twice running
-	# from the same end — which is the whole reason the sequence is odd rather than even.
+	# from the same end — which is the whole reason the sequence is odd rather than even
+	# — and the ends themselves change every six points.
 	if was_a_tiebreak:
 		var played: int = board.points[Sides.Team.RED] + board.points[Sides.Team.BLUE]
 		if played % 2 == 1:
 			serving = Sides.opponent(serving)
+		if played % 6 == 0:
+			change_ends()
 
 
 ## What the call means for the next delivery.
@@ -712,6 +769,11 @@ func go_ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _reviewing:
+		# The only key a review listens to, and only once the answer is on screen. The
+		# wait before that is the point of a review and is not skippable.
+		if (_can_skip_review and event is InputEventKey and event.pressed
+				and event.keycode == KEY_SPACE):
+			_review_skipped = true
 		return
 	if _phase == Phase.REMOVED or _phase == Phase.MENU:
 		return

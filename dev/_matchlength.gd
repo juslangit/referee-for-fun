@@ -98,7 +98,9 @@ func _call_it_honestly(arena: Node, name: String) -> void:
 			arena.make_call(&"in" if rally.was_in else &"out")
 		return
 
-	if rally.foot_fault:
+	if not rally.inside_the_antennae:
+		arena.make_call(&"antenna", rally.struck_by)
+	elif rally.foot_fault:
 		arena.make_call(&"foot_fault", arena.serving)
 	elif rally.handling_fault:
 		arena.make_call(&"double_contact", rally.struck_by)

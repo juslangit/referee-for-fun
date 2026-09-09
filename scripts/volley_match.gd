@@ -65,9 +65,9 @@ const NO_CAP := 9999
 const FAULT_CHANCE := 0.15
 const FAULT_KINDS := [
 	&"foot_fault", &"net_touch", &"centre_line", &"handling",
-	&"rotation", &"wrong_server", &"back_row", &"libero",
+	&"rotation", &"wrong_server", &"back_row", &"libero", &"antenna",
 ]
-const FAULT_WEIGHTS := [0.12, 0.16, 0.09, 0.17, 0.15, 0.12, 0.11, 0.08]
+const FAULT_WEIGHTS := [0.10, 0.14, 0.07, 0.14, 0.13, 0.10, 0.10, 0.09, 0.13]
 
 
 var court: VolleyCourt
@@ -82,6 +82,11 @@ var rota := {Sides.Team.RED: Rotation.new(), Sides.Team.BLUE: Rotation.new()}
 
 var net_toucher := Sides.Team.NONE
 var centre_line_crosser := Sides.Team.NONE
+
+## Whether this rally's attacker has been run out past the sideline. A ball played from
+## out there crosses the net near where it was struck, which is the only way it ever
+## passes outside an antenna.
+var _chasing_it_wide := false
 
 var _beat := Beat.SERVE
 var _possession := Sides.Team.NONE
@@ -295,6 +300,7 @@ func _line_up() -> void:
 	rally.back_row_attack_by = Sides.Team.NONE
 	net_toucher = Sides.Team.NONE
 	centre_line_crosser = Sides.Team.NONE
+	_chasing_it_wide = false
 
 	var offender := _roll_for_one_fault()
 
@@ -327,8 +333,10 @@ func _line_up() -> void:
 			rally.foot_fault = true
 
 	# Back row attack is decided at the attack rather than here, because it depends on
-	# who ends up hitting the ball.
+	# who ends up hitting the ball. So is the antenna: it happens by running the
+	# attacker out past the sideline, not by writing it down.
 	_back_row_attack_wanted = offender == &"back_row"
+	_chasing_it_wide = offender == &"antenna"
 
 
 ## Swaps two of the six so that they really are out of order.
@@ -483,6 +491,13 @@ func _attack_point(team: Sides.Team, back_row: bool, illegal: bool) -> Vector3:
 	var depth := 1.4
 	if back_row:
 		depth = 1.9 if illegal else VolleySpec.ATTACK_LINE + randf_range(0.3, 1.2)
+	if _chasing_it_wide and not back_row:
+		# Out past the sideline, level with the net. From there the ball crosses the net
+		# roughly where it was struck, which is the only way it ever passes outside an
+		# antenna — and it is where the call comes from in the real sport too.
+		var wide := VolleySpec.ANTENNA_X + randf_range(0.12, 0.55)
+		return Vector3((1.0 if randf() < 0.5 else -1.0) * wide,
+			VolleyCourt.SURFACE_Y, side * randf_range(0.9, 1.6))
 	return Vector3(randf_range(-2.8, 2.8), VolleyCourt.SURFACE_Y, side * depth)
 
 
@@ -581,7 +596,17 @@ func _attack(from: Vector3) -> void:
 		rally.back_row_attack_by = _possession
 
 	var target := _attack_target(against)
+	if _chasing_it_wide:
+		target = _around_the_antenna(against, from)
 	var going_long: bool = absf(target.z) >= VolleySpec.HALF_LENGTH - 0.05
+
+	# Where it passes the net, which is what the antenna is about. Measured from the
+	# flight rather than asserted by whoever rolled the fault: a ball struck from out
+	# past the sideline crosses near where it was hit, and one struck from inside the
+	# court does not, whatever anybody intended.
+	var at_the_net := crossing_x(from, target)
+	rally.inside_the_antennae = VolleySpec.inside_the_antennae(Vector3(at_the_net, 0.0, 0.0))
+	rally.antenna_margin = VolleySpec.ANTENNA_X - absf(at_the_net)
 	if going_long and randf() < BLOCK_TOUCHES:
 		rally.was_touched = true
 		rally.touch_visibility = randf_range(0.08, 0.95)
@@ -672,7 +697,14 @@ func enter_ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _reviewing or _phase == Phase.REMOVED or _phase == Phase.MENU:
+	if _reviewing:
+		# The only key a review listens to, and only once the answer is on screen. The
+		# wait before that is the point of a review and is not skippable.
+		if (_can_skip_review and event is InputEventKey and event.pressed
+				and event.keycode == KEY_SPACE):
+			_review_skipped = true
+		return
+	if _phase == Phase.REMOVED or _phase == Phase.MENU:
 		return
 
 	if ui.is_fault_panel_open():
@@ -704,3 +736,25 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # --- the front of the match -----------------------------------------------------
 
+
+## Where a player run out past the sideline hooks the ball back.
+##
+## The aim is **solved** rather than nudged, which took two attempts. A wide contact on
+## its own does not send a ball outside the antenna: the net is a metre and a half in
+## front of the attacker and the ball has covered barely a sixth of its flight by the
+## time it reaches it, so a shot struck from 4.3 m out and aimed anywhere near the middle
+## still crosses at about 3.6 m — comfortably inside the rod. Nudging the target outward
+## by a metre only worked when the ball happened to arrive where it was sent; measured,
+## that was under half the time, because the digger's set lands anywhere within reach.
+##
+## So this asks for a crossing and works backwards to the target that produces it. The
+## ball then lands a long way wide, which is what an around-the-antenna shot does.
+func _around_the_antenna(against: Sides.Team, from: Vector3) -> Vector3:
+	var side := Sides.half_sign(against)
+	var out := signf(from.x) if not is_zero_approx(from.x) else 1.0
+	var depth := side * randf_range(2.5, VolleySpec.HALF_LENGTH - 0.4)
+	var wanted := out * (VolleySpec.ANTENNA_X + randf_range(0.05, 0.45))
+	# How far along its own flight the ball is when it reaches the net.
+	var at := absf(from.z) / maxf(0.001, absf(depth - from.z))
+	var x := from.x + (wanted - from.x) / maxf(0.05, at)
+	return Vector3(x, VolleyCourt.SURFACE_Y, depth)

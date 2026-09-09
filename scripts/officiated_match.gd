@@ -136,6 +136,7 @@ func _ready() -> void:
 
 	sound = Sound.new()
 	sound.name = "Sound"
+	sound.kit = sport()
 	add_child(sound)
 
 	# The bed behind the match darkens as the room turns against you.
@@ -326,10 +327,37 @@ func review(asked: Sides.Team) -> bool:
 	sound.react(not overturned)
 	ui.react(Crowd.react_to_review(overturned))
 
-	await get_tree().create_timer(REVIEW_VERDICT).timeout
+	ui.set_review_hint("SPACE   ·   carry on")
+	await _wait_or_skip(REVIEW_VERDICT)
 	ui.hide_review()
 	_reviewing = false
 	return overturned
+
+
+# --- sitting through a review ---------------------------------------------------
+#
+# The wait before the answer is the point of a review: it is the only moment in this
+# game where an official has to sit and find out, in public, whether they got away with
+# something. That half of it is not skippable and should not be.
+#
+# The half **after** the answer is just reading a line you have already read, and on the
+# tenth review of a match it is dead time. So that half takes SPACE.
+
+## Whether a review is far enough along that it can be waved away, and whether it has.
+var _can_skip_review := false
+var _review_skipped := false
+
+
+## Waits out `seconds`, or until the official waves it on.
+func _wait_or_skip(seconds: float) -> void:
+	_review_skipped = false
+	_can_skip_review = true
+	var left := seconds
+	while left > 0.0 and not _review_skipped:
+		await get_tree().process_frame
+		left -= get_process_delta_time()
+	_can_skip_review = false
+	_review_skipped = false
 
 
 ## Whether anybody challenges this call, and who.
@@ -387,7 +415,7 @@ func finish(headline: String, tint: Color, removed: bool) -> void:
 	ui.hide_reputation()
 	ui.set_prompt("")
 
-	var detail := _reckoning()
+	var detail := _where_this_was() + "\n\n" + _reckoning()
 	var pressures: Array = []
 	if pressure.exists():
 		pressure.resolve(board, suspicion)
@@ -400,6 +428,25 @@ func finish(headline: String, tint: Color, removed: bool) -> void:
 	career.save()
 	detail += "\n\n%s\n\nReputation  %d / 100" % [note, roundi(career.reputation * 100.0)]
 	ui.show_ending(headline, detail, tint)
+
+
+## The line at the top of the ending: which sport, and which rung of which ladder.
+##
+## With four ladders running in parallel and one reputation across all of them, a screen
+## that says "3 wrong calls" and nothing about where you were is a result without a
+## match attached to it. The venue is also the whole of why the number is what it is —
+## the same lie is nearly free at the school hall and career-ending at the final.
+func _where_this_was() -> String:
+	return "%s   ·   %s" % [sport_name(), career.venue()["name"]]
+
+
+## What this sport is called on screen. The ids are lower case and are for the save file.
+func sport_name() -> String:
+	match sport():
+		Career.BEACH: return "BEACH VOLLEYBALL"
+		Career.INDOOR: return "INDOOR VOLLEYBALL"
+		Career.TENNIS: return "TENNIS"
+	return "BADMINTON"
 
 
 func _reckoning() -> String:
@@ -496,6 +543,20 @@ func send_over(from: Vector3, to: Vector3, angles: Array) -> void:
 
 	# Nothing in the list gets over. Loop it, which is what a player out of options does.
 	send(from, to, 55.0)
+
+
+## Where a shot's path crosses the plane of the net, in x.
+##
+## Exact rather than approximate. Drag acts along the direction of travel, so a ball's
+## path seen from above is a straight line even though its height is a curve — which is
+## why this can be solved rather than flown. Both volleyballs need it for the antenna,
+## the one boundary in those sports that is judged in the air with nothing left on the
+## sand to walk over and argue about.
+func crossing_x(from: Vector3, to: Vector3) -> float:
+	var span := to.z - from.z
+	if is_zero_approx(span):
+		return from.x
+	return from.x + (to.x - from.x) * (absf(from.z) / absf(span))
 
 
 ## Launches a shot that stays on one side of the net.

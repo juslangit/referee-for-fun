@@ -351,6 +351,34 @@ const TENNIS_LADDER := [
 	},
 ]
 
+## The sports in the order they are shown, and what each is called on screen.
+const IN_ORDER := [BADMINTON, BEACH, INDOOR, TENNIS]
+const NAMES := {
+	BADMINTON: "Badminton",
+	BEACH: "Beach volleyball",
+	INDOOR: "Indoor volleyball",
+	TENNIS: "Tennis",
+}
+
+
+static func name_of(which: StringName) -> String:
+	return String(NAMES.get(which, String(which)))
+
+
+## What a match at this rung of this sport actually is. Every sport is scored
+## differently and the career screen used to promise badminton's format whatever you
+## were about to referee.
+static func format_of(which: StringName, quick: bool) -> String:
+	match which:
+		TENNIS:
+			return "one short set, four games" if quick else "best of three sets"
+		BEACH:
+			return "one set to 11" if quick else "best of three — 21, 21 and 15"
+		INDOOR:
+			return "one set to 15" if quick else "best of five — 25s and a 15"
+	return "one game to 11" if quick else "best of three to 21"
+
+
 const LADDERS := {
 	BADMINTON: BADMINTON_LADDER,
 	BEACH: BEACH_LADDER,
@@ -393,6 +421,22 @@ var panel_impressed: bool:
 		return bool(_here()["panel_impressed"])
 	set(value):
 		_here()["panel_impressed"] = value
+
+
+## Where you have got to in one sport, without starting a career in it.
+##
+## Deliberately not `_here()`: that makes the row if it is missing, which is right when
+## you are about to referee and wrong when a screen is merely asking. Looking at the
+## summary should not quietly begin a tennis career.
+func standing_in(which: StringName) -> Dictionary:
+	if not progress.has(which):
+		return {"started": false, "tier": 0, "matches_at_tier": 0}
+	var row: Dictionary = progress[which]
+	return {
+		"started": true,
+		"tier": int(row.get("tier", 0)),
+		"matches_at_tier": int(row.get("matches_at_tier", 0)),
+	}
 
 
 ## This sport's row of `progress`, made if it is not there yet.

@@ -408,6 +408,7 @@ var _review_headline: Label
 var _review_note: Label
 var _review_view: TextureRect
 var _review_verdict: Label
+var _review_hint: Label
 
 
 func _build_review() -> void:
@@ -431,6 +432,10 @@ func _build_review() -> void:
 	_review_verdict = _make_label("", UiTheme.HEADING, UiTheme.CHALK)
 	column.add_child(_review_verdict)
 
+	# Only filled once the answer is up. Before that there is nothing to wave on.
+	_review_hint = _make_label("", UiTheme.SMALL, UiTheme.MUTED)
+	column.add_child(_review_hint)
+
 
 ## Opens the review. The verdict is deliberately not filled in yet — the pause between
 ## the challenge and the answer is the whole of the drama, and an umpire who has just
@@ -443,7 +448,14 @@ func show_review(team: Sides.Team, reviews_left: int, view: Texture2D) -> void:
 	_review_view.texture = view
 	_review_verdict.text = "reviewing…"
 	_review_verdict.add_theme_color_override("font_color", UiTheme.MUTED)
+	_review_hint.text = ""
 	_review.visible = true
+
+
+## The line under the verdict telling the official they may wave it on. Set only once
+## the answer is up: the wait before that is the whole point of a review.
+func set_review_hint(text: String) -> void:
+	_review_hint.text = text
 
 
 func set_review_verdict(text: String, tint: Color) -> void:
@@ -635,6 +647,11 @@ const BEACH_LESSONS := [
 	{
 		"title": "FAULTS, AND WHO IS WATCHING",
 		"body": "Press F, then point at whoever did it.\n\n"
+			+ "OUTSIDE THE ANTENNA   the ball crossed the net outside one of the two "
+			+ "rods standing on the tape. It is out however cleanly it then lands, and "
+			+ "it is the only boundary in this sport that is vertical — so it is the "
+			+ "only one that leaves nothing in the sand to walk over and argue about "
+			+ "afterwards. You are level with the rod. Nobody else is.\n"
 			+ "NET TOUCH   somebody touched the net while the ball was live.\n"
 			+ "CENTRE LINE   a foot went fully under the net into the other court.\n"
 			+ "FOUR HITS   one side touched it four times. Three is the limit.\n"
@@ -739,7 +756,9 @@ const INDOOR_LESSONS := [
 		"title": "FAULTS, AND WHO IS WATCHING",
 		"body": "Press F, then point at whoever did it.\n\n"
 			+ "NET TOUCH, CENTRE LINE, FOUR HITS, DOUBLE, LIFT and FOOT FAULT are the "
-			+ "same as they are on the sand.\n\n"
+			+ "same as they are on the sand, and so is OUTSIDE THE ANTENNA — the ball "
+			+ "crossing the net outside one of the rods, which is out however cleanly it "
+			+ "lands and leaves no mark on the floor for anybody to check.\n\n"
 			+ "When the ball lands you get an overhead view of it against the line. That "
 			+ "settles where it came down; nothing settles where six people were "
 			+ "standing except you.\n\n"
@@ -1384,7 +1403,7 @@ func show_career(career: Career) -> void:
 	_career_column.add_child(_make_label(
 		"Reputation %d / 100          %s" % [
 			roundi(career.reputation * 100.0),
-			"best of three to 21" if not career.venue()["quick"] else "one game to 11",
+			Career.format_of(career.sport, career.venue()["quick"]),
 		],
 		PROMPT_SIZE + 2,
 		Color(0.88, 0.90, 0.93)
@@ -1400,6 +1419,8 @@ func show_career(career: Career) -> void:
 			"%s is still in this draw." % career.grudge_name,
 			PROMPT_SIZE, Color(0.90, 0.62, 0.44)
 		))
+
+	_add_the_other_ladders(career)
 
 	_career_column.add_child(_gap(16))
 	# The button only reports the choice; the match decides what happens to the
@@ -1417,6 +1438,45 @@ func show_career(career: Career) -> void:
 	_career_column.add_child(_make_wide_button("HOW TO REFEREE", func() -> void:
 		teaching_requested.emit()
 	))
+
+
+## All four ladders at once, under the one you are standing on.
+##
+## You are one official with one name and four separate licences, and until now there
+## was nowhere that said so — each sport's screen showed its own ladder and the fact
+## that a disaster at the beach is waiting for you at the badminton hall was something
+## the player had to work out. The reputation at the top of this screen is the shared
+## number; these are the four things it is spent on.
+func _add_the_other_ladders(career: Career) -> void:
+	_career_column.add_child(_gap(14))
+	_career_column.add_child(_make_label(
+		"ONE NAME, FOUR LADDERS", PROMPT_SIZE, UiTheme.MUTED))
+	_career_column.add_child(_gap(4))
+
+	for which in Career.IN_ORDER:
+		var standing := career.standing_in(which)
+		var rungs := Career.ladder_for(which)
+		var here := int(standing["tier"])
+		var line := ""
+		var tint := Color(0.50, 0.53, 0.58)
+		if not standing["started"]:
+			line = "%-20s not started yet" % Career.name_of(which)
+		else:
+			var played := int(standing["matches_at_tier"])
+			line = "%-20s %-26s %s" % [
+				Career.name_of(which),
+				String(rungs[clampi(here, 0, rungs.size() - 1)]["name"]),
+				"%d at this rung" % played if played > 0 else "just arrived",
+			]
+			tint = Color(0.74, 0.77, 0.82)
+		if which == career.sport:
+			line = "▸ " + line
+			tint = Color(0.98, 0.94, 0.72)
+		else:
+			line = "   " + line
+		var label := _make_label(line, PROMPT_SIZE - 2, tint)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		_career_column.add_child(label)
 
 
 ## Whether the career ladder is the screen currently showing.

@@ -54,12 +54,21 @@ const OFFICIAL := "res://assets/sketchfab/male_character_in_caual_clothing/male_
 const RACKET_HANDS := ["RightHand", "hand.R", "R.hand_028"]
 const KIT := "res://assets/sketchfab/badminton_racket_and_shuttlecock_low_poly/badminton_racket_and_shuttlecock_low_poly.glb"
 
+## The tennis racket, which is a different object rather than a bigger badminton one:
+## the head is nearly twice as wide, the throat is a wedge rather than a shaft, and the
+## whole thing is roughly the same length. A tennis player carrying a badminton racket
+## reads as a mistake to anybody who has held either.
+const TENNIS_KIT := "res://assets/sketchfab/tennis_racket/tennis_racket.glb"
+const TENNIS_RACKET_NODE := "06-12-19_tennis_racket_export_v1_obj_cleaner_materialmerger_gles"
+
 ## Real heights, in metres.
 const PLAYER_HEIGHT := 1.80
 const OFFICIAL_HEIGHT := 1.76
 
-## A badminton racket is about 67 cm long, and a shuttlecock about 8.5 cm.
+## A badminton racket is about 67 cm long, and a shuttlecock about 8.5 cm. A tennis
+## racket is 68.5 cm — near enough the same length, which is the surprise about them.
 const RACKET_LENGTH := 0.67
+const TENNIS_RACKET_LENGTH := 0.685
 
 ## How far the butt of the handle sits inside the fist rather than balanced on top of
 ## it. A hand closes around a grip; it does not hold a racket by the very end.
@@ -122,9 +131,10 @@ static func _load_ready(path: String) -> Node3D:
 ## model, and so do not scale with it — measured while fitting, the bib sat at a fixed
 ## height and set a floor the fit could never get under. Every player came out about
 ## 1.4 m tall no matter what scale the model was given.
-## `armed` is whether they carry a racket. Beach volleyball players do not, and a
-## volleyball player holding a badminton racket is a funnier bug than it is a small one.
-static func dress_player(figure: Node3D, armed := true) -> void:
+## `carries` names the racket: `&"badminton"`, `&"tennis"`, or `&""` for nothing at all.
+## Beach and indoor volleyball players carry nothing, and a volleyball player holding a
+## badminton racket is a funnier bug than it is a small one.
+static func dress_player(figure: Node3D, carries := &"badminton") -> void:
 	if figure == null:
 		return
 	# A bib, not a tint. Recolouring does not work: the kit is painted into the texture,
@@ -132,18 +142,20 @@ static func dress_player(figure: Node3D, armed := true) -> void:
 	# players do not need one — one of them is dressed in blue and the other in red.
 	if not figure.get_meta("kitted", false):
 		_add_bib(figure, figure.get_meta("bib_colour", Color.WHITE))
-	if armed:
-		_hold_racket(figure)
+	if carries != &"":
+		_hold_racket(figure, carries)
 
 
 ## Puts a racket in the player's right hand, on the bone, so it moves with the arm.
 ##
 ## The alternative — hanging it off the figure at a fixed offset — was fine while
 ## everybody stood still and looks ridiculous the moment their arms start swinging.
-static func _hold_racket(figure: Node3D) -> void:
-	var held := racket()
+static func _hold_racket(figure: Node3D, carries := &"badminton") -> void:
+	var tennis := carries == &"tennis"
+	var held := tennis_racket() if tennis else racket()
 	if held == null:
 		return
+	var length := TENNIS_RACKET_LENGTH if tennis else RACKET_LENGTH
 	# On the people layer with its owner, whichever way it ends up attached below. The
 	# overhead camera leaves people out, and a racket that stayed on the court layer was
 	# the one part of a player that turned up in the shuttle cam.
@@ -197,7 +209,7 @@ static func _hold_racket(figure: Node3D) -> void:
 	var box := _world_aabb(held)
 	var longest := maxf(box.size.x, maxf(box.size.y, box.size.z))
 	if longest > 0.0001:
-		held.scale *= RACKET_LENGTH / longest
+		held.scale *= length / longest
 
 	_slide_grip_into_hand(socket, held)
 
@@ -490,6 +502,12 @@ static func official() -> Node3D:
 
 static func racket() -> Node3D:
 	return _part(KIT, "Obj_Racket", RACKET_LENGTH)
+
+
+## The tennis racket. Its three meshes — frame, strings and grip — sit under one node
+## whose name is the exporter's, so it is taken whole rather than a mesh at a time.
+static func tennis_racket() -> Node3D:
+	return _part(TENNIS_KIT, TENNIS_RACKET_NODE, TENNIS_RACKET_LENGTH)
 
 
 static func shuttlecock() -> Node3D:

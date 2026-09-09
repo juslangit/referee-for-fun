@@ -149,6 +149,11 @@ them was scored good, and calling it out was recorded as a lie.
 
 ---
 
+Every sport sounds like itself — a ball into sand, a ball on a wooden hall floor and a
+ball off a hard court are three different noises, and the surface is half of what a
+landing tells you. Sources and licences are in `assets/audio/SOURCES.md`; everything is
+CC0.
+
 Four sports share one official.
 
 **Badminton** in a hall. **Beach volleyball** on sand, where the ball flies out past a

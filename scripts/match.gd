@@ -617,6 +617,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	# until it finishes — so without this the umpire could stand there calling the same
 	# rally three more times while the first call was still being examined.
 	if _reviewing:
+		# The only key a review listens to, and only once the answer is on screen.
+		if (_can_skip_review and event is InputEventKey and event.pressed
+				and event.keycode == KEY_SPACE):
+			_review_skipped = true
 		return
 
 	if ui.is_fault_panel_open():
@@ -1366,8 +1370,34 @@ func _make_call(id: StringName, against := Sides.Team.NONE) -> void:
 	_enter_ready()
 
 
-## Plays the review out: the challenge, a pause, and then the answer. Returns whether the
-## call was overturned.
+# --- sitting through a review ---------------------------------------------------
+#
+# The wait before the answer is the point of a review: it is the only moment in this
+# game where an umpire has to sit and find out, in public, whether they got away with
+# something. That half of it is not skippable and should not be.
+#
+# The half **after** the answer is just reading a line you have already read, and on the
+# tenth review of a match it is dead time. So that half takes SPACE.
+
+## Whether a review is far enough along that it can be waved away, and whether it has.
+var _can_skip_review := false
+var _review_skipped := false
+
+
+## Waits out `seconds`, or until the umpire waves it on.
+func _wait_or_skip(seconds: float) -> void:
+	_review_skipped = false
+	_can_skip_review = true
+	var left := seconds
+	while left > 0.0 and not _review_skipped:
+		await get_tree().process_frame
+		left -= get_process_delta_time()
+	_can_skip_review = false
+	_review_skipped = false
+
+
+## Plays the review out: the challenge, a pause, and then the answer. Returns whether
+## the call was overturned.
 ##
 ## The pause is not decoration. A review that resolved instantly would be a line of text;
 ## the second and a half between the hall asking and the hall finding out is the only
@@ -1392,7 +1422,8 @@ func _review(asked: Sides.Team) -> bool:
 	sound.react(not overturned)
 	ui.react(Crowd.react_to_review(overturned))
 
-	await get_tree().create_timer(REVIEW_VERDICT).timeout
+	ui.set_review_hint("SPACE   ·   carry on")
+	await _wait_or_skip(REVIEW_VERDICT)
 	ui.hide_review()
 	_reviewing = false
 	return overturned
@@ -1468,7 +1499,8 @@ func _finish_match(headline: String, tint: Color, removed: bool) -> void:
 		debt.resolve(board, suspicion, _debt_evened)
 		pressures.append(debt)
 
-	var detail := _reckoning()
+	var detail := "BADMINTON   ·   %s" % career.venue()["name"]
+	detail += "\n\n" + _reckoning()
 	if career != null:
 		var note := career.finish_match(suspicion.level, removed, pressures)
 		# And whether tonight made somebody an enemy for a later match. Done after
