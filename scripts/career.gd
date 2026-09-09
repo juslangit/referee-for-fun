@@ -49,6 +49,7 @@ const GRUDGE_FROM_LEAN := 0.30
 const BADMINTON := &"badminton"
 const BEACH := &"beach"
 const INDOOR := &"indoor"
+const TENNIS := &"tennis"
 
 ## The venues, in order, for each sport.
 ##
@@ -273,10 +274,88 @@ const INDOOR_LADDER := [
 	},
 ]
 
+
+## Tennis is climbed from the club court to the show court, and what changes on the way
+## up is not only how many people are watching. It is how many of them have a replay.
+##
+## Every other ladder in this game hands you Hawk-Eye at the top two rungs as one more
+## pressure. In tennis it is the sport's own institution: players *own* their challenges
+## and spend them, and the tour venues put every close call the umpire makes on a screen
+## the size of a house. An umpire who has been shading first serves all afternoon finds
+## out about it in front of fifteen thousand people.
+const TENNIS_LADDER := [
+	{
+		"name": "Club courts",
+		"crowd": 0.14,
+		"blurb": "Two lines judges who both have somewhere else to be at four.",
+		"line_judges": true,
+		"close_cam": true,
+		"hawk_eye": false,
+		"quick": true,
+		"dressing": Venue.Tier.SCHOOL,
+		"scrutiny": 0.60,
+		"matches_needed": 2,
+		"reputation_needed": 0.40,
+	},
+	{
+		"name": "County championship",
+		"crowd": 0.34,
+		"blurb": "One set each way and a referee's tent that hears everything.",
+		"line_judges": true,
+		"close_cam": true,
+		"hawk_eye": false,
+		"quick": true,
+		"dressing": Venue.Tier.SCHOOL,
+		"scrutiny": 0.88,
+		"matches_needed": 2,
+		"reputation_needed": 0.50,
+	},
+	{
+		"name": "Challenger tour",
+		"crowd": 0.56,
+		"blurb": "Best of three, properly. Long enough for a second serve to matter twice.",
+		"line_judges": true,
+		"close_cam": true,
+		"hawk_eye": false,
+		"quick": false,
+		"dressing": Venue.Tier.REGIONAL,
+		"scrutiny": 1.05,
+		"matches_needed": 3,
+		"reputation_needed": 0.55,
+	},
+	{
+		"name": "Tour main draw",
+		"crowd": 0.85,
+		"blurb": "Both of them have challenges and both of them know how to count yours.",
+		"line_judges": true,
+		"close_cam": true,
+		"hawk_eye": true,
+		"quick": false,
+		"dressing": Venue.Tier.REGIONAL,
+		"scrutiny": 1.30,
+		"matches_needed": 3,
+		"reputation_needed": 0.60,
+	},
+	{
+		"name": "Centre court",
+		"crowd": 1.0,
+		"blurb": "Every serve you call will be drawn as a picture, to the millimetre.",
+		"line_judges": true,
+		"close_cam": true,
+		"hawk_eye": true,
+		"quick": false,
+		"dressing": Venue.Tier.ARENA,
+		"scrutiny": 1.70,
+		"matches_needed": 0,
+		"reputation_needed": 1.0,
+	},
+]
+
 const LADDERS := {
 	BADMINTON: BADMINTON_LADDER,
 	BEACH: BEACH_LADDER,
 	INDOOR: INDOOR_LADDER,
+	TENNIS: TENNIS_LADDER,
 }
 
 

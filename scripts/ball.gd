@@ -102,10 +102,17 @@ func launch(from: Vector3, velocity: Vector3) -> void:
 	_previous_bottom = _bottom()
 
 
+## The ball keeps being simulated after it has landed, which it did not used to.
+##
+## Volleyball never asks anything of a ball after the first bounce, so this returned
+## early and saved the work. Tennis asks constantly: a point ends when the ball bounces
+## **twice**, and with the drag and the landing check switched off after the first one
+## the second could never be detected. A scripted not-up simply hung the match — the
+## ball sat there with `bounces` stuck at one and nothing ever ended the point.
+##
+## Nothing about volleyball changes: the truth is taken on the way down, on the first
+## bounce, and whatever the ball does afterwards cannot reach it.
 func _physics_process(_delta: float) -> void:
-	if has_landed:
-		return
-
 	var velocity := linear_velocity
 	var speed := velocity.length()
 	if speed > REST_SPEED:

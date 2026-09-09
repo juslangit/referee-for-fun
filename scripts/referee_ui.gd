@@ -59,7 +59,7 @@ const SPORTS := [
 	{"id": &"indoor", "name": "Volleyball", "art": "res://assets/ui/sport_volleyball.png",
 		"tint": Color(0.44, 0.24, 0.52), "ready": true},
 	{"id": &"tennis", "name": "Tennis", "art": "res://assets/ui/sport_tennis.png",
-		"tint": Color(0.20, 0.38, 0.58), "ready": false},
+		"tint": Color(0.20, 0.38, 0.58), "ready": true},
 	{"id": &"table_tennis", "name": "Table Tennis", "art": "res://assets/ui/sport_tabletennis.png",
 		"tint": Color(0.60, 0.34, 0.16), "ready": false},
 	{"id": &"basketball", "name": "Basketball", "art": "res://assets/ui/sport_basketball.png",
@@ -269,7 +269,7 @@ func _build_sport_menu() -> void:
 	column.add_child(_make_label("WHICH SPORT?", TITLE_SIZE, UiTheme.CHALK))
 	column.add_child(_gap(6))
 	column.add_child(_make_label(
-		"Three of them are ready. The rest are on their way.",
+		"Four of them are ready. The rest are on their way.",
 		PROMPT_SIZE, UiTheme.MUTED
 	))
 	column.add_child(_gap(22))
@@ -693,6 +693,95 @@ const INDOOR_LESSONS := [
 	},
 ]
 
+
+## Tennis's lesson, and the only one in the game that has to teach a *scoring system*
+## before it can teach a call — because in this sport what a call costs depends entirely
+## on what the score was when you made it.
+const TENNIS_LESSONS := [
+	{
+		"title": "THE JOB",
+		"body": "You are the chair umpire, at the net, on the high seat.\n\n"
+			+ "Singles. The game plays a real point and records exactly where the ball "
+			+ "came down, to the millimetre. There are line judges below you and they "
+			+ "are often right.\n\n"
+			+ "You are not asked about every ball. A serve down the middle of the box is "
+			+ "played and nobody says a word. You are asked when there is a question — "
+			+ "and when there is one, everybody in the place turns and looks at you.",
+		"keys": [
+			["SPACE", "call the players to play"],
+			["LEFT CLICK", "in"],
+			["RIGHT CLICK", "out, or a fault on a serve"],
+			["L", "let — see page three"],
+			["F", "a fault"],
+			["ESC", "pause"],
+		],
+	},
+	{
+		"title": "THE SCORE, AND WHY IT MATTERS TO YOU",
+		"body": "Points are called 15, 30, 40, and then the game. Three each is DEUCE, "
+			+ "and from there somebody has to win two in a row. Six games win a set, by "
+			+ "two; at six-all they play a tiebreak to seven.\n\n"
+			+ "Read that again, because it is the whole reason this sport is in this "
+			+ "game.\n\n"
+			+ "**A point is not a point.** A wrong call at 40-0 costs somebody a point "
+			+ "they were never going to miss. The same call at deuce in a tiebreak is "
+			+ "the match, and the player, the crowd and you all know it while it is "
+			+ "happening.\n\n"
+			+ "Nothing in the game charges you extra for the second one. Everybody in "
+			+ "the stadium does.",
+	},
+	{
+		"title": "THE SERVE — AND THE FIRST AND SECOND",
+		"body": "A point starts with a first serve. If it misses, the server gets a "
+			+ "second. If that misses too it is a double fault and the point is gone.\n\n"
+			+ "So the same call costs two completely different things:\n\n"
+			+ "On a FIRST serve, calling a fault takes a serve away. No point changes "
+			+ "hands. Nobody argues much.\n"
+			+ "On a SECOND serve, calling a fault is the point.\n\n"
+			+ "That gap is the most useful thing in this sport to a bent umpire, and the "
+			+ "easiest thing to spot on a scoresheet afterwards. A careful one shades "
+			+ "first serves all afternoon. A greedy one takes a second, once, and it is "
+			+ "the only call anybody remembers.\n\n"
+			+ "A serve must land in the box diagonally opposite the server, short of the "
+			+ "service line and inside the SINGLES sideline — even in doubles. The "
+			+ "tramlines are never part of a service box.",
+	},
+	{
+		"title": "THE NET CORD",
+		"body": "This is the call this sport is about, and it is decided by a sound.\n\n"
+			+ "If a serve touches the top of the net on its way over and still lands in "
+			+ "the box, it is a LET: nothing happened, and the serve is played again at "
+			+ "the same number. If it touches and misses the box, it is simply a fault.\n\n"
+			+ "Press L to call it.\n\n"
+			+ "You are a metre from the tape. Nobody else in the building is. A ball that "
+			+ "grazes the cord and carries on unchanged made a noise that you heard and "
+			+ "they did not — which cuts both ways: it is the easiest call in tennis to "
+			+ "invent, and denying a real one quietly takes a first serve off a man who "
+			+ "was entitled to it again.\n\n"
+			+ "Watch the net as well as listen. A cord that was really clipped shivers.",
+	},
+	{
+		"title": "FAULTS, AND WHO IS WATCHING",
+		"body": "Press F, then point at whoever did it.\n\n"
+			+ "FOOT FAULT   the server's foot on or over the baseline at contact. You "
+			+ "are looking down the length of that line from the chair, which is the "
+			+ "worst angle in the sport for it.\n"
+			+ "NOT UP   the ball bounced twice before they reached it.\n"
+			+ "TOUCHED THE NET   a player or a racket touched the net while the ball was "
+			+ "live. They lose the point whatever the ball then did.\n"
+			+ "THROUGH THE NET   they played the ball before it had crossed to their "
+			+ "side.\n\n"
+			+ "The line judges below you call the lines they are responsible for. Agree "
+			+ "with one who has just got it wrong and the mistake is shared with an "
+			+ "official standing in plain sight. Contradict one and the court has "
+			+ "watched two officials disagree in public, with only your call counting.\n\n"
+			+ "From the tour main draw up, both players carry challenges, and a screen "
+			+ "will draw your line calls to the millimetre in front of everybody.\n\n"
+			+ "There is no suspicion meter in this game and there never will be. The only "
+			+ "thing telling you how much trouble you are in is the crowd.",
+	},
+]
+
 var _lesson := 0
 var _lessons: Array = BADMINTON_LESSONS
 var _teaching: Control
@@ -705,6 +794,7 @@ func show_teaching(sport := Career.BADMINTON) -> void:
 	match sport:
 		Career.BEACH: _lessons = BEACH_LESSONS
 		Career.INDOOR: _lessons = INDOOR_LESSONS
+		Career.TENNIS: _lessons = TENNIS_LESSONS
 		_: _lessons = BADMINTON_LESSONS
 	if _hud != null:
 		_hud.visible = false
@@ -1357,14 +1447,28 @@ func _serve_dot() -> Label:
 
 
 func set_score(board: Scoreboard, serving: Sides.Team) -> void:
-	_score_points.text = "%d  -  %d" % [
-		board.points[Sides.Team.RED], board.points[Sides.Team.BLUE]
-	]
+	# Tennis counts in a language of its own, and a bug reading "2 - 1" in a sport whose
+	# whole texture is "thirty-fifteen" would throw away the reason it is here. It is
+	# also the one score in the game read from the server's point of view: forty-fifteen
+	# and fifteen-forty are the same two numbers and opposite situations.
+	var tennis := board as TennisScore
+	if tennis != null:
+		_score_points.text = tennis.called_score(serving)
+	else:
+		_score_points.text = "%d  -  %d" % [
+			board.points[Sides.Team.RED], board.points[Sides.Team.BLUE]
+		]
 	_serve_red.text = "\u25cf" if serving == Sides.Team.RED else ""
 	_serve_blue.text = "\u25cf" if serving == Sides.Team.BLUE else ""
-	_score_games.text = "" if board.games_needed <= 1 else "GAMES  %d - %d" % [
-		board.games[Sides.Team.RED], board.games[Sides.Team.BLUE]
-	]
+	if tennis != null:
+		_score_games.text = "GAMES  %d - %d      SETS  %d - %d" % [
+			tennis.games[Sides.Team.RED], tennis.games[Sides.Team.BLUE],
+			tennis.sets[Sides.Team.RED], tennis.sets[Sides.Team.BLUE],
+		]
+	else:
+		_score_games.text = "" if board.games_needed <= 1 else "GAMES  %d - %d" % [
+			board.games[Sides.Team.RED], board.games[Sides.Team.BLUE]
+		]
 
 
 ## The reviews each side has left, or nothing at all at the venues without Hawk-Eye —

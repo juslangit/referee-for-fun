@@ -95,3 +95,29 @@ static func net_height_at(x: float) -> float:
 	# A catenary is close enough to a parabola over this span, and a parabola is
 	# something the rest of the game can reason about.
 	return NET_HEIGHT_CENTRE + (NET_HEIGHT_POST - NET_HEIGHT_CENTRE) * across * across
+
+
+## How far a serve was from the nearest line of the service box it was aimed into.
+##
+## Deliberately not the same as `margin`. A serve that lands a centimetre past the
+## service line is a fault by a centimetre — and it is also five metres inside the
+## baseline, so measuring it against the court would report it as the most obviously
+## good ball of the match. The box has its own three lines and a serve is judged against
+## those: the service line, the centre service line, and the singles sideline.
+static func serve_margin(landing: Vector3, into: float, court: float) -> float:
+	# Long, past the service line.
+	var slack_long := SERVICE_LINE - absf(landing.z)
+	# Wide, past the singles sideline.
+	var slack_wide := HALF_WIDTH_SINGLES - absf(landing.x)
+	# Into the wrong half of the service court, across the centre service line.
+	var slack_centre := landing.x * signf(court)
+	# In the wrong half of the court altogether: it never crossed the net.
+	if signf(landing.z) != signf(into):
+		return -(absf(landing.z) + SERVICE_LINE)
+
+	if slack_long < 0.0 or slack_wide < 0.0 or slack_centre < 0.0:
+		var out_by := Vector2(
+			maxf(0.0, -slack_wide) + maxf(0.0, -slack_centre),
+			maxf(0.0, -slack_long))
+		return -out_by.length()
+	return minf(slack_long, minf(slack_wide, slack_centre))

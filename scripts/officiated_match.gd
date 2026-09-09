@@ -166,6 +166,7 @@ func _has_been_taught() -> bool:
 	match sport():
 		Career.BEACH: return settings.taught_beach
 		Career.INDOOR: return settings.taught_indoor
+		Career.TENNIS: return settings.taught_tennis
 	return settings.taught
 
 
@@ -173,6 +174,7 @@ func _remember_being_taught() -> void:
 	match sport():
 		Career.BEACH: settings.taught_beach = true
 		Career.INDOOR: settings.taught_indoor = true
+		Career.TENNIS: settings.taught_tennis = true
 		_: settings.taught = true
 	settings.save()
 
@@ -447,6 +449,13 @@ func floor_height() -> float:
 	return 0.0
 
 
+## Which projectile the aim is solved for. The solver runs the same drag model the real
+## ball uses, so handing it the wrong one is not a rounding error: a tennis ball aimed
+## with a volleyball's drag lands metres from where it was sent.
+func flight() -> ShotSolver.Flight:
+	return ShotSolver.ball_flight()
+
+
 ## Launches a shot that has to cross the net, at the flattest angle that gets over it.
 ##
 ## A straight line from the contact to the target clears the tape comfortably, and the
@@ -462,14 +471,14 @@ func send_over(from: Vector3, to: Vector3, angles: Array) -> void:
 	var flat := Vector2(to.x - from.x, to.z - from.z)
 	var crosses_at := absf(from.z) / maxf(0.001, absf(to.z - from.z))
 	var to_the_net := flat.length() * crosses_at
-	var flight := ShotSolver.ball_flight()
+	var shot := flight()
 
 	for angle in angles:
-		var velocity := ShotSolver.solve(from, to, angle, floor_height(), flight)
+		var velocity := ShotSolver.solve(from, to, angle, floor_height(), shot)
 		if velocity == Vector3.ZERO:
 			continue
 		var at_net := ShotSolver.height_after(
-			from.y - floor_height(), velocity.length(), angle, to_the_net, flight)
+			from.y - floor_height(), velocity.length(), angle, to_the_net, shot)
 		if at_net > net_height() + NET_CLEARANCE:
 			_aim = to
 			_ball.launch(from, velocity)
@@ -482,10 +491,10 @@ func send_over(from: Vector3, to: Vector3, angles: Array) -> void:
 ## Launches a shot that stays on one side of the net.
 func send(from: Vector3, to: Vector3, angle: float) -> void:
 	_aim = to
-	var flight := ShotSolver.ball_flight()
-	var velocity := ShotSolver.solve(from, to, angle, floor_height(), flight)
+	var shot := flight()
+	var velocity := ShotSolver.solve(from, to, angle, floor_height(), shot)
 	if velocity == Vector3.ZERO:
-		velocity = ShotSolver.solve(from, to, 45.0, floor_height(), flight)
+		velocity = ShotSolver.solve(from, to, 45.0, floor_height(), shot)
 	_ball.launch(from, velocity)
 
 

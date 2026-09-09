@@ -36,6 +36,7 @@ var fullscreen := false
 var taught := false
 var taught_beach := false
 var taught_indoor := false
+var taught_tennis := false
 
 
 static func load_or_default() -> Settings:
@@ -52,6 +53,8 @@ static func load_or_default() -> Settings:
 	settings.taught_beach = file.get_value("player", "taught_beach", settings.taught_beach)
 	settings.taught_indoor = file.get_value(
 		"player", "taught_indoor", settings.taught_indoor)
+	settings.taught_tennis = file.get_value(
+		"player", "taught_tennis", settings.taught_tennis)
 	return settings
 
 
@@ -65,6 +68,7 @@ func save() -> void:
 	file.set_value("player", "taught", taught)
 	file.set_value("player", "taught_beach", taught_beach)
 	file.set_value("player", "taught_indoor", taught_indoor)
+	file.set_value("player", "taught_tennis", taught_tennis)
 	file.save(PATH)
 
 
