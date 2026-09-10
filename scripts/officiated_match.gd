@@ -54,7 +54,19 @@ var ball_cam: ShuttleCam
 var players: Array[Player] = []
 var serving := Sides.Team.RED
 
-var _phase := Phase.MENU
+## The phase, with the one thing that has to happen the instant a rally starts.
+##
+## A setter rather than a line in each sport's serve function. All five sports set the
+## phase themselves, in five different places with five different amounts of ceremony
+## around them, and the note on the left has to come down in every one of them — so it
+## hangs off the state change they all already make instead of off five copies of a
+## call somebody would eventually forget to add to a sixth sport.
+var _phase := Phase.MENU:
+	set(value):
+		var was := _phase
+		_phase = value
+		if value == Phase.IN_PLAY and was != Phase.IN_PLAY and ui != null:
+			ui.dismiss_reason()
 var _reviewing := false
 var _awaiting_since := 0
 

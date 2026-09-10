@@ -154,6 +154,9 @@ var _reason_label: Label
 var _reason_left := 0.0
 var _reason_shown := 0.0
 
+## Whether the note is sitting there waiting to be read rather than counting down.
+var _reason_holding := false
+
 ## The pause menu's free exit, and the line under it. Both hidden once the match has
 ## begun to matter.
 var _leave_button: Button
@@ -1588,7 +1591,14 @@ func _build_reason_note() -> PanelContainer:
 	return _reason
 
 
-## Puts the note up for as long as the meter stays up, so the two go together.
+## Puts the note up and leaves it up.
+##
+## Unlike the meter it has no clock. The meter is a number and is read in a glance; a
+## sentence is not, and three seconds is the wrong amount of time for one — long enough
+## to be distracting during the next rally and short enough to be missed by anybody who
+## happened to be watching the court. So it waits, and the umpire dismisses it by
+## whistling the next rally, which is the one gesture that already means "I have
+## finished with the last one".
 ##
 ## An empty reason puts nothing on screen rather than an empty box: not every route
 ## into the meter has something to say, and a blank panel would look like a bug.
@@ -1599,26 +1609,34 @@ func show_reason(text: String) -> void:
 		return
 	_reason_label.text = text
 	_reason.visible = true
-	_reason_left = METER_FADE_IN + METER_HOLD + METER_FADE_OUT
-	if _reason_shown < 1.0 and _reason.modulate.a > 0.0:
-		_reason_left -= METER_FADE_IN * _reason_shown
+	_reason_holding = true
+
+
+## The whistle has gone, so the note goes with it.
+##
+## It fades from wherever it had got to rather than from full, so dismissing one that
+## is still fading in does not make it brighten first and then leave.
+func dismiss_reason() -> void:
+	if _reason == null or not _reason.visible or not _reason_holding:
+		return
+	_reason_holding = false
+	_reason_left = METER_FADE_OUT * _reason_shown
 
 
 func _tick_the_reason(delta: float) -> void:
-	if _reason == null or _reason_left <= 0.0:
-		return
-	_reason_left -= delta
-	if _reason_left <= 0.0:
-		_reason.visible = false
-		_reason.modulate.a = 0.0
-		_reason_shown = 0.0
+	if _reason == null or not _reason.visible:
 		return
 
-	if _reason_left <= METER_FADE_OUT:
-		_reason_shown = _reason_left / METER_FADE_OUT
-	else:
-		var since := (METER_FADE_IN + METER_HOLD + METER_FADE_OUT) - _reason_left
-		_reason_shown = clampf(since / METER_FADE_IN, 0.0, 1.0)
+	if _reason_holding:
+		_reason_shown = minf(1.0, _reason_shown + delta / METER_FADE_IN)
+		_reason.modulate.a = _reason_shown
+		return
+
+	_reason_left -= delta
+	if _reason_left <= 0.0:
+		hide_reason()
+		return
+	_reason_shown = _reason_left / METER_FADE_OUT
 	_reason.modulate.a = _reason_shown
 
 
@@ -1629,6 +1647,7 @@ func hide_reason() -> void:
 	_reason.modulate.a = 0.0
 	_reason_left = 0.0
 	_reason_shown = 0.0
+	_reason_holding = false
 
 
 
