@@ -235,7 +235,7 @@ func build_the_venue() -> void:
 	ball_cam.view_metres = 1.15
 	add_child(ball_cam)
 
-	_build_players()
+	build_the_players()
 	_build_camera()
 	_build_sky()
 
@@ -312,14 +312,33 @@ func _build_sky() -> void:
 
 ## Where a singles player stands when the ball is not in their half: on the middle of
 ## the baseline, which is the one place from which both corners are the same distance.
-func _home_of(team: Sides.Team) -> Vector3:
-	return Vector3(0.0, 0.0, end_of(team) * (TennisSpec.HALF_LENGTH + 0.7))
+func _home_of(team: Sides.Team, which := 0) -> Vector3:
+	var side := end_of(team)
+	if not playing_doubles():
+		return Vector3(0.0, 0.0, side * (TennisSpec.HALF_LENGTH + 0.7))
+	# One back behind the baseline and one up at the service line, on opposite sides of
+	# the centre — which is where a doubles pair actually stands and why the net player
+	# is the one every ball is hit away from.
+	if which == 0:
+		return Vector3(-1.9, 0.0, side * (TennisSpec.HALF_LENGTH + 0.7))
+	return Vector3(2.1, 0.0, side * (TennisSpec.SERVICE_LINE - 1.4))
 
 
-func _build_players() -> void:
+## One a side or two, as the format menu was answered.
+##
+## In doubles the two of them stand one back and one at the net, which is the whole
+## shape of the game: the net player is there to intercept, and the reason a doubles
+## point is shorter and sharper than a singles one.
+func build_the_players() -> void:
+	var each := 2 if playing_doubles() else 1
 	for team in [Sides.Team.RED, Sides.Team.BLUE]:
+		for i in each:
+			_build_one(team, i)
+
+
+func _build_one(team: Sides.Team, which: int) -> void:
 		var player := Player.new()
-		player.name = Sides.label(team)
+		player.name = "%s%d" % [Sides.label(team), which]
 		# A racket sport, so they carry one — the flag that hides it is the volleyball
 		# one, and a tennis player without a racket is a stranger who has walked on.
 		player.volleyball = false
@@ -327,15 +346,35 @@ func _build_players() -> void:
 		player.speed = COURT_SPEED
 		player.reach = RACKET_REACH
 		add_child(player)
-		player.setup(team, _home_of(team))
+		player.setup(team, _home_of(team, which))
 		players.append(player)
 
 
-func _player(team: Sides.Team) -> Player:
+## The one player of a side, or in doubles whichever of the pair is nearest the ball —
+## which is who would actually play it. Returning the first of a side was fine while
+## there was only ever one, and in doubles meant the same partner played every shot and
+## the other stood watching for the whole match.
+func _player(team: Sides.Team, near := Vector3.ZERO) -> Player:
+	var nearest := nearest_of(team, near)
+	if nearest != null:
+		return nearest
 	for player in players:
 		if player.team == team:
 			return player
 	return null
+
+
+## Which of a doubles pair is serving.
+##
+## The serving order alternates by game, so a partner serves every other one of their
+## side's service games — and keeping track of whose turn it is is a real part of what a
+## doubles umpire does, in both this sport and badminton.
+func _server_for(team: Sides.Team) -> Player:
+	var mine := team_of(team)
+	if mine.size() < 2:
+		return mine[0] if not mine.is_empty() else null
+	var games: int = board.games[Sides.Team.RED] + board.games[Sides.Team.BLUE]
+	return mine[int(games / 2.0) % 2]
 
 
 # --- starting a point -----------------------------------------------------------
@@ -366,6 +405,10 @@ func start_rally() -> void:
 	clear_the_mark()
 
 	rally = TennisRally.new()
+	# The tramlines are live in doubles — for every ball except the serve, which is
+	# judged by the singles sideline whatever the format. TennisSpec.is_a_good_serve
+	# has always known that; this is the other half of it.
+	rally.doubles = playing_doubles()
 	rally.serve_number = _serve_number
 	rally.struck_by = serving
 	rally.receiving = Sides.opponent(serving)
@@ -381,8 +424,9 @@ func start_rally() -> void:
 
 	_roll_for_one_fault()
 
-	var server := _player(serving)
-	var receiver := _player(Sides.opponent(serving))
+	var server := _server_for(serving)
+	var receiver := _player(Sides.opponent(serving),
+		Vector3(0.0, 0.0, -Sides.half_sign(serving) * TennisSpec.HALF_LENGTH))
 	_striker = server
 	_defender = receiver
 
@@ -561,8 +605,7 @@ func _physics_process(delta: float) -> void:
 func _take_the_stroke(here: Vector3) -> void:
 	_beat = Beat.RALLY
 	var hitter := side_defending(here.z)
-	_striker = _player(hitter)
-	_defender = _player(Sides.opponent(hitter))
+	_striker = _player(hitter, here)
 	rally.struck_by = hitter
 	rally.receiving = Sides.opponent(hitter)
 
@@ -570,6 +613,10 @@ func _take_the_stroke(here: Vector3) -> void:
 	var going_for_it := _exchanges_left <= 0
 	var target := _line_ball(Sides.opponent(hitter)) if going_for_it \
 		else _safe_ball(Sides.opponent(hitter))
+
+	# Whichever of the defending pair is nearest where it is going, which is who would
+	# actually go for it — and in singles is the only one there.
+	_defender = _player(Sides.opponent(hitter), target)
 
 	# Somebody who is about to touch the net, or play the ball before it has crossed,
 	# does it here — on their way to a shot, at the net, where both happen.
@@ -596,11 +643,19 @@ func _take_the_stroke(here: Vector3) -> void:
 ## A ball hit safely inside, which the other player will reach and return.
 func _safe_ball(against: Sides.Team) -> Vector3:
 	var into := end_of(against)
+	var wide: float = TennisSpec.HALF_WIDTH_DOUBLES if playing_doubles() \
+		else TennisSpec.HALF_WIDTH_SINGLES
 	return Vector3(
-		randf_range(-TennisSpec.HALF_WIDTH_SINGLES + 0.7,
-			TennisSpec.HALF_WIDTH_SINGLES - 0.7),
+		randf_range(-wide + 0.7, wide - 0.7),
 		TennisCourt.SURFACE_Y,
 		into * randf_range(4.6, TennisSpec.HALF_LENGTH - 0.9))
+
+
+## Which sideline is the boundary today: the tramline in doubles, the singles line in
+## singles. The gap between them is 1.37 m, which is the widest "in or out" in this game.
+func _sideline() -> float:
+	return TennisSpec.HALF_WIDTH_DOUBLES if playing_doubles() \
+		else TennisSpec.HALF_WIDTH_SINGLES
 
 
 ## A ball hit at a line, which is where the point is decided and where the umpire earns
@@ -619,13 +674,12 @@ func _line_ball(against: Sides.Team) -> Vector3:
 		# Deep, at the baseline. The commonest close call in the sport, and the one the
 		# umpire in the chair is worst placed to see.
 		return Vector3(
-			randf_range(-TennisSpec.HALF_WIDTH_SINGLES + 0.4,
-				TennisSpec.HALF_WIDTH_SINGLES - 0.4),
+			randf_range(-_sideline() + 0.4, _sideline() - 0.4),
 			TennisCourt.SURFACE_Y,
 			into * (TennisSpec.HALF_LENGTH + nudge))
-	# Wide, at the singles sideline.
+	# Wide, at whichever sideline is live.
 	return Vector3(
-		(1.0 if randf() < 0.5 else -1.0) * (TennisSpec.HALF_WIDTH_SINGLES + nudge),
+		(1.0 if randf() < 0.5 else -1.0) * (_sideline() + nudge),
 		TennisCourt.SURFACE_Y,
 		into * randf_range(3.2, TennisSpec.HALF_LENGTH - 0.7))
 

@@ -165,7 +165,7 @@ func build_the_venue() -> void:
 	ball_cam.view_metres = 1.75
 	add_child(ball_cam)
 
-	_build_players()
+	build_the_players()
 	_build_camera()
 	_build_sky()
 
@@ -253,7 +253,7 @@ const DEEP_BASE := Vector3(-1.7, 0.0, 5.8)
 const SAND_SPEED := 3.4
 
 
-func _build_players() -> void:
+func build_the_players() -> void:
 	for team in [Sides.Team.RED, Sides.Team.BLUE]:
 		var side := Sides.half_sign(team)
 		for i in 2:

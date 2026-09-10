@@ -75,9 +75,39 @@ func sport() -> StringName:
 	return Career.BADMINTON
 
 
+## Whether this match is two a side. Only badminton and tennis are ever asked; the two
+## volleyballs are what they are, and answer for the sport rather than from the career.
+func playing_doubles() -> bool:
+	if career == null or not Career.has_both_formats(sport()):
+		return true
+	return career.doubles
+
+
 ## Build the court, the ball, the players, the camera and the lighting.
 func build_the_venue() -> void:
 	pass
+
+
+## Puts the people on court. Each sport's own, and called again at the start of every
+## match by `rebuild_players`.
+func build_the_players() -> void:
+	pass
+
+
+## Rebuilds the people on court now that the format is known.
+##
+## They are built when the scene is, and the scene is built **before the career has been
+## loaded** — so at that moment nobody knows whether this is singles or doubles, and
+## `playing_doubles()` answers "doubles" because it has nothing better to say. A player
+## who chose singles got four people anyway.
+##
+## Doing it again here, once per match, also means the choice can change between matches
+## without reloading the scene.
+func rebuild_players() -> void:
+	for player in players:
+		player.queue_free()
+	players.clear()
+	build_the_players()
 
 
 ## Dress the venue for a rung of the ladder and fill the seats.
@@ -227,6 +257,9 @@ func _connect_menus() -> void:
 
 
 func _on_match_requested() -> void:
+	# One a side or two, which is only knowable now: the scene was built before the
+	# career was loaded. See rebuild_players.
+	rebuild_players()
 	var venue := career.venue()
 	suspicion.scrutiny = venue["scrutiny"]
 	has_challenge = venue["hawk_eye"]

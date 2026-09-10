@@ -135,7 +135,7 @@ func build_the_venue() -> void:
 	ball_cam.view_metres = 1.75
 	add_child(ball_cam)
 
-	_build_players()
+	build_the_players()
 	_build_camera()
 	_build_lighting()
 
@@ -212,7 +212,7 @@ func _build_lighting() -> void:
 
 
 ## Six a side, and one of each six wearing a different shirt.
-func _build_players() -> void:
+func build_the_players() -> void:
 	for team in [Sides.Team.RED, Sides.Team.BLUE]:
 		# The libero starts in the back row, which is where they live. When the rotation
 		# would carry them to the front they are substituted off in the real sport; here

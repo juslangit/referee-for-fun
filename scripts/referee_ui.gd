@@ -13,6 +13,7 @@ signal punishment_chosen(id: StringName, team: Sides.Team)
 signal match_requested()
 signal play_requested()
 signal sport_chosen(id: StringName)
+signal format_chosen(doubles: bool)
 signal settings_requested()
 signal main_menu_requested()
 signal look_speed_changed(radians_per_pixel: float)
@@ -86,6 +87,8 @@ const CARD := Vector2(232.0, 330.0)
 var _main_menu: Control
 var _main_menu_column: VBoxContainer
 var _sport_menu: Control
+var _format_menu: Control
+var _format_column: VBoxContainer
 var _settings_menu: Control
 var _pause_menu: Control
 var _career_panel: Control
@@ -154,6 +157,7 @@ func _ready() -> void:
 
 	_build_main_menu()
 	_build_sport_menu()
+	_build_format_menu()
 	_build_review()
 	_build_pause_menu()
 	_build_career_panel()
@@ -318,6 +322,66 @@ func _build_sport_menu() -> void:
 
 	column.add_child(_gap(22))
 	column.add_child(_centred(_make_wide_button("BACK", func() -> void: main_menu_requested.emit())))
+
+
+# --- one a side or two ----------------------------------------------------------
+
+## Asked only for the two sports that have both, and asked rather than assumed.
+##
+## Singles and doubles are not the same game with fewer people in it. The court is a
+## different width — badminton's singles sidelines are 42 cm inside the doubles ones, and
+## a shuttle landing between them is in for one game and out for the other. The service
+## court is a different length. And in badminton the serving order changes completely:
+## in doubles the side keeps the serve and the two of them alternate courts, in singles
+## the server's own score decides which box they serve from.
+##
+## So the referee's job is different, and being asked which job it is belongs at the
+## front of the game rather than in a settings screen somewhere.
+func _build_format_menu() -> void:
+	var built := _build_sheet("FormatMenu", Color(0.03, 0.04, 0.06, 0.55))
+	_format_menu = built[0]
+	_format_column = built[1]
+
+
+## `sport` names the game so the question reads as a question about that sport.
+func show_format_menu(sport: StringName) -> void:
+	for child in _format_column.get_children():
+		child.queue_free()
+	if _hud != null:
+		_hud.visible = false
+	hide_sport_menu()
+
+	_format_column.add_child(_make_label(
+		"%s" % Career.name_of(sport).to_upper(), TITLE_SIZE, UiTheme.CHALK))
+	_format_column.add_child(_gap(6))
+	_format_column.add_child(_make_label(
+		"One a side or two? They are different jobs.", PROMPT_SIZE, UiTheme.MUTED))
+	_format_column.add_child(_gap(20))
+
+	var singles := "the narrow court, and the server's score says which box"
+	var doubles := "the full width, and a serving order to keep track of"
+	if sport == Career.TENNIS:
+		singles = "the narrow court — the tramlines are out"
+		doubles = "the tramlines are live, except on the serve"
+
+	_format_column.add_child(_centred(_make_wide_button("SINGLES", func() -> void:
+		format_chosen.emit(false))))
+	_format_column.add_child(_make_label(singles, PROMPT_SIZE - 2, UiTheme.MUTED))
+	_format_column.add_child(_gap(10))
+	_format_column.add_child(_centred(_make_wide_button("DOUBLES", func() -> void:
+		format_chosen.emit(true))))
+	_format_column.add_child(_make_label(doubles, PROMPT_SIZE - 2, UiTheme.MUTED))
+
+	_format_column.add_child(_gap(20))
+	_format_column.add_child(_centred(_make_wide_button("BACK", func() -> void:
+		hide_format_menu()
+		show_sport_menu())))
+	_format_menu.visible = true
+
+
+func hide_format_menu() -> void:
+	if _format_menu != null:
+		_format_menu.visible = false
 
 
 func _sport_card(sport: Dictionary) -> Button:
@@ -1522,6 +1586,7 @@ func hide_menus() -> void:
 	if _hud != null:
 		_hud.visible = true
 	hide_sport_menu()
+	hide_format_menu()
 	hide_settings()
 	hide_teaching()
 	_main_menu.visible = false
@@ -2048,6 +2113,7 @@ func _build_ending() -> void:
 ## what a match beginning calls.
 func show_ending(headline: String, detail: String, tint := Color(0.96, 0.42, 0.36)) -> void:
 	hide_sport_menu()
+	hide_format_menu()
 	hide_settings()
 	hide_teaching()
 	hide_career()

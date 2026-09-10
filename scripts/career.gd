@@ -51,6 +51,19 @@ const BEACH := &"beach"
 const INDOOR := &"indoor"
 const TENNIS := &"tennis"
 
+## Which sports are played by one a side as well as two.
+##
+## Beach volleyball is always two and indoor is always six; there is no such thing as
+## singles beach volleyball. Badminton and tennis have both, and they are **different
+## games** rather than the same game with fewer people — the court is a different width,
+## the service court is a different length, and in badminton the serving order changes
+## completely. So it is a question worth asking rather than a setting worth assuming.
+const BOTH_FORMATS := [BADMINTON, TENNIS]
+
+
+static func has_both_formats(which: StringName) -> bool:
+	return which in BOTH_FORMATS
+
 ## The venues, in order, for each sport.
 ##
 ## **One reputation, a ladder each.** You are one official with one name, so being
@@ -391,6 +404,14 @@ const LADDERS := {
 ## saved, so coming back to the game puts you where you left off.
 var sport := BADMINTON
 
+## Whether the match being refereed is doubles. Only meaningful in the two sports that
+## have both; the other two ignore it and are what they are.
+##
+## Saved with the sport for the same reason: coming back to the game should put you
+## where you left off, and "which sport" without "which format" is only half an answer
+## in a game where the two formats have different courts.
+var doubles := true
+
 ## Where you have got to in each sport: tier, matches at that tier, and whether the
 ## appointments panel has vouched for you there. Reputation is deliberately *not* in
 ## here — there is only one of you.
@@ -613,6 +634,7 @@ func save() -> void:
 		"sport": String(sport),
 		"progress": progress,
 		"reputation": reputation,
+		"doubles": doubles,
 		"matches_refereed": matches_refereed,
 		"times_removed": times_removed,
 		"is_over": is_over,
@@ -641,6 +663,7 @@ static func load_or_start() -> Career:
 	career.grudge_name = String(parsed.get("grudge_name", ""))
 	career.grudge_reason = String(parsed.get("grudge_reason", ""))
 	career.sport = StringName(parsed.get("sport", String(BADMINTON)))
+	career.doubles = bool(parsed.get("doubles", true))
 
 	if parsed.has("progress"):
 		# JSON has no integers and no StringNames, so everything comes back as a float

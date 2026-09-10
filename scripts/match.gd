@@ -62,6 +62,14 @@ const HOME_POSITIONS := [
 	Vector3(-1.20, 0.0, 4.60),
 ]
 
+## Where one player a side stands: in the middle, at the back of the midcourt, because a
+## singles player has the whole court to cover on their own and starts from the one spot
+## every corner is the same distance from.
+const HOME_POSITIONS_SINGLES := [
+	Vector3(0.0, 0.0, -3.10),
+	Vector3(0.0, 0.0, 3.10),
+]
+
 ## How many shots a rally can run to before somebody simply runs out of legs.
 const RALLY_SHOT_CAP := 16
 
@@ -271,6 +279,7 @@ func _ready() -> void:
 	ui.quit_requested.connect(_on_quit_requested)
 	ui.play_requested.connect(_on_play_requested)
 	ui.sport_chosen.connect(_on_sport_chosen)
+	ui.format_chosen.connect(_on_format_chosen)
 	ui.settings_requested.connect(_on_settings_requested)
 	ui.main_menu_requested.connect(_on_main_menu_requested)
 	ui.look_speed_changed.connect(_on_look_speed_changed)
@@ -278,7 +287,7 @@ func _ready() -> void:
 	ui.teaching_finished.connect(_on_teaching_finished)
 	add_child(ui)
 
-	_build_players()
+	build_the_players()
 
 	for team in LINE_JUDGE_SEATS:
 		var judge := LineJudge.new()
@@ -325,6 +334,9 @@ func _ready() -> void:
 ## the difficulty: it decides how long the match is, whether anybody is helping,
 ## whether there is a camera, and how closely the hall is watching.
 func _on_match_requested() -> void:
+	# One a side or two. See OfficiatedMatch.rebuild_players for why this cannot happen
+	# when the scene is built.
+	rebuild_players()
 	var venue := career.venue()
 	suspicion.scrutiny = venue["scrutiny"]
 	has_shuttle_cam = venue["close_cam"]
@@ -369,6 +381,27 @@ func _on_play_requested() -> void:
 ## through the id rather than assumed, because the second sport is the whole reason the
 ## screen exists and it should not need this function rewritten.
 func _on_sport_chosen(id: StringName) -> void:
+	# Two of the sports have to be asked one a side or two before anything else can
+	# happen, because the answer changes the court. The other two are what they are.
+	if Career.has_both_formats(id):
+		_chosen_sport = id
+		ui.show_format_menu(id)
+		return
+	_go_to_sport(id)
+
+
+## Remembered between choosing a sport and choosing its format, which are two screens.
+var _chosen_sport := &""
+
+
+func _on_format_chosen(doubles: bool) -> void:
+	ui.hide_format_menu()
+	career.doubles = doubles
+	career.save()
+	_go_to_sport(_chosen_sport)
+
+
+func _go_to_sport(id: StringName) -> void:
 	ui.hide_sport_menu()
 
 	# Beach volleyball is a different court, a different ball and a different rulebook,
@@ -435,9 +468,23 @@ func _on_settings_requested() -> void:
 
 
 ## Back out of anything to the title screen.
+## Back to the front of the game.
+##
+## Badminton is the only sport where this does not change scene — it *is* the front of
+## the game — so everything a scene change would have swept away has to be swept away
+## here. The pause menu stayed up over the main menu with all its buttons live, and the
+## tree stayed paused, because leaving a match had never been a thing that happened
+## without the scene going with it.
 func _on_main_menu_requested() -> void:
+	get_tree().paused = false
+	ui.hide_pause_menu()
 	ui.hide_sport_menu()
+	ui.hide_format_menu()
 	ui.hide_settings()
+	ui.hide_career()
+	ui.show_hud(false)
+	# No longer refereeing anything, so ESC has nothing to pause.
+	_phase = Phase.MENU
 	_menu_view()
 	ui.show_main_menu(career)
 
@@ -555,9 +602,11 @@ func begin_match(_unused := Sides.Team.NONE) -> void:
 	enter_ready()
 
 
-func _build_players() -> void:
-	for i in HOME_POSITIONS.size():
-		var home: Vector3 = HOME_POSITIONS[i]
+## Two a side or one, as the format menu was answered.
+func build_the_players() -> void:
+	var spots: Array = HOME_POSITIONS if playing_doubles() else HOME_POSITIONS_SINGLES
+	for i in spots.size():
+		var home: Vector3 = spots[i]
 		var player := Player.new()
 		player.name = "Player%d" % i
 		# One of the four builds each, so the court holds four people rather than one
@@ -584,7 +633,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			close_the_fault_panel()
 		return
 
-	if _phase == Phase.REMOVED:
+	# Nothing below is about a match that is not being played. ESC on the title screen
+	# was opening the pause menu over it, which is a menu for pausing something.
+	if _phase == Phase.REMOVED or _phase == Phase.MENU:
 		return
 
 	if _is_key(event, KEY_ESCAPE):
@@ -752,7 +803,7 @@ func start_rally() -> void:
 	for judge in line_judges:
 		judge.silence()
 	ui.hide_line_judge()
-	rally = Rally.new(serving, true)
+	rally = Rally.new(serving, playing_doubles())
 	rally.service_court_error = service_error
 
 	# The serve leaves from wherever the server is actually standing, and goes to the
@@ -1538,7 +1589,7 @@ func _on_match_won(team: Sides.Team) -> void:
 func serve(from: Vector3, target: Vector3, angle := 36.0, striker := Sides.Team.NONE) -> Shuttle:
 	for player in players:
 		player.go_home()
-	rally = Rally.new(striker, true)
+	rally = Rally.new(striker, playing_doubles())
 	_shots_this_rally = RALLY_SHOT_CAP
 	if not _hit(from, target, angle, striker):
 		push_warning("No shot at %.0f degrees reaches %v from %v" % [angle, target, from])
@@ -1611,12 +1662,23 @@ func _stand_for_serve(court: float, mistaken := Sides.Team.NONE) -> void:
 ## server simply does not play the shot — every serve lands comfortably inside its box,
 ## and the calls worth making come later in the rally, where the boundary really is the
 ## back line.
+## Where the serve is aimed, in the service court that is actually live.
+##
+## The two formats have different service courts, and it is the difference most people
+## get wrong. **Doubles' service court is short and wide; singles' is long and narrow.**
+## A doubles serve must land in front of the long service line at 5.94 m, while a singles
+## serve may go all the way to the back boundary at 6.70 m — so the same serve is good in
+## one game and long in the other, by 76 cm.
 func _pick_serve_target(half: float, court: float) -> Vector3:
+	# The back of the service court: the long service line in doubles, and the back
+	# boundary itself in singles — HALF_LENGTH, which is where the court ends.
+	var back: float = CourtSpec.LONG_SERVICE_LINE_DOUBLES if playing_doubles() \
+		else CourtSpec.HALF_LENGTH
+	var wide: float = 2.45 if playing_doubles() else 1.95
 	return Vector3(
-		court * randf_range(0.40, 2.45),
+		court * randf_range(0.40, wide),
 		0.0,
-		half * randf_range(CourtSpec.SHORT_SERVICE_LINE + 0.55,
-			CourtSpec.LONG_SERVICE_LINE_DOUBLES - 0.45)
+		half * randf_range(CourtSpec.SHORT_SERVICE_LINE + 0.55, back - 0.45)
 	)
 
 
