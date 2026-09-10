@@ -51,6 +51,12 @@ var has_challenge := false
 var has_close_cam := true
 var ball_cam: ShuttleCam
 
+## The ball's path through each rally, the worst calls of the match, and the booth that
+## plays them back at the final whistle. See `close_the_night`.
+var recorder: FlightRecorder
+var worst_calls := WorstCalls.new()
+var replay_booth: ReplayBooth
+
 var players: Array[Player] = []
 var serving := Sides.Team.RED
 
@@ -67,6 +73,15 @@ var _phase := Phase.MENU:
 		_phase = value
 		if value == Phase.IN_PLAY and was != Phase.IN_PLAY and ui != null:
 			ui.dismiss_reason()
+		# The recorder is made here, the first time any rally is put in play, for the
+		# same reason: this setter is the one thing all five sports go through. Badminton's
+		# `_ready` does not call up to the spine's, so a recorder made there would have
+		# existed in four sports and quietly not in the fifth.
+		if value == Phase.IN_PLAY and recorder == null:
+			recorder = FlightRecorder.new()
+			recorder.name = "FlightRecorder"
+			recorder.arena = self
+			add_child(recorder)
 var _reviewing := false
 var _awaiting_since := 0
 
@@ -147,6 +162,19 @@ func enter_ready() -> void:
 ## See `judge` for the noise that now gets made about it.
 func current_rally():
 	return null
+
+
+## The ball in the air right now, for the recorder that keeps its path. Badminton keeps a
+## shuttle under a name of its own, so it answers for itself.
+func ball_in_play() -> Node3D:
+	return _ball
+
+
+## How far from the middle of the court, in x and z, the replay camera may stand. Most
+## sports are played in a hall with room all round; table tennis is played inside
+## barriers with a drape behind them, and answers for itself.
+func replay_room() -> Vector2:
+	return Vector2(INF, INF)
 
 
 ## Everything the reckoning wants to say about the final score. Sports that call a game
@@ -344,6 +372,7 @@ func _on_set_won(_team: Sides.Team) -> void:
 ## camera leaves both of them showing buttons that cannot be clicked.
 func begin_match(_unused := Sides.Team.NONE) -> void:
 	calls_made = 0
+	worst_calls = WorstCalls.new()
 	camera.set_active(true)
 	_start_watching_reputation()
 	go_ready()
@@ -517,13 +546,76 @@ func finish(headline: String, tint: Color, removed: bool) -> void:
 		pressure.resolve(board, suspicion)
 		pressures.append(pressure)
 
+	# Read before the career is told, which is where a promotion moves it to a new rung.
+	var venue_name := String(career.venue()["name"])
 	var note := career.finish_match(suspicion.level, removed, pressures)
 	career.remember_grudge(
 		String(Pressure.NAMES.pick_random()),
 		suspicion.wrong_calls, suspicion.stolen_rallies, suspicion.lean)
 	career.save()
 	detail += "\n\n%s\n\nReputation  %d / 100" % [note, roundi(career.reputation * 100.0)]
+	close_the_night(headline, detail, tint, removed, venue_name)
+
+
+## Everything between the final whistle and the result screen: the worst calls played
+## again, and — when the night went badly enough to be written about — the next morning's
+## paper, queued to follow the result.
+##
+## One function for every sport, and badminton is the reason it has to be. Badminton ends
+## a match through its own `_finish_match` rather than `finish()`, so a replay added to
+## `finish()` alone would have played in four sports and never in the game's first.
+##
+## The career has already been saved by the time this runs. The replay takes twenty
+## seconds, and a player who quits halfway through it loses nothing.
+var _closing := false
+
+func close_the_night(headline: String, detail: String, tint: Color, removed: bool,
+		venue_name: String) -> void:
+	if _closing:
+		return
+	_closing = true
+	var in_the_paper := removed or (career != null and career.is_over)
+	# Everything the paper knows is read now, before anything waits.
+	var story: Dictionary = Newspaper.story(_what_the_papers_know(removed, venue_name)) \
+		if in_the_paper else {}
+
+	var photo: Texture2D = null
+	if not worst_calls.is_empty():
+		replay_booth = ReplayBooth.new()
+		replay_booth.name = "ReplayBooth"
+		replay_booth.arena = self
+		add_child(replay_booth)
+		if not story.is_empty() and story["front_page"]:
+			photo = await replay_booth.photograph(worst_calls.worst())
+		await replay_booth.play(worst_calls.countdown())
+
+	if not story.is_empty():
+		ui.queue_newspaper(story, photo)
 	ui.show_ending(headline, detail, tint)
+
+
+## The facts behind the paper. Nothing in here is a judgement; see `Newspaper.story`.
+func _what_the_papers_know(removed: bool, venue_name: String) -> Dictionary:
+	var worst := worst_calls.worst()
+	# The same line `_reckoning` draws between a bad night and a bent one.
+	var helped := ""
+	if absf(suspicion.lean) >= 0.15:
+		helped = Sides.label(Sides.Team.BLUE if suspicion.lean > 0.0 else Sides.Team.RED)
+	return {
+		"sport": sport_name(),
+		"venue": venue_name,
+		"thrown_off": suspicion.is_removed,
+		"walked_out": removed and not suspicion.is_removed,
+		"career_over": career != null and career.is_over,
+		"wrong": suspicion.wrong_calls,
+		"stolen": suspicion.stolen_rallies,
+		"helped": helped,
+		"mentioned": helped != "" and pressure.exists() and Sides.label(pressure.wants) == helped,
+		"matches": career.matches_refereed if career != null else 1,
+		"removals": career.times_removed if career != null else 0,
+		"worst_truth": worst.get("truth", ""),
+		"worst_called": worst.get("called", ""),
+	}
 
 
 ## The line at the top of the ending: which sport, and which rung of which ladder.
@@ -750,6 +842,19 @@ func judge(call: CallType, against: Sides.Team) -> void:
 	record_the_line_judge(rally)
 	before_pricing()
 	ui.hide_close_cam()
+
+	# Kept for the end of the match now, while this is still certainly the rally the call
+	# was about: a review can come next, and the next serve replaces the rally.
+	#
+	# And kept **before** it is priced. Pricing can be the thing that ends the match — the
+	# hall's patience runs out inside `price_the_call`, the removal fires on the spot, and
+	# the replay starts before this line would otherwise have been reached. Kept after, the
+	# lie that got an umpire thrown off was the one lie missing from the replay of the
+	# night, and usually the worst of them.
+	if rally.verdict() == Rally.Verdict.WRONG:
+		var path := recorder.path_to(rally.landing_point) if recorder != null \
+			else PackedVector3Array()
+		worst_calls.consider(rally, path)
 
 	price_the_call(rally, call)
 

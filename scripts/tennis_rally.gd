@@ -289,6 +289,26 @@ func changed_the_result() -> bool:
 	return verdict() == Rally.Verdict.WRONG and point_goes_to() != rightful_winner()
 
 
+## What really happened, for the replay at the end of the match and nowhere else. In the
+## order `rightful_winner` applies the rules. A serve that was good hands the question on
+## to the rally ball, whose landing then overwrites `was_in` and `margin`, so only a serve
+## that was a fault is described as a serve.
+func what_really_happened() -> String:
+	if is_a_let():
+		return "THE SERVE CLIPPED THE NET CORD AND WAS GOOD — A LET"
+	if foot_fault:
+		return "FOOT FAULT BY %s" % Sides.label(struck_by)
+	if net_toucher != Sides.Team.NONE:
+		return "%s TOUCHED THE NET" % Sides.label(net_toucher)
+	if reached_over_by != Sides.Team.NONE:
+		return "%s REACHED OVER THE NET" % Sides.label(reached_over_by)
+	if not_up_by != Sides.Team.NONE:
+		return "%s LET IT BOUNCE TWICE" % Sides.label(not_up_by)
+	if is_a_serve and not serve_was_good:
+		return "FAULT — THE SERVE WAS OUT BY %s" % Rally.distance_words(margin)
+	return "IT WAS %s BY %s" % ["IN" if was_in else "OUT", Rally.distance_words(margin)]
+
+
 func describe() -> String:
 	var what := "serve %d" % serve_number if is_a_serve else "rally ball"
 	return "%s landed %s (%.3f m %s)%s -> %s, called %s, %s" % [

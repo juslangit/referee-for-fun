@@ -32,6 +32,10 @@ signal resume_requested()
 signal walk_out_requested()
 signal quit_requested()
 
+## The replay of the worst calls: on to the next one, or past all of them.
+signal replay_next()
+signal replay_skip_all()
+
 ## Sizes live in UiTheme so the whole interface grows together. It used to be a list
 ## of numbers here, each one adjusted separately, which is how it ended up too small to
 ## read from where the player is actually sitting.
@@ -207,6 +211,10 @@ func _ready() -> void:
 	_build_ending()
 	_build_shuttle_cam()
 	_build_fault_panel()
+	# Last, so they sit over everything: the replay comes before the result, and the
+	# paper comes after it.
+	_build_replay()
+	_build_newspaper()
 	_briefing.visible = false
 
 
@@ -2800,7 +2808,7 @@ func _build_ending() -> void:
 	column.add_child(_ending_detail)
 
 	column.add_child(_gap(18))
-	_ending_button = _make_wide_button("CONTINUE", func() -> void: continue_requested.emit())
+	_ending_button = _make_wide_button("CONTINUE", _after_the_result)
 	var centred := HBoxContainer.new()
 	centred.alignment = BoxContainer.ALIGNMENT_CENTER
 	centred.add_child(_ending_button)
@@ -2834,6 +2842,7 @@ func show_ending(headline: String, detail: String, tint := Color(0.96, 0.42, 0.3
 	hide_reason()
 	hide_bubble()
 	hide_line_judge()
+	hide_replay()
 	clear_messages()
 	_main_menu.visible = false
 	_pause_menu.visible = false
@@ -2844,6 +2853,328 @@ func show_ending(headline: String, detail: String, tint := Color(0.96, 0.42, 0.3
 	_ending_headline.add_theme_color_override("font_color", tint)
 	_ending_detail.text = detail
 	_ending.visible = true
+
+
+# --- the replay of the worst calls ----------------------------------------------
+#
+# Played over an empty court after the final whistle and before the result. It is part of
+# the end of the match, so it is allowed to say what was true — see `show_ending`. Laid
+# out like a broadcast replay: what it is in the top left, the picture that settles it in
+# the top right, and the words along the bottom.
+
+const REPLAY_VIEW := 400
+const REPLAY_INSET := 36
+
+var _replay: Control
+var _replay_title: Label
+var _replay_count: Label
+var _replay_said: Label
+var _replay_truth: Label
+var _replay_close: PanelContainer
+var _replay_view: TextureRect
+
+
+func _build_replay() -> void:
+	_replay = Control.new()
+	_replay.name = "Replay"
+	_replay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_replay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_replay.visible = false
+	_root.add_child(_replay)
+
+	var badge := PanelContainer.new()
+	badge.add_theme_stylebox_override("panel", UiTheme.plate(UiTheme.ACCENT, 0.90))
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.position = Vector2(REPLAY_INSET, REPLAY_INSET)
+	_replay.add_child(badge)
+	var badge_stack := VBoxContainer.new()
+	badge_stack.add_theme_constant_override("separation", 2)
+	badge.add_child(badge_stack)
+	var what := _make_label("REPLAY   ·   BALL TRACKING", UiTheme.SMALL, UiTheme.ACCENT)
+	what.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	badge_stack.add_child(what)
+	_replay_title = _make_label("", UiTheme.TITLE, UiTheme.CHALK)
+	_replay_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	badge_stack.add_child(_replay_title)
+	_replay_count = _make_label("", UiTheme.SMALL, UiTheme.MUTED)
+	_replay_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	badge_stack.add_child(_replay_count)
+
+	# The overhead picture, top right, shown only once the ball is down.
+	_replay_close = PanelContainer.new()
+	_replay_close.add_theme_stylebox_override("panel", UiTheme.plate(UiTheme.ACCENT, 0.90))
+	_replay_close.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_replay_close.anchor_left = 1.0
+	_replay_close.anchor_right = 1.0
+	_replay_close.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_replay_close.offset_left = -REPLAY_INSET
+	_replay_close.offset_right = -REPLAY_INSET
+	_replay_close.offset_top = REPLAY_INSET
+	_replay_close.visible = false
+	_replay.add_child(_replay_close)
+	var close_stack := VBoxContainer.new()
+	close_stack.add_theme_constant_override("separation", 6)
+	_replay_close.add_child(close_stack)
+	close_stack.add_child(_make_label("WHERE IT CAME DOWN", UiTheme.SMALL, UiTheme.ACCENT))
+	_replay_view = TextureRect.new()
+	_replay_view.custom_minimum_size = Vector2(REPLAY_VIEW, REPLAY_VIEW)
+	_replay_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_replay_view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	close_stack.add_child(_replay_view)
+
+	# The words, bottom centre: what you said, and underneath it what was true.
+	var caption := PanelContainer.new()
+	caption.add_theme_stylebox_override("panel", UiTheme.plate(UiTheme.ACCENT, 0.90))
+	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	caption.anchor_left = 0.5
+	caption.anchor_right = 0.5
+	caption.anchor_top = 1.0
+	caption.anchor_bottom = 1.0
+	caption.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	caption.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	caption.offset_top = -REPLAY_INSET
+	caption.offset_bottom = -REPLAY_INSET
+	_replay.add_child(caption)
+	var lines := VBoxContainer.new()
+	lines.add_theme_constant_override("separation", 6)
+	caption.add_child(lines)
+	_replay_said = _make_label("", UiTheme.HEADING, UiTheme.CHALK)
+	lines.add_child(_replay_said)
+	_replay_truth = _make_label("", UiTheme.HEADING, UiTheme.ACCENT)
+	lines.add_child(_replay_truth)
+	lines.add_child(_make_label("SPACE   next        ESC   skip them all",
+		UiTheme.SMALL, UiTheme.MUTED))
+
+	# A way past them for the mouse as well, bottom right, out of the caption's way.
+	var skip := _footer_button("SKIP REPLAYS", func() -> void: replay_skip_all.emit())
+	skip.anchor_left = 1.0
+	skip.anchor_right = 1.0
+	skip.anchor_top = 1.0
+	skip.anchor_bottom = 1.0
+	skip.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	skip.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	skip.offset_left = -REPLAY_INSET
+	skip.offset_right = -REPLAY_INSET
+	skip.offset_top = -REPLAY_INSET
+	skip.offset_bottom = -REPLAY_INSET
+	_replay.add_child(skip)
+
+
+## Puts up one replay, with only what you said filled in. The truth waits for the ball to
+## come down — see `set_replay_truth`.
+func show_replay(title: String, count: String, said: String) -> void:
+	hide_close_cam()
+	hide_review()
+	hide_reputation()
+	hide_reason()
+	hide_bubble()
+	hide_line_judge()
+	clear_messages()
+	if _hud != null:
+		_hud.visible = false
+	_replay_title.text = title
+	_replay_count.text = count
+	_replay_said.text = said
+	_replay_truth.text = ""
+	_replay_close.visible = false
+	_replay.visible = true
+
+
+func set_replay_truth(text: String) -> void:
+	_replay_truth.text = text
+
+
+func show_replay_close_up(view: Texture2D) -> void:
+	_replay_view.texture = view
+	_replay_close.visible = true
+
+
+func hide_replay_close_up() -> void:
+	_replay_close.visible = false
+
+
+func hide_replay() -> void:
+	if _replay != null:
+		_replay.visible = false
+
+
+# --- the next morning's paper ----------------------------------------------------
+#
+# Shown after the result screen, because it is the morning after. Printed in ink on paper
+# rather than in the broadcast style of everything else, because it is the one thing in
+# the game that is not happening in the hall.
+
+const PAPER := Color(0.945, 0.925, 0.870)
+const NEWSPRINT := Color(0.10, 0.10, 0.11)
+const NEWSPRINT_GREY := Color(0.33, 0.32, 0.31)
+const NEWSPRINT_RED := Color(0.70, 0.12, 0.09)
+const FRONT_PAGE_WIDTH := 1180
+const INSIDE_PAGE_WIDTH := 820
+const PHOTO := 380
+
+var _paper: Control
+var _paper_column: VBoxContainer
+var _paper_story := {}
+var _paper_photo: Texture2D
+
+
+func _build_newspaper() -> void:
+	_paper = Control.new()
+	_paper.name = "Newspaper"
+	_paper.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_paper.mouse_filter = Control.MOUSE_FILTER_STOP
+	_paper.visible = false
+	_root.add_child(_paper)
+
+	var backdrop := ColorRect.new()
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.color = Color(0.03, 0.03, 0.04, 0.97)
+	_paper.add_child(backdrop)
+
+	var centre := CenterContainer.new()
+	centre.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_paper.add_child(centre)
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 22)
+	centre.add_child(stack)
+
+	var sheet := PanelContainer.new()
+	var newsprint := StyleBoxFlat.new()
+	newsprint.bg_color = PAPER
+	newsprint.content_margin_left = 44
+	newsprint.content_margin_right = 44
+	newsprint.content_margin_top = 30
+	newsprint.content_margin_bottom = 34
+	newsprint.shadow_color = Color(0.0, 0.0, 0.0, 0.55)
+	newsprint.shadow_size = 18
+	sheet.add_theme_stylebox_override("panel", newsprint)
+	stack.add_child(sheet)
+	_paper_column = VBoxContainer.new()
+	_paper_column.add_theme_constant_override("separation", 10)
+	sheet.add_child(_paper_column)
+
+	stack.add_child(_centred(_make_wide_button("CONTINUE", func() -> void:
+		_paper.visible = false
+		_paper_story = {}
+		_paper_photo = null
+		continue_requested.emit())))
+
+
+## Holds the paper until the result screen has been read. `photo` is the overhead picture
+## of the worst call, or null.
+func queue_newspaper(story: Dictionary, photo: Texture2D) -> void:
+	_paper_story = story
+	_paper_photo = photo
+
+
+func has_newspaper_waiting() -> bool:
+	return not _paper_story.is_empty()
+
+
+## CONTINUE on the result screen: the paper if there is one, and on otherwise.
+func _after_the_result() -> void:
+	if has_newspaper_waiting():
+		_show_newspaper()
+		return
+	continue_requested.emit()
+
+
+func _show_newspaper() -> void:
+	for child in _paper_column.get_children():
+		child.queue_free()
+	var story := _paper_story
+	var front: bool = story["front_page"]
+	var width := FRONT_PAGE_WIDTH if front else INSIDE_PAGE_WIDTH
+
+	_paper_column.add_child(_ink(story["title"], 76 if front else 42, _serif(true), NEWSPRINT,
+		width, HORIZONTAL_ALIGNMENT_CENTER))
+	_paper_column.add_child(_rule(width, 3))
+	var dateline := HBoxContainer.new()
+	var date := _ink(story["date"], 18, _serif(), NEWSPRINT_GREY)
+	date.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dateline.add_child(date)
+	dateline.add_child(_ink(story["section"], 18, _serif(true), NEWSPRINT_GREY))
+	_paper_column.add_child(dateline)
+	_paper_column.add_child(_rule(width, 1))
+	_paper_column.add_child(_gap(4))
+
+	_paper_column.add_child(_ink(story["kicker"], 24, _heavy(), NEWSPRINT_RED))
+	_paper_column.add_child(_ink(story["headline"], 68 if front else 46, _heavy(), NEWSPRINT,
+		width))
+	if story["standfirst"] != "":
+		_paper_column.add_child(_ink(story["standfirst"], 28, _serif(true), NEWSPRINT_GREY,
+			width))
+	_paper_column.add_child(_rule(width, 1))
+
+	var body: Array = story["body"]
+	if front and _paper_photo != null:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 26)
+		var picture_column := VBoxContainer.new()
+		picture_column.add_theme_constant_override("separation", 6)
+		var picture := TextureRect.new()
+		picture.texture = _paper_photo
+		picture.custom_minimum_size = Vector2(PHOTO, PHOTO)
+		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		picture_column.add_child(picture)
+		picture_column.add_child(_ink(story["caption"], 18, _serif(), NEWSPRINT_GREY, PHOTO))
+		row.add_child(picture_column)
+		row.add_child(_paragraphs(body, width - PHOTO - 26))
+		_paper_column.add_child(row)
+	else:
+		_paper_column.add_child(_paragraphs(body, width))
+
+	_paper.visible = true
+
+
+## The body of a story, one label a paragraph so there is air between them.
+func _paragraphs(body: Array, width: int) -> VBoxContainer:
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 10)
+	for paragraph in body:
+		column.add_child(_ink(paragraph, 23, _serif(), NEWSPRINT, width))
+	return column
+
+
+## A label printed in ink. A width of zero means "as wide as the words".
+func _ink(text: String, size: int, font: Font, colour: Color, width := 0,
+		align := HORIZONTAL_ALIGNMENT_LEFT) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_override("font", font)
+	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_color_override("font_color", colour)
+	label.horizontal_alignment = align
+	if width > 0:
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.custom_minimum_size = Vector2(width, 0)
+	return label
+
+
+func _rule(width: int, thickness: int) -> ColorRect:
+	var line := ColorRect.new()
+	line.color = NEWSPRINT
+	line.custom_minimum_size = Vector2(width, thickness)
+	return line
+
+
+## The body type. Whatever serif the machine has; every desktop has one of these.
+static func _serif(bold := false) -> SystemFont:
+	var font := SystemFont.new()
+	font.font_names = PackedStringArray(
+		["Georgia", "Times New Roman", "Times", "Liberation Serif", "DejaVu Serif", "serif"])
+	font.font_weight = 700 if bold else 400
+	return font
+
+
+## The headline type: condensed and heavy, the way a tabloid shouts.
+static func _heavy() -> SystemFont:
+	var font := SystemFont.new()
+	font.font_names = PackedStringArray(
+		["Impact", "Haettenschweiler", "Arial Black", "Helvetica Neue", "Arial", "sans-serif"])
+	font.font_weight = 900
+	return font
 
 
 ## Wraps a label in a dark plate and anchors the pair where it belongs.

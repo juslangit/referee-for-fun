@@ -1323,6 +1323,11 @@ func current_rally():
 	return rally
 
 
+## The shuttle, which badminton keeps under its own name. See OfficiatedMatch.ball_in_play.
+func ball_in_play() -> Node3D:
+	return _shuttle
+
+
 func make_call(id: StringName, against := Sides.Team.NONE) -> void:
 	var call := CallBook.get_call(id)
 	if call != null:
@@ -1448,7 +1453,8 @@ func _finish_match(headline: String, tint: Color, removed: bool) -> void:
 		debt.resolve(board, suspicion, _debt_evened)
 		pressures.append(debt)
 
-	var detail := "BADMINTON   ·   %s" % career.venue()["name"]
+	var venue_name := String(career.venue()["name"])
+	var detail := "BADMINTON   ·   %s" % venue_name
 	detail += "\n\n" + _reckoning()
 	if career != null:
 		var note := career.finish_match(suspicion.level, removed, pressures)
@@ -1462,7 +1468,9 @@ func _finish_match(headline: String, tint: Color, removed: bool) -> void:
 		career.save()
 		detail += "\n\n%s\n\nReputation  %d / 100" % [note, roundi(career.reputation * 100.0)]
 
-	ui.show_ending(headline, detail, tint)
+	# The replay and the paper live on the spine, so this sport gets them from the same
+	# place as the other four. See OfficiatedMatch.close_the_night.
+	close_the_night(headline, detail, tint, removed, venue_name)
 
 
 ## Badminton counts games rather than sets, which is the only thing its own `_reckoning`

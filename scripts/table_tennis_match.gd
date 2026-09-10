@@ -222,6 +222,12 @@ func current_rally():
 	return rally
 
 
+## Inside the barriers. The drape half a metre behind them is black on purpose, so a ball
+## can be followed against it, and a replay camera standing behind it sees nothing else.
+func replay_room() -> Vector2:
+	return Vector2(TableTennisTable.BARRIER_X - 0.2, TableTennisTable.BARRIER_Z - 0.2)
+
+
 func fault_book() -> Array:
 	return TableTennisCallBook.faults()
 

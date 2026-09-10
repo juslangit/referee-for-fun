@@ -130,6 +130,20 @@ func _a_positional_fault_happened() -> bool:
 		or back_row_attack_by != Sides.Team.NONE)
 
 
+## The four positional faults come before anything the ball did, as they do in
+## `rightful_winner`; after them the rally is the beach rally's story.
+func what_really_happened() -> String:
+	if wrong_server_by != Sides.Team.NONE:
+		return "THE WRONG %s PLAYER SERVED" % Sides.label(wrong_server_by)
+	if rotation_fault_by != Sides.Team.NONE:
+		return "%s WERE OUT OF ROTATION" % Sides.label(rotation_fault_by)
+	if libero_fault_by != Sides.Team.NONE:
+		return "LIBERO FAULT BY %s" % Sides.label(libero_fault_by)
+	if back_row_attack_by != Sides.Team.NONE:
+		return "BACK-ROW ATTACK BY %s" % Sides.label(back_row_attack_by)
+	return super()
+
+
 func describe() -> String:
 	var extra := ""
 	if wrong_server_by != Sides.Team.NONE:

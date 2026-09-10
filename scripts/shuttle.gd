@@ -28,6 +28,9 @@ const TERMINAL_VELOCITY := 6.8
 ## Roughly the radius of the skirt, used for collision with the net and walls.
 const RADIUS := 0.033
 
+## The cork, which is the part that lands and the part a line call is about.
+const CORK_RADIUS := 0.014
+
 ## How far the tip of the cork sits ahead of the shuttle's centre.
 ##
 ## A shuttle always lands cork first, so the cork tip is the part that touches the
@@ -210,8 +213,8 @@ func _build_body() -> void:
 	var cork := MeshInstance3D.new()
 	cork.name = "Cork"
 	var cork_mesh := SphereMesh.new()
-	cork_mesh.radius = 0.014
-	cork_mesh.height = 0.028
+	cork_mesh.radius = CORK_RADIUS
+	cork_mesh.height = CORK_RADIUS * 2.0
 	cork.mesh = cork_mesh
 	cork.position = Vector3(0.0, 0.0, -0.035)
 	cork.material_override = cork_material

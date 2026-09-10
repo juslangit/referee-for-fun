@@ -307,6 +307,32 @@ func changed_the_result() -> bool:
 	return point_goes_to() != rightful_winner()
 
 
+## What really happened, in words a player may read — **but only once the match is over.**
+##
+## The end of a match is the one place the truth is allowed on screen, and the replay of
+## the worst calls is part of the end. Written separately from `describe()` on purpose:
+## that one is for our own testing and speaks the language of the code, and this one is
+## said to the player. The order is the order `rightful_winner` applies the rules in, so
+## it names the thing that actually decided the rally.
+func what_really_happened() -> String:
+	if incident.happened():
+		return "%s BY %s" % [Incident.label(incident.kind), Sides.label(incident.by)]
+	if not crossed_the_net:
+		return "IT LANDED ON ITS OWN SIDE" if went_over_the_net else "IT NEVER GOT OVER THE NET"
+	return "IT WAS %s BY %s" % ["IN" if was_in else "OUT", distance_words(margin)]
+
+
+## A distance the way somebody would say it about a ball and a line. Shared by every
+## sport's rally, which is why it lives here rather than in any one of them.
+static func distance_words(metres: float) -> String:
+	var cm := absf(metres) * 100.0
+	if cm < 1.0:
+		return "LESS THAN A CENTIMETRE"
+	if cm < 100.0:
+		return "%d cm" % roundi(cm)
+	return "%.1f m" % absf(metres)
+
+
 ## A one-line description of the truth, for our own testing only. Nothing that
 ## reaches the player's screen may ever call this.
 func describe() -> String:

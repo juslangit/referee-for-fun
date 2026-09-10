@@ -299,6 +299,28 @@ func changed_the_result() -> bool:
 	return verdict() == Rally.Verdict.WRONG and point_goes_to() != rightful_winner()
 
 
+## What really happened, for the replay at the end of the match and nowhere else. In the
+## order `rightful_winner` applies the rules, so it names what actually decided the rally.
+func what_really_happened() -> String:
+	if foot_fault:
+		return "FOOT FAULT BY %s ON THE SERVE" % Sides.label(served_by)
+	if net_toucher != Sides.Team.NONE:
+		return "%s TOUCHED THE NET" % Sides.label(net_toucher)
+	if centre_line_crosser != Sides.Team.NONE:
+		return "%s CROSSED THE CENTRE LINE" % Sides.label(centre_line_crosser)
+	if handling_fault:
+		return "BALL-HANDLING FAULT BY %s" % Sides.label(_handler())
+	if contacts > 3:
+		return "%s PLAYED IT FOUR TIMES" % Sides.label(struck_by)
+	if not inside_the_antennae:
+		return "IT CROSSED OUTSIDE THE ANTENNA"
+	if was_in:
+		return "IT WAS IN BY %s" % Rally.distance_words(margin)
+	if was_touched:
+		return "IT WENT OUT OFF A %s HAND" % Sides.label(receiving)
+	return "IT WAS OUT BY %s" % Rally.distance_words(margin)
+
+
 func describe() -> String:
 	return "landed %s (%.3f m %s the line)%s%s -> %s, called %s, %s" % [
 		"IN" if was_in else "OUT",

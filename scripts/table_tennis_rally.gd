@@ -200,6 +200,29 @@ func changed_the_result() -> bool:
 	return verdict() == Rally.Verdict.WRONG and point_goes_to() != rightful_winner()
 
 
+## What really happened, for the replay at the end of the match and nowhere else. In the
+## order `rightful_winner` applies the rules. The edge gets its own words because it is
+## the whole of this sport: a ball that clips it is good, however it looked.
+func what_really_happened() -> String:
+	if is_a_let():
+		return "THE SERVE CLIPPED THE NET AND WAS GOOD — A LET"
+	if illegal_service:
+		return "ILLEGAL SERVICE BY %s" % Sides.label(served_by)
+	if volleyed_by != Sides.Team.NONE:
+		return "%s STRUCK IT BEFORE IT BOUNCED" % Sides.label(volleyed_by)
+	if touched_the_table_by != Sides.Team.NONE:
+		return "%s PUT A FREE HAND ON THE TABLE" % Sides.label(touched_the_table_by)
+	if double_bounce_by != Sides.Team.NONE:
+		return "%s LET IT BOUNCE TWICE" % Sides.label(double_bounce_by)
+	if is_a_serve and not serve_was_good:
+		return "FAULT — THE SERVE WAS NOT GOOD"
+	if not was_in:
+		return "IT MISSED THE TABLE BY %s" % Rally.distance_words(margin)
+	if clipped_the_edge:
+		return "IT CLIPPED THE EDGE — GOOD"
+	return "IT LANDED %s INSIDE THE EDGE" % Rally.distance_words(margin)
+
+
 func describe() -> String:
 	var what := "serve" if is_a_serve else "rally ball"
 	return "%s landed %s (%.3f m %s)%s -> %s, called %s, %s" % [
