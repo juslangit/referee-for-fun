@@ -755,9 +755,23 @@ func judge(call: CallType, against: Sides.Team) -> void:
 
 	# What the hall makes of it: the call itself, or the length of the silence before it.
 	# A slow clap for taking four seconds over a ball a metre out.
-	var reaction := Crowd.react_to_call(rally.visibility(), suspicion.mood)
+	#
+	# The verdict is handed over as well as the visibility, and it has to be. Without it
+	# this took how plainly the ball could be read and nothing else, so a ball plainly
+	# out that the umpire correctly called out arrived as 0.9 and the hall shouted
+	# "CHEAT!" at somebody who had just done the job perfectly. Luqman found it by
+	# playing.
+	var reaction := Crowd.react_to_call(
+		rally.visibility(), suspicion.mood, rally.verdict() == Rally.Verdict.WRONG)
 	if reaction.is_empty():
 		reaction = Crowd.react_to_delay(rally.seconds_to_call)
+
+	# And the room coming round, which outranks both. It is rarer than either of them —
+	# it takes a bad patch and then a clean run to earn — and it is the only approving
+	# thing anybody in this game ever says.
+	if suspicion.the_room_comes_round():
+		reaction = Crowd.react_to_recovery()
+		_they_acknowledge_you()
 	ui.react(reaction)
 	_show_reviews()
 
@@ -868,6 +882,27 @@ func _the_players_react(winner: Sides.Team, rally) -> void:
 			player.celebrate()
 		elif wrong and seen >= ARGUES_WHEN_SEEN:
 			player.argue()
+
+
+## The players nodding towards the chair once the room has come round.
+##
+## Whoever you have been leaning *against* is who nods, because they are the side with
+## something to forgive — you have spent the match taking points off them and have just
+## stopped. When the lean is even there was no victim in particular, so both sides do it.
+##
+## `lean` is positive when the wrong calls have favoured BLUE, so a positive lean means
+## RED is the side that has been paying for them.
+const A_CLEAR_LEAN := 0.20
+
+func _they_acknowledge_you() -> void:
+	var wronged := Sides.Team.NONE
+	if suspicion.lean >= A_CLEAR_LEAN:
+		wronged = Sides.Team.RED
+	elif suspicion.lean <= -A_CLEAR_LEAN:
+		wronged = Sides.Team.BLUE
+	for player in players:
+		if wronged == Sides.Team.NONE or player.team == wronged:
+			player.acknowledge()
 
 
 # --- the reputation meter -------------------------------------------------------

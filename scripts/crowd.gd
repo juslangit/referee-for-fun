@@ -85,10 +85,22 @@ const AMBIENT := {
 
 ## What the hall says immediately after a call, or an empty string for silence.
 ##
-## `visibility` is how plainly wrong the call looked, not whether it was wrong. An
-## invisible lie draws nothing, and a genuinely correct call that happened to look
-## odd draws nothing either — the hall only reacts to what it can see.
-static func react_to_call(visibility: float, mood: Suspicion.Mood) -> String:
+## `visibility` is how plainly the ball itself could be read — **not** whether the call
+## was wrong. That distinction is the whole of a bug Luqman found by playing: this used
+## to take visibility and the mood and nothing else, so a ball plainly out that the
+## umpire correctly called out arrived here at 0.9 and the hall shouted "CHEAT!" at
+## somebody who had just done the job perfectly. The docstring above this function
+## claimed a correct call drew nothing. Nothing in the code said so, because the verdict
+## was never passed in.
+##
+## `was_wrong` has no default on purpose. A default would have let this same call site,
+## or a new one, quietly keep the old behaviour.
+static func react_to_call(visibility: float, mood: Suspicion.Mood,
+		was_wrong: bool) -> String:
+	# The hall complains about calls it thinks were wrong. It has no complaint about one
+	# that was right, however plain the ball was — that is just the job being done.
+	if not was_wrong:
+		return ""
 	if visibility < NOTICE_THRESHOLD:
 		return ""
 
@@ -105,6 +117,32 @@ static func react_to_call(visibility: float, mood: Suspicion.Mood) -> String:
 
 ## What the hall says about a call that took a while. Empty if it was quick enough
 ## that nobody noticed.
+## The hall coming round, after it had turned on you and you have put a run of calls
+## together since.
+##
+## This is the only approving thing anybody in this game ever says, and it is carefully
+## **not** a verdict on the call that triggered it. Every line here is about the umpire
+## over the last few minutes — their eyes, their grip on the match — and none of them
+## says a ball was in or out, which is the rule the whole file is built on. A crowd that
+## confirmed individual calls would hand the player the one thing the game withholds.
+##
+## It only ever fires after the room has soured, which is what makes it worth anything.
+## A hall that applauded every correct call would be a scoreboard.
+const APPROVAL := [
+	"\"That's more like it, ref!\"",
+	"\"All right. He's found his eyes.\"",
+	"the booing has stopped",
+	"somebody near the front nods towards the chair",
+	"a ripple of applause, and this time it is for you",
+	"the RED coach sits back down",
+	"the hall has gone back to watching the players",
+]
+
+
+static func react_to_recovery() -> String:
+	return _pick(APPROVAL)
+
+
 ## What the hall says once a review has answered the question for it.
 ##
 ## These are the only crowd lines in the game allowed to be certain about anything. Every

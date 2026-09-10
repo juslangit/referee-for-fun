@@ -241,6 +241,26 @@ func argue() -> void:
 	_play("argue", true)
 
 
+## A nod towards the chair: the official has got a run of them right after a bad patch.
+##
+## The counterpart to `argue`, and the only approving thing anybody on court ever does.
+## It is not `celebrate` and must not become it — a celebration is about the rally and
+## fires for whoever won the point, and this is about the person in the chair.
+func acknowledge() -> void:
+	_play("nod", true)
+
+
+## Which clip is on the figure now, for the harnesses that assert somebody reacted.
+##
+## `_clip` is set by `_play` even when the clip turned out not to exist on the rig, so
+## this reports what the animator is actually running rather than what was asked for —
+## the whole point of asking is to catch a clip that silently is not there.
+func playing_clip() -> String:
+	if _animator == null:
+		return ""
+	return String(_animator.current_animation)
+
+
 ## Bob, lean and swing. All of it moves the whole figure, because the figure is a
 ## single static mesh with no skeleton to pose.
 func _animate(delta: float, running: bool) -> void:

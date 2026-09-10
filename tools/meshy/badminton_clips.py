@@ -176,6 +176,39 @@ CLIPS = {
         ],
     },
 
+    # A nod towards the chair.
+    #
+    # Deliberately not the celebration, and it took a decision to keep them apart. This
+    # is a player acknowledging that the official got one right after a bad patch, which
+    # in this game is a rarer event than winning a point and has to read as a smaller,
+    # quieter thing than one — reusing `celebrate` would have looked like they were
+    # cheering the rally rather than the chair.
+    #
+    # The **arm** is the gesture and the head is the second half of it. Rendered side by
+    # side, a version built the other way round — two head dips and the hand where it
+    # already was — was almost invisible: a nod is a few degrees of neck on a figure the
+    # umpire is watching from several metres away, and the spine cannot help, because
+    # Meshy's rig puts almost no weight on it (see `lean`). Raising the bat towards the
+    # chair is also simply what players do.
+    "nod": {
+        "loop": False,
+        "keys": [
+            (0, READY),
+            # Bat coming up, head starting down.
+            (6, _with(READY, neck=(14, 0, 0),
+                      RightArm=(0, -18, 52), RightForeArm=(0, 0, 64))),
+            # Held up towards the chair, head level again.
+            (13, _with(READY, neck=(2, 0, 0),
+                       RightArm=(0, 4, 58), RightForeArm=(0, 0, 58))),
+            (20, _with(READY, neck=(18, 0, 0),
+                       RightArm=(0, 2, 57), RightForeArm=(0, 0, 60))),
+            # And down.
+            (28, _with(READY, neck=(6, 0, 0),
+                       RightArm=(0, -26, 46), RightForeArm=(0, 0, 66))),
+            (38, READY),
+        ],
+    },
+
     # The line judges sit in their corner for the whole match, which is the one thing
     # they do that no player ever does. Same rig, same file, so they get the clip too.
     "sit": {

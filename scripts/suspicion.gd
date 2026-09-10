@@ -123,6 +123,26 @@ var peak := 0.0
 var lean := 0.0
 
 var mood := Mood.SETTLED
+
+## How many calls in a row the official has got right, and whether the room has anything
+## to forgive them for.
+##
+## The pair exist so the hall can come round. Everything else in this file only ever
+## moves one way per call — a lie costs, a clean call repays a little — and the mood that
+## results is a slow average with no memory of *shape*. But a room that turned on you and
+## then watched you put three straight calls together is not in the same state as a room
+## that has been quietly unhappy for five minutes, and it is the one moment in a match
+## worth saying something approving about.
+var clean_run := 0
+var owed_a_word := false
+
+## How many correct calls in a row it takes to be given credit for it. Three, so that a
+## single lucky call cannot buy goodwill straight after a plain lie.
+const CLEAN_RUN_TO_COME_ROUND := 3
+
+## How plainly wrong a call has to be for the room to hold it against you at all. Below
+## this nobody saw anything, so there is nothing to come round from later.
+const SOURS_THE_ROOM := 0.30
 var has_been_warned := false
 var is_removed := false
 
@@ -174,6 +194,7 @@ func register_judgement(
 	var dithering := hesitation_cost(seconds_to_call)
 
 	if verdict == Rally.Verdict.CORRECT:
+		clean_run += 1
 		var conspicuous := dithering
 		if overrules_line_judge:
 			conspicuous += OVERRULE_ON_ITS_OWN
@@ -194,6 +215,11 @@ func register_judgement(
 		return 0.0
 
 	wrong_calls += 1
+	clean_run = 0
+	# Only a call somebody could actually see gives the room something to forgive. A lie
+	# nobody could read draws nothing at the time and is nothing to come round from.
+	if visibility >= SOURS_THE_ROOM:
+		owed_a_word = true
 	if changed_the_result:
 		stolen_rallies += 1
 
@@ -373,6 +399,19 @@ func _direction_favoured(rally: Rally) -> float:
 			return -1.0 if deserved == Sides.Team.BLUE else 1.0
 		return 0.0
 	return 1.0 if gained == Sides.Team.BLUE else -1.0
+
+
+## Whether the hall has just come round, and says so once when it has.
+##
+## This both answers and spends the moment, which is why it is named as something that
+## happens rather than as something you ask. It can only fire once per bad patch: the
+## room forgives you, and then it has nothing left to forgive until you give it more.
+func the_room_comes_round() -> bool:
+	if not owed_a_word or clean_run < CLEAN_RUN_TO_COME_ROUND:
+		return false
+	owed_a_word = false
+	clean_run = 0
+	return true
 
 
 func _settle_mood() -> void:
