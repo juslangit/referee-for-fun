@@ -756,6 +756,7 @@ func show_card(against: Sides.Team, red: bool) -> void:
 		2.4
 	)
 	ui.react(Crowd.react_to_card(red), 3.4)
+	the_hall_says(Crowd.said_about_card(red))
 
 	if print_truth_while_testing:
 		print("[truth, testing only] %s card on %s for nothing  |  suspicion %.3f lean %+.2f" % [
@@ -795,6 +796,7 @@ func enter_ready() -> void:
 	# The hall gets on with having an opinion whether or not anything just happened.
 	if randf() < AMBIENT_CHANCE:
 		ui.react(Crowd.ambient(suspicion.mood), 3.2)
+		the_hall_says(Crowd.said_ambient(suspicion.mood))
 
 
 ## Lines the four of them up for the next serve, and decides whether one of them gets
@@ -1414,6 +1416,7 @@ func _review(asked: Sides.Team) -> bool:
 	suspicion.register_review(rally, overturned)
 	sound.react(not overturned)
 	ui.react(Crowd.react_to_review(overturned))
+	the_hall_says(Crowd.said_about_review(overturned))
 
 	ui.set_review_hint("SPACE   ·   carry on")
 	await _wait_or_skip(REVIEW_VERDICT)
@@ -1778,3 +1781,8 @@ func _is_key(event: InputEvent, keycode: Key) -> bool:
 ## with the brighter one winning. There is nothing left to do here.
 func _build_environment() -> void:
 	pass
+
+
+## Where this sport seats its hall, so somebody in it can be given a line to say.
+func the_stands() -> Stands:
+	return court.stands

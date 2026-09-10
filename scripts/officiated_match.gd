@@ -405,6 +405,7 @@ func review(asked: Sides.Team) -> bool:
 	suspicion.register_review_judgement(seen, leaned, overturned)
 	sound.react(not overturned)
 	ui.react(Crowd.react_to_review(overturned))
+	the_hall_says(Crowd.said_about_review(overturned))
 
 	ui.set_review_hint("SPACE   ·   carry on")
 	await _wait_or_skip(REVIEW_VERDICT)
@@ -773,18 +774,27 @@ func judge(call: CallType, against: Sides.Team) -> void:
 	# out that the umpire correctly called out arrived as 0.9 and the hall shouted
 	# "CHEAT!" at somebody who had just done the job perfectly. Luqman found it by
 	# playing.
-	var reaction := Crowd.react_to_call(
-		rally.visibility(), suspicion.mood, rally.verdict() == Rally.Verdict.WRONG)
+	#
+	# Twice over, because the same reaction is shown two ways: the line under the HUD
+	# describes the room, and the bubble puts one of the words in somebody's mouth. They
+	# are picked from paired banks on the same thresholds, so the shout is never about a
+	# different event from the sentence beneath it.
+	var was_wrong: bool = rally.verdict() == Rally.Verdict.WRONG
+	var reaction := Crowd.react_to_call(rally.visibility(), suspicion.mood, was_wrong)
+	var shout := Crowd.said_about_call(rally.visibility(), suspicion.mood, was_wrong)
 	if reaction.is_empty():
 		reaction = Crowd.react_to_delay(rally.seconds_to_call)
+		shout = Crowd.said_about_delay(rally.seconds_to_call)
 
 	# And the room coming round, which outranks both. It is rarer than either of them —
 	# it takes a bad patch and then a clean run to earn — and it is the only approving
 	# thing anybody in this game ever says.
 	if suspicion.the_room_comes_round():
 		reaction = Crowd.react_to_recovery()
+		shout = Crowd.said_about_recovery()
 		_they_acknowledge_you()
 	ui.react(reaction)
+	the_hall_says(shout)
 	_show_reviews()
 
 	if print_truth_while_testing:
@@ -852,6 +862,39 @@ func cheer() -> void:
 ## The stand coming out of its seats at **you**. Overridden per sport, like cheer().
 func jeer(_share: float) -> void:
 	pass
+
+
+## The seating for this sport, so a shout can be put in somebody's mouth.
+##
+## Overridden the same way `jeer` is, because the stands hang off each sport's own court
+## and the spine has never known what a court is. A sport that does not override this
+## simply never has anybody speak, which is the right failure: five halls full of people
+## and a silent sixth is odd, and a crash is worse.
+func the_stands() -> Stands:
+	return null
+
+
+## Puts one line in the mouth of somebody in the stands.
+##
+## The narration under the HUD and this are the same reaction seen two ways, and both
+## are chosen from the same thresholds — see the pairs of banks in `Crowd`. An empty
+## shout is a real answer and means nobody said anything out loud, which is what a call
+## too quiet to notice earns.
+func the_hall_says(shout: String) -> void:
+	if shout.is_empty() or ui == null or camera == null:
+		return
+	var seating := the_stands()
+	if seating == null:
+		return
+	# Handed over here rather than at the start of the match, and that is not tidiness.
+	# It lived in begin_match() first, where badminton never saw it: badminton has its
+	# own begin_match that repeats the spine's body instead of calling super(), so the
+	# one line sat there working for four sports and silently doing nothing for the
+	# fifth. This is the only function that needs the camera, so this is where it is
+	# set, and no sport can be written that reaches a shout without passing through it.
+	ui.chair_camera = camera
+	ui.say_from_the_crowd(shout, seating.somebody_to_shout(
+		camera.global_position, -camera.global_basis.z))
 
 
 ## How plainly wrong a call has to be before anybody gets out of their seat, and how much

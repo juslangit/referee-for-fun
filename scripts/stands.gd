@@ -115,6 +115,11 @@ const STAND_RISE := 0.16
 ## What fraction of the hall bothers to get up for any one rally.
 const CHEER_SHARE := 0.45
 
+## How far above a seated spectator's own origin the bubble's tail points. A little
+## over the 0.78 the head mesh is lifted by, so the tail lands just clear of the hair
+## rather than through it.
+const MOUTH_HEIGHT := 1.02
+
 var _heads: MultiMeshInstance3D
 var _total := 0
 
@@ -187,6 +192,47 @@ func cheer() -> void:
 ## empties the seats.
 func jeer(share: float) -> void:
 	_react(clampf(share, 0.0, 1.0), STAND_SECONDS, true)
+
+
+## Somebody in the stands to put a shout in the mouth of, as a world point just above
+## their head. Returns `Vector3.INF` when there is nobody to pick.
+##
+## Chosen from whoever is actually in front of the umpire rather than uniformly, which
+## matters more than it sounds. The chair faces -X and the near stand is deliberately
+## the closest thing in the hall to it, so a uniform pick would put most shouts behind
+## the player's head, where a bubble is either invisible or — worse — drags the camera
+## round to look for it. Everybody still in the running is weighted the same, so the
+## same person does not get every line.
+##
+## `facing` is the direction the umpire is looking. A spectator counts as in front if
+## they are anywhere in the forward half, which is wide on purpose: narrowing it to what
+## is strictly on screen made the hall feel like it only contained the four people the
+## player happened to be looking at.
+func somebody_to_shout(from: Vector3, facing: Vector3) -> Vector3:
+	if _crowd_seats.is_empty():
+		return Vector3.INF
+
+	var flat := Vector3(facing.x, 0.0, facing.z)
+	if flat.length_squared() < 0.0001:
+		flat = Vector3.FORWARD
+	flat = flat.normalized()
+
+	var in_front: Array[Vector3] = []
+	var anybody: Array[Vector3] = []
+	for group in _crowd_seats.size():
+		var seats: Array[Transform3D] = _crowd_seats[group]
+		for i in seats.size():
+			var head := to_global(seats[i].origin) + Vector3(0.0, MOUTH_HEIGHT, 0.0)
+			anybody.append(head)
+			var towards := head - from
+			towards.y = 0.0
+			if towards.length_squared() > 0.01 and towards.normalized().dot(flat) > 0.0:
+				in_front.append(head)
+
+	var pool := in_front if not in_front.is_empty() else anybody
+	if pool.is_empty():
+		return Vector3.INF
+	return pool[randi() % pool.size()]
 
 
 func _react(share: float, seconds: float, standing: bool) -> void:

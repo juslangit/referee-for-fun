@@ -660,3 +660,8 @@ func _around_the_antenna(against: Sides.Team, from: Vector3) -> Vector3:
 	var at := absf(from.z) / maxf(0.001, absf(depth - from.z))
 	var x := from.x + (wanted - from.x) / maxf(0.05, at)
 	return Vector3(x, BeachCourt.SURFACE_Y, depth)
+
+
+## Where this sport seats its hall, so somebody in it can be given a line to say.
+func the_stands() -> Stands:
+	return court.stands

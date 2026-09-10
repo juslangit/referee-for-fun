@@ -188,5 +188,146 @@ static func ambient(mood: Suspicion.Mood) -> String:
 	return _pick(AMBIENT[mood])
 
 
+# --- what one person in the stands says -----------------------------------------
+
+## The same reactions again, as things a single person actually says out loud.
+##
+## Everything above this line is the room described from the chair: scattered booing, a
+## coach on his feet, the hall going quiet. None of it can go in a bubble over one
+## person's head, because none of it is an utterance — a spectator captioned "scattered
+## booing" reads as a bug. So each situation has a second bank of lines that are, and a
+## bubble takes from here while the line under the HUD keeps describing the room.
+##
+## **The hard rule at the top of this file applies here with no exceptions.** Nobody in
+## the stands may say whether the ball was in or out, however furious they are, because
+## somebody who could see it and says so has handed the player the one thing the game
+## exists to withhold. Read the banks below and every line is about the umpire — his
+## eyes, his nerve, his honesty, how long he took — and never about the shuttle. The
+## review lines are the single exception, for the same reason the narration's are: after
+## a review there is nothing left to withhold.
+##
+## They are also written to be shouted across a hall rather than read off a page. Short,
+## and most of them a question, because a hall that doubts an official asks him things.
+const SAID_DOUBTFUL := [
+	"\"Did he get that?\"",
+	"\"What did he give there?\"",
+	"\"Hm. Watch him.\"",
+	"\"Did you see it? I didn't.\"",
+	"\"He had to think about that one.\"",
+]
+
+const SAID_COMPLAINT := [
+	"\"REF!\"",
+	"\"Oh, come ON!\"",
+	"\"Are you WATCHING this?\"",
+	"\"Open your eyes, ref!\"",
+	"\"That's twice now!\"",
+	"\"Have a word with yourself!\"",
+]
+
+const SAID_HOSTILITY := [
+	"\"CHEAT!\"",
+	"\"WHO'S PAYING YOU?\"",
+	"\"GET HIM OFF!\"",
+	"\"You're a DISGRACE!\"",
+	"\"We can all SEE you!\"",
+	"\"Whose side are you ON?\"",
+]
+
+const SAID_IMPATIENCE := [
+	"\"COME ON, REF!\"",
+	"\"What is there to think about?\"",
+	"\"Any day now!\"",
+	"\"Make your MIND up!\"",
+	"\"We haven't got all night!\"",
+]
+
+const SAID_CARD := [
+	"\"FOR WHAT?!\"",
+	"\"HE DIDN'T DO ANYTHING!\"",
+	"\"You're JOKING!\"",
+	"\"Put it AWAY!\"",
+	"\"What was THAT for?\"",
+]
+
+## The only approving thing anybody says, and still not a verdict on any one call —
+## the same care as the narration bank it sits beside.
+const SAID_APPROVAL := [
+	"\"That's more like it, ref!\"",
+	"\"All right. He's found his eyes.\"",
+	"\"See? He can do it.\"",
+	"\"Fair enough, that.\"",
+	"\"Better.\"",
+]
+
+const SAID_AMBIENT := {
+	Suspicion.Mood.MURMURING: [
+		"\"Keep an eye on him.\"",
+		"\"Something's not right here.\"",
+	],
+	Suspicion.Mood.RESTLESS: [
+		"\"He's at it again.\"",
+		"\"Every time. Every single time.\"",
+	],
+	Suspicion.Mood.HOSTILE: [
+		"\"How is he still in that chair?\"",
+		"\"Nobody's here for the badminton now.\"",
+	],
+	Suspicion.Mood.WARNED: [
+		"\"They're writing it all down.\"",
+		"\"He's finished after tonight.\"",
+	],
+}
+
+## Allowed to be certain, because the screen has already told everybody.
+const SAID_OVERTURNED := [
+	"\"THERE it is!\"",
+	"\"We ALL saw that!\"",
+	"\"Explain THAT one!\"",
+]
+const SAID_UPHELD := [
+	"\"Fair enough, then.\"",
+	"\"He got that one.\"",
+	"\"Waste of a review.\"",
+]
+
+
+## What one spectator says about a call, chosen by the same thresholds as the narration
+## so the shout and the line under it are always describing the same reaction.
+static func said_about_call(visibility: float, mood: Suspicion.Mood,
+		was_wrong: bool) -> String:
+	if not was_wrong or visibility < NOTICE_THRESHOLD:
+		return ""
+	if visibility > 0.45 or mood >= Suspicion.Mood.HOSTILE:
+		return _pick(SAID_HOSTILITY)
+	if visibility > 0.22 or mood >= Suspicion.Mood.RESTLESS:
+		return _pick(SAID_COMPLAINT)
+	return _pick(SAID_DOUBTFUL)
+
+
+static func said_about_delay(seconds: float) -> String:
+	if Suspicion.hesitation_cost(seconds) <= 0.0:
+		return ""
+	return _pick(SAID_IMPATIENCE)
+
+
+static func said_about_card(_red: bool) -> String:
+	return _pick(SAID_CARD)
+
+
+static func said_about_recovery() -> String:
+	return _pick(SAID_APPROVAL)
+
+
+static func said_about_review(overturned: bool) -> String:
+	return _pick(SAID_OVERTURNED if overturned else SAID_UPHELD)
+
+
+static func said_ambient(mood: Suspicion.Mood) -> String:
+	if not SAID_AMBIENT.has(mood):
+		return ""
+	return _pick(SAID_AMBIENT[mood])
+
+
 static func _pick(lines: Array) -> String:
 	return lines[randi() % lines.size()]

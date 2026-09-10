@@ -28,6 +28,11 @@ carried between matches. It appears at the bottom of the screen only when it mov
 three seconds, and then it is gone. It never tells you whether a particular call was
 believed. It tells you what the night has cost you so far, at the moment it costs it.
 
+When somebody in the hall has something to say about you, they say it: a bubble over
+one spectator's head, picked at random from whoever is in front of the chair, while the
+line at the bottom goes on describing the room. Nobody in those seats will ever tell you
+where the ball landed, however angry they get. Every one of them is shouting about you.
+
 When the number falls, a single line appears on the left saying what the hall is
 reacting to — that you sat on that one, that you overruled the line judge in front of
 everybody, that every tight call tonight has gone the same way. It is the crowd's

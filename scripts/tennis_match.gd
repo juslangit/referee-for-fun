@@ -903,3 +903,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					make_call(&"out")
 			elif event is InputEventKey and event.pressed and event.keycode == KEY_L:
 				make_call(&"let", serving)
+
+
+## Where this sport seats its hall, so somebody in it can be given a line to say.
+func the_stands() -> Stands:
+	return court.stands
