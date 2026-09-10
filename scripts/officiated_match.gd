@@ -126,6 +126,13 @@ func enter_ready() -> void:
 
 
 ## The rally that has just been judged, or null between rallies.
+##
+## **Every sport must override this.** The default returns null and null is a legitimate
+## answer between rallies, which is exactly why forgetting it is silent: `judge` opens by
+## asking for the rally and returns if there isn't one, so a sport that never overrode
+## this made calls that were never recorded, never priced and never scored — and nothing
+## anywhere said so. Badminton did that for a fortnight after it moved onto this spine.
+## See `judge` for the noise that now gets made about it.
 func current_rally():
 	return null
 
@@ -699,6 +706,13 @@ func nearest_of(team: Sides.Team, to: Vector3) -> Player:
 func judge(call: CallType, against: Sides.Team) -> void:
 	var rally = current_rally()
 	if rally == null:
+		# Between rallies there is nothing to judge and this is simply the answer. In
+		# the middle of AWAITING_CALL it is a sport that has not overridden
+		# `current_rally`, and every call it makes is being thrown away — so that case
+		# says so out loud rather than failing the way it failed for a fortnight.
+		if _phase == Phase.AWAITING_CALL:
+			push_error("%s made a call with no rally to record it on — does it override "
+				% sport_name() + "current_rally()?")
 		return
 
 	calls_made += 1

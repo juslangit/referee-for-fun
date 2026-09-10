@@ -1319,6 +1319,23 @@ func _announce_after_a_beat(judge: LineJudge) -> void:
 
 
 ## The call, on the shared pipeline. Everything badminton does differently is below.
+## The rally the spine is being asked to price.
+##
+## Badminton's is simply `rally`, and **not overriding this was the worst bug in the
+## project since both volleyballs stopped charging for lies.** `judge()` opens with
+## `var rally = current_rally(); if rally == null: return`, and the spine's default
+## returns null — so from the moment badminton moved onto the shared spine, every call
+## it made fell out of `judge` before recording anything. No verdict, no suspicion, no
+## reputation, no point. A player could lie about every rally in badminton for nothing.
+##
+## It is the same trap as the duplicated enum, sprung the same way. `_badmintonplay`
+## printed `NO_CALL` in its verdict column on every single row and counted only `WRONG`,
+## so a completely dead pricing system read as a clean sheet. The play harnesses now
+## count a call that recorded nothing as a failure of its own.
+func current_rally():
+	return rally
+
+
 func make_call(id: StringName, against := Sides.Team.NONE) -> void:
 	var call := CallBook.get_call(id)
 	if call != null:

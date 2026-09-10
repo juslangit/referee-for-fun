@@ -29,6 +29,9 @@ func _ready() -> void:
 	var lets := 0
 	var illegal := 0
 	var wrong := 0
+	# A call that recorded nothing at all — the shape a dead pricing system makes from
+	# here. See BadmintonMatch.current_rally for what it cost to learn that.
+	var never_landed := 0
 	print("%4s %-11s %8s %8s %-20s %s" % [
 		"#", "ended on", "landed", "margin", "fault", "verdict"])
 
@@ -76,6 +79,8 @@ func _ready() -> void:
 		var verdict: String = Rally.Verdict.keys()[rally.verdict()]
 		if rally.verdict() == Rally.Verdict.WRONG:
 			wrong += 1
+		elif rally.verdict() == Rally.Verdict.NO_CALL:
+			never_landed += 1
 		print("%4d %-11s %8s %8.3f %-20s %s" % [
 			r,
 			"serve" if rally.is_a_serve else "rally",
@@ -91,6 +96,7 @@ func _ready() -> void:
 	print("%d points: %d decided on the serve, %d on the edge, %d lets, %d illegal serves"
 		% [played, served, on_the_edge, lets, illegal])
 	print("scored WRONG: %d" % wrong)
+	print("calls that recorded nothing: %d   (MUST BE 0)" % never_landed)
 	print("suspicion: %.3f   (an honest umpire must pay 0.000)" % hall.suspicion.level)
 	print("score: %s   games %s" % [
 		hall.board.called_score(hall.serving), hall.board.games_line()])

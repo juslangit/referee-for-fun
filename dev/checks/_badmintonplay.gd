@@ -32,8 +32,27 @@ func _ready() -> void:
 	var strokes := 0
 	var with_incident := 0
 	var wrong := 0
-	print("%4s %8s %10s %-22s %s" % ["#", "strokes", "landed", "incident", "verdict"])
+	# A call that recorded nothing at all. Counted separately from a wrong one, because
+	# it is not an umpiring mistake — it is the game failing to hear the umpire, and it
+	# is what a dead pricing system looks like from here. Every row of this harness said
+	# NO_CALL for a fortnight and it read as a clean sheet, because only `wrong` was
+	# counted. See BadmintonMatch.current_rally.
+	var never_landed := 0
+	print("%4s %8s %10s %-22s %-9s %9s %s" % [
+		"#", "strokes", "landed", "incident", "verdict", "suspicion", "court"])
+	var was := 0.0
+	var courts_caught := 0
 	for r in 20:
+		# Before the whistle, because that is when a service court error is there to be
+		# seen: the four of them are standing in their boxes for as long as the umpire
+		# cares to look. An umpire who only ever gives the line is not being honest,
+		# they are ignoring half the rulebook — and reading the suspicion that earns as
+		# unfairness has been a mistake in this project once already.
+		var caught_this_one := false
+		if hall.service_error != Sides.Team.NONE:
+			hall._call_service_court(true)
+			courts_caught += 1
+			caught_this_one = true
 		hall.start_rally()
 		var w := 0
 		while hall._phase != hall.Phase.AWAITING_CALL and w < 3000:
@@ -64,15 +83,33 @@ func _ready() -> void:
 		var verdict: String = Rally.Verdict.keys()[rally.verdict()]
 		if rally.verdict() == Rally.Verdict.WRONG:
 			wrong += 1
-		print("%4d %8d %10s %-22s %s" % [
-			r, hall._shots_this_rally, "IN" if rally.was_in else "OUT", kind, verdict])
+		elif rally.verdict() == Rally.Verdict.NO_CALL:
+			never_landed += 1
+		var court := "-"
+		if rally.service_court_error != Sides.Team.NONE:
+			court = "error, called" if caught_this_one else "ERROR, MISSED"
+		print("%4d %8d %10s %-22s %-9s %9.4f %s%s" % [
+			r, hall._shots_this_rally, "IN" if rally.was_in else "OUT", kind, verdict,
+			hall.suspicion.level, court,
+			"   <-- CHARGED" if hall.suspicion.level > was + 0.0001 else ""])
+		was = hall.suspicion.level
 		if hall.board.is_over or hall._phase == hall.Phase.REMOVED:
 			break
 
 	print()
 	print("%d rallies, %.1f strokes each, %d carried an incident, %d scored WRONG" % [
 		played, float(strokes) / maxf(1.0, played), with_incident, wrong])
-	print("suspicion: %.3f   (an honest umpire must pay 0.000)" % hall.suspicion.level)
+	print("calls that recorded nothing: %d   (MUST BE 0 — see the note above)"
+		% never_landed)
+	print("service court errors caught before the whistle: %d" % courts_caught)
+	print("score: %d - %d   (a match that never scores is a match nobody is judging)" % [
+		hall.board.points[Sides.Team.RED], hall.board.points[Sides.Team.BLUE]])
+	print("suspicion: %.3f   (an honest umpire must END on 0.000)" % hall.suspicion.level)
+	print("")
+	print("  Mid-match spikes of 0.0195 are NOT a bug and are not worth chasing again:")
+	print("  that is OVERRULE_ON_ITS_OWN (0.03) times this venue's scrutiny (0.65), the")
+	print("  small cost of contradicting a line judge in public even when you turn out")
+	print("  to be right — the hall cannot see that you were right. They recover.")
 	get_tree().quit()
 
 

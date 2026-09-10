@@ -65,9 +65,14 @@ const BAT_REACH := 1.05
 ## How near an edge a ball has to land before the point stops for a call.
 ##
 ## A twentieth of what tennis uses, because everything here is a twentieth of the size.
-## A ball 9 cm inside the line on a table 1.5 m wide is the same question as a ball 30 cm
-## inside the line on a court 11 m wide.
-const CLOSE_TO_AN_EDGE := 0.09
+## A ball 6 cm inside the line on a table 1.5 m wide is about the same question as a ball
+## 30 cm inside the line on a court 11 m wide.
+##
+## It started at 9 cm and, measured, stopped **60% of all points at the serve** — the
+## sport came out a serving contest with a rally attached. Table tennis is a rally sport
+## and the point of it is the exchange; a serve everybody plays is the normal case and
+## has to look like it.
+const CLOSE_TO_AN_EDGE := 0.06
 
 ## How many strokes a rally runs for before somebody goes for a corner.
 const SHORTEST_RALLY := 2
@@ -97,11 +102,22 @@ const FAULT_WEIGHTS := [0.38, 0.26, 0.20, 0.16]
 const SERVICE_FAULTS := [&"low toss", &"hidden serve", &"off the palm"]
 
 ## How many serves are loose enough to be worth stopping for, and how many of those miss.
-const SERVE_IS_LOOSE := 0.40
+##
+## A third rather than the two fifths it started at, for the same reason the question
+## band narrowed: most serves in this sport are simply played.
+const SERVE_IS_LOOSE := 0.32
 const LOOSE_IS_OUT := 0.52
 
 ## How often a decisive shot is aimed at the edge rather than merely past somebody.
-const GOES_FOR_THE_EDGE := 0.40
+##
+## Every sport in this game over-represents the close call on purpose — an official with
+## nothing to decide is not playing anything — but this one has a limit the others do
+## not. An edge ball is a piece of luck that the whole hall reacts to and that the player
+## who hit it apologises for. Measured at two fifths it made **43% of all points** an
+## edge ball, which is not a rare event happening often, it is the normal way to win a
+## point. A fifth leaves it frequent enough to be the job and rare enough to still be
+## worth looking up for.
+const GOES_FOR_THE_EDGE := 0.20
 
 ## Which way round the two sides currently are.
 ##
@@ -409,11 +425,14 @@ func _serve_target() -> Vector3:
 	var top := TableTennisSpec.HEIGHT
 
 	if randf() >= SERVE_IS_LOOSE:
+		# Comfortably inside, and comfortably means comfortably: aimed to within 25 cm
+		# of an edge it still landed inside the question band often enough to stop the
+		# point, because a ball this light does not go exactly where it was sent.
 		return Vector3(
-			randf_range(-TableTennisSpec.HALF_WIDTH + 0.14,
-				TableTennisSpec.HALF_WIDTH - 0.14),
+			randf_range(-TableTennisSpec.HALF_WIDTH + 0.26,
+				TableTennisSpec.HALF_WIDTH - 0.26),
 			top,
-			into * randf_range(0.35, TableTennisSpec.HALF_LENGTH - 0.18))
+			into * randf_range(0.40, TableTennisSpec.HALF_LENGTH - 0.34))
 
 	var over := randf_range(0.004, 0.09) if randf() < LOOSE_IS_OUT \
 		else -randf_range(0.004, 0.05)

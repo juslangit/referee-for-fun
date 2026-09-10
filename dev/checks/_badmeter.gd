@@ -1,4 +1,12 @@
 extends Node
+
+## Does the badminton reputation meter move when the umpire lies?
+##
+## `_whatsmissing` reported the meter appearing zero times in six blatant badminton lies,
+## while every other sport showed it every time. This asks the narrower question with the
+## numbers printed: what the call was recorded as, what suspicion did, and what the
+## reputation was before and after.
+
 func _ready() -> void:
 	var hall: Node = load("res://scenes/match.tscn").instantiate()
 	hall.print_truth_while_testing = false
@@ -15,7 +23,10 @@ func _ready() -> void:
 	for f in 4:
 		await get_tree().process_frame
 
-	print("watching the reputation is wired: %s" % hall.career.reputation_changed.get_connections().size())
+	print("the HUD is up: %s   (the meter refuses to draw without it)" % hall.ui._hud.visible)
+	print("%4s %10s %-10s %10s %12s %8s" % [
+		"#", "landed", "called", "verdict", "suspicion", "meter"])
+
 	for r in 6:
 		hall.start_rally()
 		var w := 0
@@ -23,20 +34,32 @@ func _ready() -> void:
 			await get_tree().physics_frame
 			w += 1
 		if hall._phase != hall.Phase.AWAITING_CALL:
+			print("  rally %d never reached a call" % r)
 			break
-		var before := hall.career.reputation_as_it_stands()
+
+		var rally: Rally = hall.rally
 		hall._awaiting_since = Time.get_ticks_msec()
-		hall.make_call(&"in" if not hall.rally.was_in else &"out")
+		# A blatant lie: the opposite of what the shuttle did.
+		hall.make_call(&"in" if not rally.was_in else &"out")
+
 		var shown := false
-		for f in 40:
+		var w2 := 0
+		while w2 < 240:
 			await get_tree().process_frame
+			w2 += 1
 			if hall.ui._meter != null and hall.ui._meter.visible:
 				shown = true
+			if hall._phase != hall.Phase.AWAITING_CALL and w2 > 40:
 				break
-		var after := hall.career.reputation_as_it_stands()
-		print("  %d  %s  rep %.4f -> %.4f  (%d -> %d out of 100)  meter %s" % [
-			r, Rally.Verdict.keys()[hall.rally.verdict()], before, after,
-			roundi(before * 100.0), roundi(after * 100.0), "SHOWN" if shown else "no"])
+
+		print("%4d %10s %-10s %10s %12.4f %8s" % [
+			r,
+			"IN" if rally.was_in else "OUT",
+			rally.call.label if rally.call != null else "nothing",
+			Rally.Verdict.keys()[rally.verdict()],
+			hall.suspicion.level,
+			"SHOWN" if shown else "no",
+		])
 		if hall._phase == hall.Phase.REMOVED:
 			break
 	get_tree().quit()
