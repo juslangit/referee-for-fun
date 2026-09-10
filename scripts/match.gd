@@ -1312,34 +1312,13 @@ func judge_watching(point: Vector3) -> LineJudge:
 	return null
 
 
-func _announce_after_a_beat(judge: LineJudge) -> void:
-	await get_tree().create_timer(LINE_JUDGE_DELAY).timeout
-	if _phase != Phase.AWAITING_CALL or not is_instance_valid(judge):
-		return
-	judge.announce(rally.line_judge_said_in)
-	# Said as well as shown, the same as the other three sports. The bubble sits over
-	# their head, and their head is in a corner the chair is not necessarily facing.
-	ui.show_line_judge(rally.line_judge_said_in)
-	if not rally.line_judge_said_in:
-		# Only OUT is called aloud. A line judge who thought it was good signals with
-		# their hands and says nothing at all.
-		sound.judge_calls_out(judge.global_position)
+## Badminton keeps the line judge's call on the rally rather than on the match, which
+## is the only reason it used to carry its own copy of `_announce_after_a_beat`. One
+## answer here replaces seven duplicated lines there.
+func judge_said_in() -> bool:
+	return rally != null and rally.line_judge_said_in
 
 
-## The call, on the shared pipeline. Everything badminton does differently is below.
-## The rally the spine is being asked to price.
-##
-## Badminton's is simply `rally`, and **not overriding this was the worst bug in the
-## project since both volleyballs stopped charging for lies.** `judge()` opens with
-## `var rally = current_rally(); if rally == null: return`, and the spine's default
-## returns null — so from the moment badminton moved onto the shared spine, every call
-## it made fell out of `judge` before recording anything. No verdict, no suspicion, no
-## reputation, no point. A player could lie about every rally in badminton for nothing.
-##
-## It is the same trap as the duplicated enum, sprung the same way. `_badmintonplay`
-## printed `NO_CALL` in its verdict column on every single row and counted only `WRONG`,
-## so a completely dead pricing system read as a clean sheet. The play harnesses now
-## count a call that recorded nothing as a failure of its own.
 func current_rally():
 	return rally
 
@@ -1484,48 +1463,19 @@ func _finish_match(headline: String, tint: Color, removed: bool) -> void:
 	ui.show_ending(headline, detail, tint)
 
 
-## The only place in the game where the truth is allowed on screen. The match is
-## over, so there is nothing left to judge and nothing left to protect.
-func _reckoning() -> String:
-	var lines := []
-	lines.append("%d wrong calls, %d of which decided the rally." % [
-		suspicion.wrong_calls, suspicion.stolen_rallies
-	])
-
-	if absf(suspicion.lean) < 0.15:
-		lines.append("They went both ways. You were not bent. You were just bad at this.")
-	else:
-		var helped := Sides.Team.BLUE if suspicion.lean > 0.0 else Sides.Team.RED
-		lines.append("Almost every one of them helped %s." % Sides.label(helped))
-		# Nobody was ever asked who they wanted to win, so this cannot be read back to
-		# them as a broken promise. What it can say is the thing that actually gets an
-		# official caught: not that they were wrong, but that they were wrong in one
-		# direction, which is a pattern rather than a bad night.
-		if pressure.exists() and pressure.wants == helped:
-			lines.append("Which is the result somebody mentioned to you before you went out.")
-		else:
-			lines.append("Nobody asked you to. That is the part people find hard to believe.")
-
-	lines.append("")
-	lines.append("Final score  RED %d — %d BLUE      games  %d — %d" % [
+## Badminton counts games rather than sets, which is the only thing its own `_reckoning`
+## ever did differently — the other fifteen lines were the spine's word for word. So the
+## one word lives here and the fifteen lines are gone, which is what `score_line()` was
+## put on the spine for in the first place.
+func score_line() -> String:
+	return "Final score  RED %d \u2014 %d BLUE      games  %d \u2014 %d" % [
 		board.points[Sides.Team.RED],
 		board.points[Sides.Team.BLUE],
 		board.games[Sides.Team.RED],
 		board.games[Sides.Team.BLUE],
-	])
-	return "\n".join(lines)
+	]
 
 
-## The one pressure the player builds for themselves.
-##
-## The first time a call goes wrong plainly enough that the hall saw it, a side is a
-## point down because of the umpire, and there is an obvious way to put that right which
-## involves getting a second one wrong on purpose. The game already makes that second
-## lie cheap — suspicion charges for being wrong in a *pattern*, so a mistake the other
-## way genuinely does cost less than another one the same way. All this does is say so.
-##
-## Nothing here reveals anything. It fires only above Pressure.DEBT_NOTICED, which is
-## the level at which the crowd is already telling you.
 func _weigh_the_debt() -> void:
 	if rally == null or rally.verdict() != Rally.Verdict.WRONG:
 		return

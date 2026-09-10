@@ -10,6 +10,31 @@ extends Node
 ## How many rallies a run needs before its rates mean anything.
 const ENOUGH_RALLIES := 15
 
+## How many rallies a full run plays, and how few a quick one may play.
+##
+## The default is deliberately **not** shorter, even though a full run ties up a shell
+## for four minutes: headless Godot plays physics at real time, so 45 rallies really is
+## 45 rallies. Shortening it would have made the offence check flaky, which is the exact
+## disease this scene was just cured of — offences land in about 11 per cent of rallies,
+## so a run of 45 sees none about once in two hundred and a run of 20 sees none about
+## once in ten. A check that fails one run in ten teaches people to ignore it.
+##
+## So a quick run is opt-in and says out loud which of its assertions it has switched
+## off: `RALLIES=12 godot --headless --path . res://dev/checks/_fairplay.tscn`.
+const FULL_RUN := 45
+
+## Below this many rallies the rate-dependent assertions are not trustworthy and are
+## skipped rather than allowed to fail at random.
+const RATES_NEED := 40
+
+
+## How many rallies this run should play, from the RALLIES environment variable.
+static func rallies_wanted() -> int:
+	var asked := OS.get_environment("RALLIES")
+	if asked.is_valid_int() and asked.to_int() > 0:
+		return asked.to_int()
+	return FULL_RUN
+
 ## Strokes a rally, at the extremes. `_badmintonplay` sits between 5.6 and 7.2.
 const FEWEST_STROKES := 3.0
 const MOST_STROKES := 12.0
@@ -141,7 +166,7 @@ func _ready() -> void:
 
 		for f in 18:
 			await get_tree().process_frame
-		if judged >= 45 or arena.board.is_over:
+		if judged >= rallies_wanted() or arena.board.is_over:
 			break
 
 	print("umpire: %s" % ("PERFECT (calls every fault too)" if OS.get_environment("UMPIRE") == "perfect" else "LINES ONLY (calls in and out correctly)"))
@@ -201,9 +226,13 @@ func _verdict(arena: Node, judged: int, wrong: int, with_offence: int,
 	var perfect := OS.get_environment("UMPIRE") == "perfect"
 	var failures: Array[String] = []
 
-	if judged < ENOUGH_RALLIES:
-		failures.append("only %d rallies were judged; %d are needed to mean anything"
-			% [judged, ENOUGH_RALLIES])
+	# Short of what this run set out to play, which is a different thing from a run that
+	# was deliberately asked to be short. Falling out of a match after four rallies is a
+	# fault; being told to play four is not.
+	var meant_to := mini(ENOUGH_RALLIES, rallies_wanted())
+	if judged < meant_to:
+		failures.append("only %d rallies were judged; this run set out to play %d"
+			% [judged, meant_to])
 
 	if recorded_nothing > 0:
 		failures.append("%d call(s) recorded nothing at all" % recorded_nothing)
@@ -216,7 +245,7 @@ func _verdict(arena: Node, judged: int, wrong: int, with_offence: int,
 	# Zero offences over a full match is the specific number this scene once reported and
 	# nobody could act on. An offence is meant to be a notable event rather than a
 	# twice-a-game occurrence (D-027), so the bar is one, not a rate.
-	if judged >= ENOUGH_RALLIES and with_offence == 0:
+	if judged >= RATES_NEED and with_offence == 0:
 		failures.append("not one offence in %d rallies; either the rate is broken or nothing is detecting them"
 			% judged)
 
@@ -244,9 +273,15 @@ func _verdict(arena: Node, judged: int, wrong: int, with_offence: int,
 		failures.append("the perfect umpire was scored WRONG %d times; at most %d is expected"
 			% [wrong, PERFECT_MAY_BE_WRONG])
 
+	var quick := ""
+	if judged < RATES_NEED:
+		quick = "\n   (a short run: the offence-rate check was skipped, %d rallies of the %d it needs)" % [
+			judged, RATES_NEED]
+
 	if failures.is_empty():
-		return "PASS — an honest umpire was not punished, and the match was really played"
+		return ("PASS — an honest umpire was not punished, and the match was really played"
+			+ quick)
 	var out := "%d PROBLEM(S)" % failures.size()
 	for line: String in failures:
 		out += "\n   %s" % line
-	return out
+	return out + quick

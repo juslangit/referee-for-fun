@@ -41,16 +41,23 @@ const SPORTS := {
 ##
 ## Removing an entry is how you review one. If a sport no longer needs to replace the
 ## spine, delete the line and the check will tell you if you were wrong.
+##
+## All nine were reviewed on 2026-09-10 and three of them turned out to be duplication
+## rather than difference. `indoor volleyball/nearest_of` was byte-identical to the
+## spine's and is deleted. `badminton/_reckoning` differed from fifteen identical lines
+## by one word — "games" where the spine says "sets" — and is now a two-line
+## `score_line()` override, which is what that hook was put on the spine for.
+## `badminton/_announce_after_a_beat` repeated seven lines so that one of them could read
+## the judge's call off the rally instead of off the match; the spine asks
+## `judge_said_in()` now and badminton answers it in two lines.
 const REPLACEMENTS_UNDERSTOOD := {
 	"badminton/_ready": "badminton owns the front of the game: title, sport menu, settings, lesson",
 	"badminton/_on_match_requested": "the same — it is a match and a main menu at once",
-	"badminton/set_line_judges_present": "not reviewed",
-	"badminton/judge_watching": "not reviewed",
-	"badminton/_announce_after_a_beat": "not reviewed",
+	"badminton/set_line_judges_present": "keeps a full set in _all_line_judges and filters it; the spine's loop would find an empty list",
+	"badminton/judge_watching": "adds the guard that nobody judges a shuttle that never crossed the net",
+	"badminton/score_line": "badminton counts games where the spine counts sets; this is the hook working as intended",
 	"badminton/price_the_call": "reaches the same arithmetic by suspicion.register(rally)",
-	"badminton/who_would_challenge": "not reviewed",
-	"badminton/_reckoning": "not reviewed",
-	"indoor volleyball/nearest_of": "not reviewed",
+	"badminton/who_would_challenge": "delegates to Challenge.challenger(); the spine computes closeness inline. Two implementations of one idea, and they could still converge",
 }
 
 ## How many lines of spine behaviour count as worth inheriting. Below this it is a

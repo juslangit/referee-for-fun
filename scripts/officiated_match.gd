@@ -758,6 +758,7 @@ func judge(call: CallType, against: Sides.Team) -> void:
 		award_the_point(winner)
 		cheer()
 		_the_players_react(winner, rally)
+	_the_room_makes_a_noise(winner, rally)
 	announce_the_call(call, against, winner)
 
 	# And what the room made of the person awarding it. Separate from the cheer on
@@ -949,6 +950,37 @@ func _the_players_react(winner: Sides.Team, rally) -> void:
 			player.argue()
 
 
+## How often the hall bothers to applaud a point it has no complaint about.
+##
+## Well short of every one, because a room that claps every single point stops meaning
+## anything by the third game and the applause has to stay worth hearing for the moments
+## it is answering something.
+const APPLAUDS_SOMETIMES := 0.45
+
+
+## The noise the hall makes, as opposed to what it does.
+##
+## This existed in badminton and nowhere else, inside a function that had stopped being
+## called at all, so for a day it existed nowhere. Restoring it here rather than there
+## is the whole point: a groan when a side is visibly robbed and a scatter of applause
+## when they are not is the cheapest feedback in the game, and there was no reason four
+## sports should have been without it except that somebody wrote it in the wrong file.
+##
+## The threshold is `ARGUES_WHEN_SEEN`, shared with the players turning round, because
+## the groan and the argument are the same room noticing the same thing. Badminton's own
+## version used a slightly lower number of its own; one threshold is better than two.
+func _the_room_makes_a_noise(winner: Sides.Team, rally) -> void:
+	if sound == null:
+		return
+	var seen: float = rally.visibility() if rally != null else 0.0
+	var wrong: bool = rally != null and rally.verdict() == Rally.Verdict.WRONG
+	if wrong and seen >= ARGUES_WHEN_SEEN:
+		sound.react(false)
+		return
+	if winner != Sides.Team.NONE and randf() < APPLAUDS_SOMETIMES:
+		sound.react(true)
+
+
 ## The players nodding towards the chair once the room has come round.
 ##
 ## Whoever you have been leaning *against* is who nods, because they are the side with
@@ -1118,15 +1150,27 @@ func line_judges_watch(point: Vector3, margin: float, was_in: bool) -> void:
 	_announce_after_a_beat(judge)
 
 
+## What the line judge on this rally said, as one overridable answer.
+##
+## The three ball sports learn it at the landing and keep it on the match in
+## `_judge_said_in`; badminton writes it straight onto its own rally when the shuttle
+## comes down. That one difference used to be worth a whole duplicate of the function
+## below — seven lines repeated in `match.gd` so that one of them could read a different
+## variable — which meant the announcement had two implementations to keep in step.
+func judge_said_in() -> bool:
+	return _judge_said_in
+
+
 func _announce_after_a_beat(judge: LineJudge) -> void:
 	await get_tree().create_timer(LINE_JUDGE_DELAY).timeout
 	if _phase != Phase.AWAITING_CALL or not is_instance_valid(judge):
 		return
-	judge.announce(_judge_said_in)
+	var said_in := judge_said_in()
+	judge.announce(said_in)
 	# Said as well as shown. The bubble is over their head, and in tennis their head is
 	# fourteen metres away in a corner the chair is not looking at.
-	ui.show_line_judge(_judge_said_in)
-	if not _judge_said_in:
+	ui.show_line_judge(said_in)
+	if not said_in:
 		# Only OUT is called aloud, which is what a line judge actually does — a ball
 		# they thought was good gets a hand signal and nothing else.
 		sound.judge_calls_out(judge.global_position)

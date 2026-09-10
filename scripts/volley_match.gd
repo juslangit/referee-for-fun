@@ -261,31 +261,10 @@ func _player(team: Sides.Team, index: int) -> Player:
 	return null
 
 
-func nearest_of(team: Sides.Team, to: Vector3) -> Player:
-	var best: Player = null
-	var closest := 1e9
-	for player in team_of(team):
-		var gap := player.distance_to(to)
-		if gap < closest:
-			closest = gap
-			best = player
-	return best
+## `nearest_of` was here, copied from the spine word for word, and is gone. It did not
+## differ by a character; `dev/checks/_inherit` found it by comparing the two bodies.
 
 
-# --- lining up ------------------------------------------------------------------
-
-## Puts twelve people on court according to two rotations, and decides whether one of
-## them is standing somewhere they should not be.
-##
-## This is where the sport's own kind of truth is made. Everything else in this game is
-## decided by the ball; this is decided before the ball is touched, by six people
-## walking to six places, and the referee either noticed or did not.
-## Puts the twelve where their rotations say, with nobody doing anything wrong.
-##
-## Called between rallies, so that the six are standing in their positions from the
-## moment the match begins rather than stacked on one spot until the first serve. It is
-## also the picture the official has to read: the lineup is only judged at the instant
-## of service, but it is only *learnable* by watching it in the gaps.
 func stand_in_position() -> void:
 	for team in [Sides.Team.RED, Sides.Team.BLUE]:
 		var who: Rotation = rota[team]

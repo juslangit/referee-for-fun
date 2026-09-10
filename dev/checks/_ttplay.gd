@@ -35,7 +35,7 @@ func _ready() -> void:
 	print("%4s %-11s %8s %8s %-20s %s" % [
 		"#", "ended on", "landed", "margin", "fault", "verdict"])
 
-	for r in 60:
+	for r in _rallies_wanted(60):
 		hall.start_rally()
 		var w := 0
 		while hall._phase != hall.Phase.AWAITING_CALL and w < 4000:
@@ -115,3 +115,17 @@ func _fault_of(rally: TableTennisRally) -> String:
 	if rally.double_bounce_by != Sides.Team.NONE:
 		return "two bounces"
 	return "-"
+
+
+## How many rallies to play: sixty points, or RALLIES if it is set.
+##
+## Headless Godot runs physics at real time, so a rally in a harness really is a rally.
+## The default stays what it was — a shorter default would weaken every run rather than
+## the one somebody is waiting on — and a quick run is asked for by name:
+##
+##     RALLIES=6 godot --headless --path . res://dev/checks/<this>.tscn
+func _rallies_wanted(usually: int) -> int:
+	var asked := OS.get_environment("RALLIES")
+	if asked.is_valid_int() and asked.to_int() > 0:
+		return asked.to_int()
+	return usually

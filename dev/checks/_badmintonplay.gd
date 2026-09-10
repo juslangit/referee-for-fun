@@ -42,7 +42,7 @@ func _ready() -> void:
 		"#", "strokes", "landed", "incident", "verdict", "suspicion", "court"])
 	var was := 0.0
 	var courts_caught := 0
-	for r in 20:
+	for r in _rallies_wanted(20):
 		# Before the whistle, because that is when a service court error is there to be
 		# seen: the four of them are standing in their boxes for as long as the umpire
 		# cares to look. An umpire who only ever gives the line is not being honest,
@@ -123,3 +123,17 @@ func _call_for(kind: Incident.Kind) -> StringName:
 		Incident.Kind.SERVICE_RACKET_UP: return &"serve_racket_up"
 		Incident.Kind.SERVICE_FEET: return &"serve_feet"
 	return &"in"
+
+
+## How many rallies to play: twenty rallies, or RALLIES if it is set.
+##
+## Headless Godot runs physics at real time, so a rally in a harness really is a rally.
+## The default stays what it was — a shorter default would weaken every run rather than
+## the one somebody is waiting on — and a quick run is asked for by name:
+##
+##     RALLIES=6 godot --headless --path . res://dev/checks/<this>.tscn
+func _rallies_wanted(usually: int) -> int:
+	var asked := OS.get_environment("RALLIES")
+	if asked.is_valid_int() and asked.to_int() > 0:
+		return asked.to_int()
+	return usually
