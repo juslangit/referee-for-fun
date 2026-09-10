@@ -62,6 +62,9 @@ const BUBBLE_TAIL := 11
 const BUBBLE_FADE := 0.25
 const BUBBLE_HOLD := 2.4
 
+## How wide each of the two footer buttons is.
+const FOOTER_BUTTON_WIDTH := 300
+
 const REASON_WIDTH := 380
 const REASON_INSET := 44
 
@@ -290,6 +293,7 @@ func _build_main_menu() -> void:
 ## The score bug goes away with it. It is a broadcast graphic for a match in progress,
 ## and leaving it up over the title read as though a game were already running.
 func show_main_menu(career: Career) -> void:
+	_arrive(AT_MAIN)
 	if _hud != null:
 		_hud.visible = false
 	for child in _main_menu_column.get_children():
@@ -361,8 +365,7 @@ func _build_sport_menu() -> void:
 		row.add_child(_sport_card(sport))
 
 	column.add_child(_gap(22))
-	column.add_child(_centred(_make_wide_button("BACK", func() -> void:
-		main_menu_requested.emit())))
+	column.add_child(_menu_footer(AT_SPORTS))
 
 
 # --- one a side or two ----------------------------------------------------------
@@ -386,6 +389,8 @@ func _build_format_menu() -> void:
 
 ## `sport` names the game so the question reads as a question about that sport.
 func show_format_menu(sport: StringName) -> void:
+	_format_sport = sport
+	_arrive(AT_FORMAT)
 	for child in _format_column.get_children():
 		child.queue_free()
 	if _hud != null:
@@ -414,9 +419,7 @@ func show_format_menu(sport: StringName) -> void:
 	_format_column.add_child(_make_label(doubles, PROMPT_SIZE - 2, UiTheme.MUTED))
 
 	_format_column.add_child(_gap(20))
-	_format_column.add_child(_centred(_make_wide_button("BACK", func() -> void:
-		hide_format_menu()
-		show_sport_menu())))
+	_format_column.add_child(_menu_footer(AT_FORMAT))
 	_format_menu.visible = true
 
 
@@ -498,6 +501,7 @@ func _sport_card(sport: Dictionary) -> Button:
 
 
 func show_sport_menu() -> void:
+	_arrive(AT_SPORTS)
 	if _hud != null:
 		_hud.visible = false
 	_sport_menu.visible = true
@@ -1126,6 +1130,7 @@ func show_teaching(sport := Career.BADMINTON) -> void:
 		Career.TENNIS: _lessons = TENNIS_LESSONS
 		Career.TABLE_TENNIS: _lessons = TABLE_TENNIS_LESSONS
 		_: _lessons = BADMINTON_LESSONS
+	_arrive(AT_TEACHING)
 	if _hud != null:
 		_hud.visible = false
 	_lesson = 0
@@ -1224,6 +1229,15 @@ func _draw_lesson() -> void:
 			_teaching.visible = true)
 		buttons.add_child(back)
 
+	# And a way off the lesson entirely, rather than only forwards through it. The page
+	# BACK above steps between pages; this one leaves.
+	buttons.add_child(_footer_button("BACK", func() -> void:
+		hide_teaching()
+		go_back()))
+	buttons.add_child(_footer_button("MAIN MENU", func() -> void:
+		hide_teaching()
+		main_menu_requested.emit()))
+
 	var onward := Button.new()
 	onward.text = "NEXT" if _lesson < _lessons.size() - 1 else "GOT IT"
 	onward.custom_minimum_size = Vector2(280, UiTheme.BUTTON_HEIGHT)
@@ -1288,11 +1302,15 @@ func _build_settings_menu(settings: Settings) -> void:
 
 	column.add_child(_gap(22))
 	if _settings_over_a_match:
+		# Opened from the pause menu, so there is one way out and it is back to the
+		# match. The footer belongs to the menus, and a match is not one of them.
 		column.add_child(_centred(_make_wide_button("BACK TO THE MATCH", func() -> void:
 			settings_closed.emit())))
 	else:
-		column.add_child(_centred(_make_wide_button("BACK", func() -> void:
-			main_menu_requested.emit())))
+		# It used to send you to the title screen whichever screen had opened it, so
+		# opening the settings from the career screen quietly threw the career screen
+		# away. BACK now means the screen you came from.
+		column.add_child(_menu_footer(AT_SETTINGS))
 
 
 ## One labelled slider, with the value written out beside it. The number matters: a bare
@@ -1343,6 +1361,10 @@ var _settings_over_a_match := false
 ## only way out was to walk out, and walking out counts the same as being thrown off.
 func show_settings(settings: Settings, over_a_match := false) -> void:
 	_settings_over_a_match = over_a_match
+	# Only the menu route goes on the trail. Settings opened over a match is a sheet on
+	# top of a paused game, not a place the player has walked to.
+	if not over_a_match:
+		_arrive(AT_SETTINGS)
 	if _hud != null:
 		_hud.visible = false
 	_build_settings_menu(settings)
@@ -1910,6 +1932,7 @@ func _build_history_panel() -> void:
 
 
 func show_history(career: Career) -> void:
+	_arrive(AT_HISTORY)
 	for child in _history_column.get_children():
 		child.queue_free()
 	if _hud != null:
@@ -1934,10 +1957,7 @@ func show_history(career: Career) -> void:
 		_history_column.add_child(_history_row(row))
 
 	_history_column.add_child(_gap(18))
-	_history_column.add_child(_centred(_make_wide_button("BACK", func() -> void:
-		hide_history()
-		career_screen_requested.emit()
-	)))
+	_history_column.add_child(_menu_footer(AT_HISTORY))
 	_history_panel.visible = true
 
 
@@ -2003,6 +2023,7 @@ func _build_career_panel() -> void:
 
 ## Draws the ladder, with where you are on it and what that is worth.
 func show_career(career: Career) -> void:
+	_arrive(AT_CAREER)
 	for child in _career_column.get_children():
 		child.queue_free()
 
@@ -2018,6 +2039,8 @@ func show_career(career: Career) -> void:
 		_career_column.add_child(_centred(_make_wide_button("START AGAIN", func() -> void:
 			career_restart_requested.emit()
 		)))
+		_career_column.add_child(_gap(16))
+		_career_column.add_child(_menu_footer(AT_CAREER))
 		return
 
 	_career_column.add_child(_make_label("YOUR CAREER", TITLE_SIZE - 4, Color(0.95, 0.95, 0.93)))
@@ -2084,6 +2107,12 @@ func show_career(career: Career) -> void:
 		_career_column.add_child(_make_wide_button("EVERY MATCH SO FAR", func() -> void:
 			history_requested.emit()
 		))
+
+	# The screen had no way off it at all until now: no BACK, no MAIN MENU, and the only
+	# exits were forward into a match or sideways into the lesson and the history. A
+	# player who opened it to look at the ladder had to referee a match to leave.
+	_career_column.add_child(_gap(16))
+	_career_column.add_child(_menu_footer(AT_CAREER))
 
 
 ## All five ladders at once, under the one you are standing on.
@@ -2166,6 +2195,116 @@ func _gap(height: int) -> Control:
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, height)
 	return spacer
+
+
+# --- getting back out of a screen -------------------------------------------------
+
+## Which screens exist to navigate between, as they appear on the trail.
+##
+## In-match overlays are deliberately not on this list: the pause menu, the briefing,
+## the fault panel, the review and the ending are moments in a match rather than places
+## you have walked to, and each already has its own defined way out. Putting a MAIN MENU
+## button on a briefing would abandon a match with one click and no warning.
+const AT_MAIN := &"main"
+const AT_SPORTS := &"sports"
+const AT_FORMAT := &"format"
+const AT_CAREER := &"career"
+const AT_HISTORY := &"history"
+const AT_TEACHING := &"teaching"
+const AT_SETTINGS := &"settings"
+
+## Where the player has walked, current screen last.
+##
+## A trail rather than a stack of pushes, because the menus are a small graph rather
+## than a tree: the lesson and the settings are both reachable from the title screen and
+## from the career screen, and the career screen is reachable from the history screen
+## that is reachable from it. A plain push would have grown for ever going round that
+## loop, and BACK from the settings would have gone to whichever screen opened them the
+## *first* time rather than this time.
+var _trail: Array[StringName] = []
+
+## Which sport the format menu is asking about, so BACK can return to it.
+var _format_sport := Career.BADMINTON
+
+
+## Records arriving at a screen. Called by each `show_` so the trail is kept in one
+## place rather than at every call site that opens something.
+func _arrive(where: StringName) -> void:
+	if where == AT_MAIN:
+		_trail = [AT_MAIN]
+		return
+	if _trail.is_empty():
+		_trail = [AT_MAIN]
+	# Arriving somewhere already behind you is a step back to it, not a new step, which
+	# is what stops career -> history -> career growing the trail for ever.
+	var already := _trail.find(where)
+	if already >= 0:
+		_trail.resize(already + 1)
+		return
+	_trail.append(where)
+
+
+## Back to wherever the player came from, and to the title screen if that is nowhere.
+func go_back() -> void:
+	if _trail.size() < 2:
+		main_menu_requested.emit()
+		return
+	var to := _trail[_trail.size() - 2]
+	_trail.resize(_trail.size() - 1)
+	_open(to)
+
+
+func _open(where: StringName) -> void:
+	match where:
+		AT_SPORTS: play_requested.emit()
+		AT_CAREER: career_screen_requested.emit()
+		AT_HISTORY: history_requested.emit()
+		AT_TEACHING: teaching_requested.emit()
+		AT_SETTINGS: settings_requested.emit()
+		AT_FORMAT: show_format_menu(_format_sport)
+		_: main_menu_requested.emit()
+
+
+## Takes a screen down. Each `show_` puts a screen up over whatever was there, so the
+## one being left has to be closed by name — there is no single "hide everything" that
+## does not also put the HUD back up in the middle of a menu.
+func _leave(where: StringName) -> void:
+	match where:
+		AT_SPORTS: hide_sport_menu()
+		AT_FORMAT: hide_format_menu()
+		AT_CAREER: hide_career()
+		AT_HISTORY: hide_history()
+		AT_TEACHING: hide_teaching()
+		AT_SETTINGS: hide_settings()
+
+
+## The two buttons every screen but the title gets, in the same place on every one.
+##
+## Both, even where they lead to the same screen — the sport menu sits directly under
+## the title, so its BACK and its MAIN MENU do the same thing. That is deliberate:
+## a footer whose buttons move about depending on how deep you happen to be is worse
+## than one that is always the same two words in the same two places.
+func _menu_footer(from: StringName) -> Control:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 16)
+	row.add_child(_footer_button("BACK", func() -> void:
+		_leave(from)
+		go_back()))
+	row.add_child(_footer_button("MAIN MENU", func() -> void:
+		_leave(from)
+		main_menu_requested.emit()))
+	return row
+
+
+## Narrower than a `_make_wide_button`, because two of those side by side come to more
+## than nine hundred pixels and crowd out the screen they are underneath.
+func _footer_button(text: String, on_press: Callable) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.custom_minimum_size = Vector2(FOOTER_BUTTON_WIDTH, UiTheme.BUTTON_HEIGHT)
+	button.pressed.connect(on_press)
+	return button
 
 
 func _make_wide_button(text: String, on_press: Callable) -> Button:
