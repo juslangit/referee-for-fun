@@ -608,15 +608,21 @@ func _on_briefing_acknowledged() -> void:
 
 
 ## Out to the chair. Every route into a match ends here.
+## The board first, because badminton is the one sport that can reach a match without
+## the menu having built one, and then the spine's own opening.
+##
+## It used to repeat the spine's four lines instead of calling `super()`, and that cost
+## a real bug: `ui.chair_camera` was added to `OfficiatedMatch.begin_match()` and worked
+## in four sports while silently doing nothing here. Calling super also means going out
+## through `go_ready()` rather than straight to `enter_ready()`, which is what the other
+## four sports have always done — it sets the phase to READY and puts the score up,
+## both of which this was skipping.
 func begin_match(_unused := Sides.Team.NONE) -> void:
 	if board == null:
 		board = Scoreboard.new(false)
 		board.game_won.connect(_on_game_won)
 		board.match_won.connect(_on_match_won)
-	calls_made = 0
-	camera.set_active(true)
-	_start_watching_reputation()
-	enter_ready()
+	super()
 
 
 ## Two a side or one, as the format menu was answered.
@@ -1552,46 +1558,16 @@ func _weigh_the_debt() -> void:
 		ui.react("nobody in this hall thinks that evened anything up", 5.0)
 
 
-## The players' answer to the call. Whoever won it celebrates; whoever was robbed of
-## it, plainly enough that they could tell, turns round and argues with the chair.
+## Badminton's own answer to the call, which the spine now gives every sport.
 ##
-## This is the first thing in the game that reacts to the umpire as a person rather
-## than as a rule, and it costs almost nothing now that the characters can act.
-func _react_to_call(winner: Sides.Team) -> void:
-	var robbed := Sides.Team.NONE
-	if rally != null and rally.verdict() == Rally.Verdict.WRONG and rally.visibility() > 0.25:
-		robbed = Sides.opponent(rally.point_goes_to())
-
-	for player in players:
-		if player.team == robbed:
-			player.argue()
-		elif winner != Sides.Team.NONE and player.team == winner:
-			player.celebrate()
-
-	# The hall reacts too: the stands come up out of their seats and, at the venues
-	# that have photographers in them, a scatter of flashes goes off. Both are things
-	# the umpire catches out of the corner of their eye while wondering whether they
-	# have got away with it.
-	if winner != Sides.Team.NONE:
-		court.stands.cheer()
-		if court.venue != null:
-			court.venue.flash()
-
-	# And what the hall made of the person awarding it, which is a different thing from
-	# what it made of the rally. Until now the stands celebrated every point, stolen or
-	# not, and had no way to object to anything. See Stands.jeer.
-	if rally != null and rally.verdict() == Rally.Verdict.WRONG:
-		var seen: float = rally.visibility()
-		var short_fuse: float = 1.0 if suspicion.mood >= Suspicion.Mood.HOSTILE else 0.0
-		if seen >= 0.30 - short_fuse * 0.12:
-			court.stands.jeer(0.55 * clampf(seen, 0.0, 1.0))
-
-	# A groan every time the hall catches something, and applause only sometimes —
-	# a room that claps every single point stops meaning anything by the third game.
-	if robbed != Sides.Team.NONE:
-		sound.react(false)
-	elif winner != Sides.Team.NONE and randf() < 0.45:
-		sound.react(true)
+## Deleted rather than reconnected. Everything it did has a home already: the players
+## celebrating and arguing is `OfficiatedMatch._the_players_react()`, the stands and the
+## flashes are `cheer()` and `jeer()` just above, and both are driven from one place on
+## the spine for all five sports. What is *not* carried over is the pair of `sound.react`
+## calls it ended with — a groan when a side was robbed and applause on some points —
+## which no other sport has ever had. That is left out on purpose rather than restored
+## here alone: a fifth sport-shaped exception is how this function came to be dead in the
+## first place. It belongs on the spine, next to _the_players_react, or nowhere.
 
 
 func _update_score() -> void:
@@ -1786,3 +1762,41 @@ func _build_environment() -> void:
 ## Where this sport seats its hall, so somebody in it can be given a line to say.
 func the_stands() -> Stands:
 	return court.stands
+
+
+## The tape, 1.524 m up at the centre, measured from the floor like every other sport's.
+##
+## Badminton was the only sport that never overrode this, so it inherited the spine's
+## default — **indoor volleyball's 2.43 m**. Nothing was wrong on screen, because
+## badminton aims its own shots through `_hit_or_something_safer` and reads
+## `CourtSpec.NET_HEIGHT_CENTRE` directly, so the inherited number was never asked for.
+## That is exactly what made it worth closing: the day anything on the spine reads
+## `net_height()` on a path badminton reaches, badminton silently plays over a
+## volleyball net and nothing says so. Found by `dev/checks/_inherit`.
+func net_height() -> float:
+	return CourtSpec.NET_HEIGHT_CENTRE
+
+
+## The shuttlecock, which is what `ShotSolver.Flight` already defaults to.
+##
+## Same reasoning as `net_height` above: badminton solves its own shots and passes no
+## flight model, so it never asked the spine for one and would have been handed a
+## volleyball's drag if it ever did. A shuttlecock has a terminal velocity of 6.8 m/s
+## against a volleyball's forty-odd, so that substitution would not have been subtle
+## once something reached it.
+func flight() -> ShotSolver.Flight:
+	return ShotSolver.Flight.new()
+
+
+## The hall answering the rally, and the hall answering the umpire.
+##
+## Both were missing here and nowhere else. `_react_to_call()` below used to do this
+## from inside badminton, and it is no longer called by anything — so the stands stopped
+## moving, and nothing said so, because a hall that never reacts looks exactly like a
+## hall with nothing to react to.
+func cheer() -> void:
+	court.cheer()
+
+
+func jeer(share: float) -> void:
+	court.jeer(share)

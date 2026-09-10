@@ -472,3 +472,24 @@ func _add_box_to(parent: Node, box_name: String, size: Vector3, centre: Vector3,
 	instance.material_override = material
 	parent.add_child(instance)
 	return instance
+
+
+## The hall coming up out of its seats for a rally, and the photographers going off with
+## it at the venues that have any.
+##
+## Every other sport's court has had this from the start; badminton's did not, because
+## badminton drove its own stands from inside the match instead. When badminton moved
+## onto the shared spine that call site went with it, and the spine drives the stands
+## through `cheer()` and `jeer()` — so for a while the badminton hall never moved at all.
+## See `dev/checks/_inherit`.
+func cheer() -> void:
+	if stands != null:
+		stands.cheer()
+	if venue != null:
+		venue.flash()
+
+
+## The hall getting to its feet over a call rather than a rally.
+func jeer(share: float) -> void:
+	if stands != null:
+		stands.jeer(share)
