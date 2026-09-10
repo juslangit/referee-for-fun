@@ -490,6 +490,20 @@ var grudge_reason := ""
 ## Set for one screen after a match, so the result can say what just happened.
 var last_result := ""
 
+## The matches behind the number.
+##
+## Reputation is one figure standing for everything you have ever done, and until now it
+## was the only record there was: a player who had climbed to a national championship and
+## a player who had been thrown off two beach matches could arrive at the same 62 with
+## nothing to tell them apart. This is what it is made of.
+##
+## Newest first, and capped — a career that ran for a hundred matches would otherwise
+## carry a hundred rows in a save file that has to be read at startup, and nobody is
+## going to scroll to the fortieth.
+const HISTORY_KEPT := 24
+
+var history: Array = []
+
 
 func venue() -> Dictionary:
 	var rungs := ladder()
@@ -599,7 +613,26 @@ func finish_match(suspicion_level: float, removed: bool, pressures: Array = []) 
 		lines.append("They would move you up, but not with a reputation like that.")
 
 	last_result = "\n".join(lines)
+	_write_it_down(suspicion_level, removed, change)
 	return last_result
+
+
+## One row for the match just finished, written after everything else so that the
+## reputation and the rung it records are the ones the player is about to be shown.
+func _write_it_down(suspicion_level: float, removed: bool, change: float) -> void:
+	var rungs := ladder()
+	history.push_front({
+		"sport": String(sport),
+		"venue": String(rungs[clampi(tier, 0, rungs.size() - 1)]["name"]),
+		"doubles": doubles if has_both_formats(sport) else true,
+		"asked": has_both_formats(sport),
+		"suspicion": snappedf(suspicion_level, 0.001),
+		"change": snappedf(change, 0.001),
+		"reputation": snappedf(reputation, 0.001),
+		"removed": removed,
+	})
+	while history.size() > HISTORY_KEPT:
+		history.pop_back()
 
 
 ## Whether this match made somebody an enemy, and who.
@@ -635,6 +668,7 @@ func save() -> void:
 		"progress": progress,
 		"reputation": reputation,
 		"doubles": doubles,
+		"history": history,
 		"matches_refereed": matches_refereed,
 		"times_removed": times_removed,
 		"is_over": is_over,
@@ -664,6 +698,11 @@ static func load_or_start() -> Career:
 	career.grudge_reason = String(parsed.get("grudge_reason", ""))
 	career.sport = StringName(parsed.get("sport", String(BADMINTON)))
 	career.doubles = bool(parsed.get("doubles", true))
+	# Rows written by an older save simply are not there, which is the right answer:
+	# a career from before this existed has no history rather than a wrong one.
+	var rows = parsed.get("history", [])
+	if typeof(rows) == TYPE_ARRAY:
+		career.history = rows
 
 	if parsed.has("progress"):
 		# JSON has no integers and no StringNames, so everything comes back as a float

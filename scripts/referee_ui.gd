@@ -23,6 +23,7 @@ signal career_restart_requested()
 signal continue_requested()
 signal new_career_requested()
 signal career_screen_requested()
+signal history_requested()
 signal resume_requested()
 signal walk_out_requested()
 signal quit_requested()
@@ -161,6 +162,7 @@ func _ready() -> void:
 	_build_review()
 	_build_pause_menu()
 	_build_career_panel()
+	_build_history_panel()
 	_build_briefing()
 	_build_hud()
 	_build_ending()
@@ -1418,6 +1420,95 @@ func _centred(control: Control) -> HBoxContainer:
 	return row
 
 
+# --- what the number is made of --------------------------------------------------
+
+## Every match this official has refereed, newest first.
+##
+## Reputation is one figure standing for a whole career, and it was the only record there
+## was: somebody who had climbed to a national championship and somebody who had been
+## thrown off two beach matches could arrive at the same 62 with nothing to tell them
+## apart. This is the difference between them.
+##
+## It states the truth, which almost nothing else in this game does — but only about
+## matches that are over. Nothing here can help you with a call you have not made yet.
+var _history_panel: Control
+var _history_column: VBoxContainer
+
+
+func _build_history_panel() -> void:
+	var built := _build_sheet("History", Color(0.04, 0.05, 0.07, 0.95))
+	_history_panel = built[0]
+	_history_column = built[1]
+
+
+func show_history(career: Career) -> void:
+	for child in _history_column.get_children():
+		child.queue_free()
+	if _hud != null:
+		_hud.visible = false
+	hide_career()
+
+	_history_column.add_child(_make_label(
+		"EVERY MATCH SO FAR", TITLE_SIZE - 4, UiTheme.CHALK))
+	_history_column.add_child(_make_label(
+		"%d refereed, %d walked away from." % [
+			career.matches_refereed, career.times_removed],
+		PROMPT_SIZE, UiTheme.MUTED))
+	_history_column.add_child(_gap(14))
+
+	var heading := _make_label(
+		"%-18s %-24s %-9s %8s %7s" % ["sport", "venue", "format", "cost", "left"],
+		PROMPT_SIZE - 3, UiTheme.MUTED)
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_history_column.add_child(heading)
+
+	for row in career.history:
+		_history_column.add_child(_history_row(row))
+
+	_history_column.add_child(_gap(18))
+	_history_column.add_child(_centred(_make_wide_button("BACK", func() -> void:
+		hide_history()
+		career_screen_requested.emit()
+	)))
+	_history_panel.visible = true
+
+
+## One match. The cost is what it did to your name, which is the only number here that
+## is about you rather than about the match.
+func _history_row(row: Dictionary) -> Label:
+	var change := float(row.get("change", 0.0))
+	var removed := bool(row.get("removed", false))
+	var format := "—"
+	if bool(row.get("asked", false)):
+		format = "doubles" if bool(row.get("doubles", true)) else "singles"
+
+	var text := "%-18s %-24s %-9s %+8.2f %7d" % [
+		Career.name_of(StringName(row.get("sport", ""))),
+		String(row.get("venue", "")),
+		format,
+		change,
+		roundi(float(row.get("reputation", 0.0)) * 100.0),
+	]
+	if removed:
+		text += "   thrown off"
+
+	var tint := Color(0.74, 0.77, 0.82)
+	if removed:
+		tint = Color(0.96, 0.42, 0.36)
+	elif change > 0.0:
+		tint = Color(0.62, 0.82, 0.66)
+	elif change < -0.05:
+		tint = Color(0.92, 0.72, 0.50)
+	var label := _make_label(text, PROMPT_SIZE - 3, tint)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	return label
+
+
+func hide_history() -> void:
+	if _history_panel != null:
+		_history_panel.visible = false
+
+
 # --- the career ----------------------------------------------------------------
 
 func _build_career_panel() -> void:
@@ -1519,6 +1610,12 @@ func show_career(career: Career) -> void:
 	_career_column.add_child(_make_wide_button("HOW TO REFEREE", func() -> void:
 		teaching_requested.emit()
 	))
+	# And what the reputation at the top of this screen is actually made of.
+	if not career.history.is_empty():
+		_career_column.add_child(_gap(6))
+		_career_column.add_child(_make_wide_button("EVERY MATCH SO FAR", func() -> void:
+			history_requested.emit()
+		))
 
 
 ## All four ladders at once, under the one you are standing on.
@@ -1589,6 +1686,7 @@ func hide_menus() -> void:
 	hide_format_menu()
 	hide_settings()
 	hide_teaching()
+	hide_history()
 	_main_menu.visible = false
 	_career_panel.visible = false
 	_pause_menu.visible = false
@@ -2117,6 +2215,7 @@ func show_ending(headline: String, detail: String, tint := Color(0.96, 0.42, 0.3
 	hide_settings()
 	hide_teaching()
 	hide_career()
+	hide_history()
 	hide_review()
 	hide_fault_panel()
 	hide_close_cam()

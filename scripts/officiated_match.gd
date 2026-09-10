@@ -228,7 +228,10 @@ func _connect_menus() -> void:
 		ui.hide_briefing()
 		begin_match())
 	ui.continue_requested.connect(func() -> void: get_tree().reload_current_scene())
-	ui.career_screen_requested.connect(func() -> void: ui.show_career(career))
+	ui.career_screen_requested.connect(func() -> void:
+		ui.hide_history()
+		ui.show_career(career))
+	ui.history_requested.connect(func() -> void: ui.show_history(career))
 	ui.teaching_requested.connect(func() -> void:
 		ui.hide_career()
 		ui.show_teaching(sport()))

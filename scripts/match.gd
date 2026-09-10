@@ -274,6 +274,7 @@ func _ready() -> void:
 	ui.career_restart_requested.connect(_on_career_restart_requested)
 	ui.new_career_requested.connect(_on_new_career_requested)
 	ui.career_screen_requested.connect(_on_career_screen_requested)
+	ui.history_requested.connect(func() -> void: ui.show_history(career))
 	ui.resume_requested.connect(_on_resume_requested)
 	ui.walk_out_requested.connect(_on_walk_out_requested)
 	ui.quit_requested.connect(_on_quit_requested)
@@ -520,6 +521,7 @@ func _on_continue_requested() -> void:
 
 
 func _on_career_screen_requested() -> void:
+	ui.hide_history()
 	_menu_view()
 	ui.show_career(career)
 
