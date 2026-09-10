@@ -930,6 +930,11 @@ func _on_reputation_moved(_level: float) -> void:
 	var moved := float(out_of_100 - _reputation_showing) / 100.0
 	_reputation_showing = out_of_100
 	ui.show_reputation(now, moved)
+	# Only a fall gets a sentence. A number going up needs no defending, and the note
+	# is there to tell an umpire what to do differently, which is only ever a question
+	# on the way down.
+	if moved < 0.0:
+		ui.show_reason(suspicion.last_reason)
 
 
 ## Seeds the meter at whatever the career screen just showed, so that the first call of

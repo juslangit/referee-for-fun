@@ -51,6 +51,12 @@ const METER_HOLD := 2.2
 const METER_FADE_OUT := 0.4
 
 ## How wide the bar is, and where the colour of the fill changes.
+## How wide the reason note on the left is allowed to be before it wraps, and how far
+## in from the edge of the screen it sits. Narrow on purpose: it is read at a glance
+## out of the corner of the eye while the next serve is being walked back to.
+const REASON_WIDTH := 380
+const REASON_INSET := 44
+
 const METER_WIDTH := 520
 const METER_HEIGHT := 26
 const METER_SAFE := 0.60
@@ -143,6 +149,11 @@ var _meter_fill: StyleBoxFlat
 var _meter_left := 0.0
 var _meter_shown := 0.0
 
+var _reason: PanelContainer
+var _reason_label: Label
+var _reason_left := 0.0
+var _reason_shown := 0.0
+
 ## The pause menu's free exit, and the line under it. Both hidden once the match has
 ## begun to matter.
 var _leave_button: Button
@@ -194,6 +205,7 @@ func _process(delta: float) -> void:
 	if _judge_plate != null and _judge_timer <= 0.0:
 		_judge_plate.visible = false
 	_tick_the_meter(delta)
+	_tick_the_reason(delta)
 
 
 func _tick(delta: float, timer: float, label: Label) -> float:
@@ -1373,6 +1385,7 @@ func show_pause_menu(can_leave_freely := false) -> void:
 	# straight across the RESUME button.
 	clear_messages()
 	hide_reputation()
+	hide_reason()
 	if _leave_button != null:
 		_leave_button.visible = can_leave_freely
 		_leave_note.visible = can_leave_freely
@@ -1531,6 +1544,93 @@ func hide_reputation() -> void:
 	_meter_left = 0.0
 	_meter_shown = 0.0
 
+# --- why it moved ----------------------------------------------------------------
+
+## The note on the left that says what the hall is reacting to.
+##
+## It exists because the meter on its own is a number that moves for no stated cause,
+## and a player who cannot tell what cost them cannot referee any differently next
+## time. It never says whether the call was right — see the note over the strings in
+## `Suspicion`, which is where the wording is kept and where that rule is enforced.
+##
+## On the left rather than under the meter for two reasons. The middle of the screen
+## is where the game announces things to the hall, and this is not addressed to the
+## hall. And the eye that has just gone to the bottom centre for the number should
+## find the sentence somewhere else, so the two are read as two facts rather than one
+## caption.
+func _build_reason_note() -> PanelContainer:
+	_reason = PanelContainer.new()
+	_reason.name = "ReasonNote"
+	_reason.add_theme_stylebox_override("panel", UiTheme.plate(UiTheme.ACCENT, 0.86))
+	_reason.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+	_reason.grow_horizontal = Control.GROW_DIRECTION_END
+	_reason.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_reason.position = Vector2(REASON_INSET, 0)
+	_reason.custom_minimum_size = Vector2(REASON_WIDTH, 0)
+	_reason.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_reason.modulate = Color(1, 1, 1, 0)
+	_reason.visible = false
+
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 6)
+	_reason.add_child(column)
+
+	var heading := _make_label("THE HALL", UiTheme.SMALL, UiTheme.MUTED)
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	column.add_child(heading)
+
+	_reason_label = _make_label("", UiTheme.BODY, UiTheme.CHALK)
+	_reason_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_reason_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_reason_label.custom_minimum_size = Vector2(REASON_WIDTH, 0)
+	column.add_child(_reason_label)
+
+	return _reason
+
+
+## Puts the note up for as long as the meter stays up, so the two go together.
+##
+## An empty reason puts nothing on screen rather than an empty box: not every route
+## into the meter has something to say, and a blank panel would look like a bug.
+func show_reason(text: String) -> void:
+	if _reason == null or _hud == null or not _hud.visible:
+		return
+	if text.strip_edges().is_empty():
+		return
+	_reason_label.text = text
+	_reason.visible = true
+	_reason_left = METER_FADE_IN + METER_HOLD + METER_FADE_OUT
+	if _reason_shown < 1.0 and _reason.modulate.a > 0.0:
+		_reason_left -= METER_FADE_IN * _reason_shown
+
+
+func _tick_the_reason(delta: float) -> void:
+	if _reason == null or _reason_left <= 0.0:
+		return
+	_reason_left -= delta
+	if _reason_left <= 0.0:
+		_reason.visible = false
+		_reason.modulate.a = 0.0
+		_reason_shown = 0.0
+		return
+
+	if _reason_left <= METER_FADE_OUT:
+		_reason_shown = _reason_left / METER_FADE_OUT
+	else:
+		var since := (METER_FADE_IN + METER_HOLD + METER_FADE_OUT) - _reason_left
+		_reason_shown = clampf(since / METER_FADE_IN, 0.0, 1.0)
+	_reason.modulate.a = _reason_shown
+
+
+func hide_reason() -> void:
+	if _reason == null:
+		return
+	_reason.visible = false
+	_reason.modulate.a = 0.0
+	_reason_left = 0.0
+	_reason_shown = 0.0
+
+
 
 ## Wipes the announcement, the crowd's line and the banner immediately.
 func clear_messages() -> void:
@@ -1542,6 +1642,7 @@ func clear_messages() -> void:
 	_banner_timer = 0.0
 	hide_line_judge()
 	hide_reputation()
+	hide_reason()
 
 
 func hide_pause_menu() -> void:
@@ -1984,6 +2085,7 @@ func _build_hud() -> void:
 	hud.add_child(_banner_label)
 
 	hud.add_child(_build_reputation_meter())
+	hud.add_child(_build_reason_note())
 
 
 ## The score bug at the top of the screen, the way a broadcast does it: a block of each
@@ -2356,6 +2458,7 @@ func show_ending(headline: String, detail: String, tint := Color(0.96, 0.42, 0.3
 	hide_close_cam()
 	hide_briefing()
 	hide_reputation()
+	hide_reason()
 	hide_line_judge()
 	clear_messages()
 	_main_menu.visible = false

@@ -24,8 +24,11 @@ func _ready() -> void:
 		await get_tree().process_frame
 
 	print("the HUD is up: %s   (the meter refuses to draw without it)" % hall.ui._hud.visible)
-	print("%4s %10s %-10s %10s %12s %8s" % [
-		"#", "landed", "called", "verdict", "suspicion", "meter"])
+	print("%4s %10s %-10s %10s %12s %8s %6s  %s" % [
+		"#", "landed", "called", "verdict", "suspicion", "meter", "note", "what it said"])
+	# A fall in reputation with no sentence beside it is the empty panel case, and a
+	# sentence with no fall would mean the note had started speaking on its own.
+	var silent_falls := 0
 
 	for r in 6:
 		hall.start_rally()
@@ -43,23 +46,38 @@ func _ready() -> void:
 		hall.make_call(&"in" if not rally.was_in else &"out")
 
 		var shown := false
+		var noted := false
+		var said := ""
 		var w2 := 0
 		while w2 < 240:
 			await get_tree().process_frame
 			w2 += 1
 			if hall.ui._meter != null and hall.ui._meter.visible:
 				shown = true
+			if hall.ui._reason != null and hall.ui._reason.visible:
+				noted = true
+				said = hall.ui._reason_label.text
 			if hall._phase != hall.Phase.AWAITING_CALL and w2 > 40:
 				break
 
-		print("%4d %10s %-10s %10s %12.4f %8s" % [
+		if shown and not noted:
+			silent_falls += 1
+		print("%4d %10s %-10s %10s %12.4f %8s %6s  %s" % [
 			r,
 			"IN" if rally.was_in else "OUT",
 			rally.call.label if rally.call != null else "nothing",
 			Rally.Verdict.keys()[rally.verdict()],
 			hall.suspicion.level,
 			"SHOWN" if shown else "no",
+			"yes" if noted else "-",
+			said,
 		])
 		if hall._phase == hall.Phase.REMOVED:
 			break
+
+	print("")
+	if silent_falls == 0:
+		print("every meter drop came with a reason   (MUST BE 0 silent falls)")
+	else:
+		print("%d meter drop(s) with an empty panel beside them   <-- PROBLEM" % silent_falls)
 	get_tree().quit()

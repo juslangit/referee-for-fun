@@ -203,6 +203,7 @@ func register_judgement(
 			_settle_mood()
 			return 0.0
 		conspicuous *= scrutiny
+		last_reason = WHY_OVERRULED if overrules_line_judge else WHY_HESITATED
 		level = clampf(level + conspicuous, 0.0, REMOVAL_LEVEL)
 		level_changed.emit(level)
 		_settle_mood()
@@ -243,6 +244,8 @@ func register_judgement(
 	if level < WARNING_LEVEL and target >= REMOVAL_LEVEL:
 		target = HELD_AT_WARNING
 
+	last_reason = _why_that_cost(visibility, direction, reinforcing, dithering,
+		echoes_line_judge, overrules_line_judge)
 	level = clampf(target, 0.0, REMOVAL_LEVEL)
 	lean = clampf(lean + direction * visibility, -1.0, 1.0)
 
@@ -290,6 +293,7 @@ func register_review_judgement(visibility: float, direction: float,
 		# about the rest of the match, but the room settles.
 		level = maxf(0.0, level - VINDICATED)
 		lean = move_toward(lean, 0.0, LEAN_FADE_PER_CORRECT_CALL)
+		last_reason = ""
 		level_changed.emit(level)
 		_settle_mood()
 		return -VINDICATED
@@ -301,6 +305,7 @@ func register_review_judgement(visibility: float, direction: float,
 	if level < WARNING_LEVEL and target >= REMOVAL_LEVEL:
 		target = HELD_AT_WARNING
 
+	last_reason = WHY_REVIEW
 	level = clampf(target, 0.0, REMOVAL_LEVEL)
 	lean = clampf(lean + direction * 0.5, -1.0, 1.0)
 	level_changed.emit(level)
@@ -328,6 +333,7 @@ func register_service_court(real: bool, claimed: bool) -> float:
 		wrong_calls += 1
 
 	var gain := (FALSE_SERVICE_COURT if claimed else MISSED_SERVICE_COURT) * scrutiny
+	last_reason = WHY_FALSE_SERVICE if claimed else WHY_MISSED_SERVICE
 	var target := level + gain
 	if level < WARNING_LEVEL and target >= REMOVAL_LEVEL:
 		target = HELD_AT_WARNING
@@ -369,6 +375,7 @@ func register_card(against: Sides.Team, red: bool) -> float:
 	var reinforcing := maxf(0.0, direction * lean)
 
 	var gain := seen * (IMMEDIATE_WEIGHT + reinforcing * PATTERN_WEIGHT) * weight * scrutiny
+	last_reason = WHY_CARD
 	var target := level + gain
 	if level < WARNING_LEVEL and target >= REMOVAL_LEVEL:
 		target = HELD_AT_WARNING
@@ -380,11 +387,64 @@ func register_card(against: Sides.Team, red: bool) -> float:
 	return gain
 
 
+# --- why the hall's opinion moved -----------------------------------------------
+
+## What the room saw, in the room's own words.
+##
+## The rule this whole file is built on is that the game never tells the player
+## whether a call was right. That rule survives here because every line below
+## describes something the hall could see from where it was sitting — a long silence,
+## two officials disagreeing in public, every tight call going the same way all night.
+##
+## None of them settles the question the player is actually asking. An honest umpire
+## earns every one of these lines as easily as a bent one does: you can be slow
+## because you were unsure, overrule a line judge because you were right, and be
+## booed by a far end that simply wanted the other answer. What the player learns is
+## what it cost them and what the hall is reacting to, which is the same thing the
+## crowd noise already tells them — only in words, and only when it has cost them a
+## whole point of their name.
+const WHY_HESITATED := "You sat on that one. The hall watched you decide."
+const WHY_OVERRULED := "You overruled the line judge, in front of everybody."
+const WHY_PATTERN := "Every tight call tonight has gone %s's way."
+const WHY_ROOM := "The far end of the hall did not like that one."
+const WHY_ECHOED := "The line judge said the same and they objected anyway."
+const WHY_CARD := "Nobody watching thought that card was earned."
+const WHY_FALSE_SERVICE := "You halted a serve and the hall could not see what for."
+const WHY_MISSED_SERVICE := "The far bench is on its feet pointing at the service court."
+const WHY_REVIEW := "The review went up on the screen, at a size nobody can argue with."
+
+## The reason that goes with the most recent charge. Read by the meter when — and only
+## when — reputation has just gone down.
+var last_reason := ""
+
+
+## Which of the several things that just cost the umpire is the one worth saying.
+##
+## One line goes on screen, not a list, so this picks the largest contributor. The
+## pattern wins whenever it is running: it is both the most expensive thing in this
+## file and the only one the player cannot already work out from the noise in the hall.
+func _why_that_cost(visibility: float, direction: float, reinforcing: float,
+		dithering: float, echoes: bool, overrules: bool) -> String:
+	if reinforcing * PATTERN_WEIGHT >= IMMEDIATE_WEIGHT:
+		var helped := Sides.Team.BLUE if direction > 0.0 else Sides.Team.RED
+		return WHY_PATTERN % Sides.label(helped)
+	if overrules:
+		return WHY_OVERRULED
+	if dithering >= visibility * IMMEDIATE_WEIGHT:
+		return WHY_HESITATED
+	if echoes:
+		return WHY_ECHOED
+	return WHY_ROOM
+
+
 func _recover() -> void:
 	if level <= 0.0 and is_zero_approx(lean):
 		return
 	level = maxf(0.0, level - RECOVERY_PER_CORRECT_CALL)
 	lean = move_toward(lean, 0.0, LEAN_FADE_PER_CORRECT_CALL)
+	# Nothing to explain when the number goes the right way, and a reason left lying
+	# about here would be attached to whatever charged next.
+	last_reason = ""
 	level_changed.emit(level)
 
 

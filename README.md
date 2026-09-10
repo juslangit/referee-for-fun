@@ -28,6 +28,13 @@ carried between matches. It appears at the bottom of the screen only when it mov
 three seconds, and then it is gone. It never tells you whether a particular call was
 believed. It tells you what the night has cost you so far, at the moment it costs it.
 
+When the number falls, a single line appears on the left saying what the hall is
+reacting to — that you sat on that one, that you overruled the line judge in front of
+everybody, that every tight call tonight has gone the same way. It is the crowd's
+reaction in words, for a player who has not yet learned to hear it, and it is written so
+that an honest umpire earns every one of those lines as readily as a bent one. You are
+told what it cost you. You are never told whether you were right.
+
 That one rule drives everything else. A shuttle two centimetres out called IN is a
 matter of opinion — nobody in the building can be certain, so it barely costs you. One
 that lands a metre out and is given in costs you a great deal. And what really gets an
