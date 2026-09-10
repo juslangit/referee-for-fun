@@ -41,9 +41,9 @@ keeps the shout meaning one thing. A real "OUT!" is one `sfx make` away if
 
 ## Per sport
 
-The four sports used to share one set of eight files, so a shuttlecock landing was also
-a volleyball hitting sand and a tennis ball hitting a hard court. They are three
-completely different noises and the surface is half of what a landing tells you.
+The sports used to share one set of eight files, so a shuttlecock landing was also a
+volleyball hitting sand and a tennis ball hitting a hard court. They are completely
+different noises and the surface is half of what a landing tells you.
 
 | File | Used by | Source |
 |---|---|---|
@@ -54,6 +54,20 @@ completely different noises and the surface is half of what a landing tells you.
 | `hit_soft.wav`, `hit_hard.wav` | badminton racket | CC0 |
 | `hit_volley_hard.mp3` | a volleyball spiked | volleyball spike by Luisa_Sanchez, CC0 |
 | `hit_tennis.mp3` | a tennis racket | Tennis-Ball-Hit by kletton97, CC0 |
+| `hit_pingpong.wav` | a bat | built by `tools/audio/make_sounds.py` — our own work |
+| `land_pingpong.wav` | the tabletop | built by `tools/audio/make_sounds.py` — our own work |
+
+The two table tennis sounds are **generated rather than downloaded**, which is the only
+place in this folder that is true. A ping pong ball is a hollow celluloid sphere and it
+**rings** — everybody who has heard the sport can hum the note — so it is built as a
+damped sine rather than the burst of filtered noise that is the whole truth of every
+other ball here. The CC0 recordings that exist are all several seconds of a rally, and
+there is no ffmpeg on this machine to cut a single hit out of one.
+
+The two are deliberately close to each other and deliberately not the same. In this
+sport the bat and the table make almost the same noise, which is exactly why the edge
+ball — a click off the top versus a click off the side, two centimetres apart — is the
+call the whole sport is built around.
 
 Freesound files are 128 kbps mp3 previews rather than the original WAVs. `sfx auth` is a
 one-time browser login that unlocks originals; it has not been run on this machine.

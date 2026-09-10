@@ -154,14 +154,18 @@ ball off a hard court are three different noises, and the surface is half of wha
 landing tells you. Sources and licences are in `assets/audio/SOURCES.md`; everything is
 CC0.
 
-Four sports share one official.
+Five sports share one official.
 
 **Badminton** in a hall. **Beach volleyball** on sand, where the ball flies out past a
 block and only you can say whether it brushed a hand on the way. **Indoor volleyball**,
 the only one that asks you to know something before the ball is served, because six
-players rotate through six positions and the referee either kept track or did not. And
-**tennis**, where a point is not one event: there is a first serve, and perhaps a second,
+players rotate through six positions and the referee either kept track or did not.
+**Tennis**, where a point is not one event: there is a first serve, and perhaps a second,
 and then a rally in which the ball lands over and over — so the same call costs a serve
-at one moment and the match at another.
+at one moment and the match at another. And **table tennis**, which is the only one
+where you are alone: the sport has no line judges at any level, because at a table 2.74 m
+long there is nowhere to put a second official you cannot already see. In every other
+sport a bad call can be dressed up as agreeing with somebody. Here everything the hall
+believes is something you told them.
 
-Your reputation is shared across all four. You climb each ladder separately.
+Your reputation is shared across all five. You climb each ladder separately.

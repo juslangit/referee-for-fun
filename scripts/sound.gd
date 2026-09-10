@@ -64,6 +64,14 @@ const KITS := {
 		"hard": "res://assets/audio/hit_tennis.mp3",
 		"land": "res://assets/audio/land_hardcourt.mp3",
 	},
+	# The one sport where the bat and the table make nearly the same noise — a hollow
+	# click either way — which is exactly why the edge ball is decided by a sound the
+	# umpire has to be able to tell apart from it.
+	&"table_tennis": {
+		"soft": "res://assets/audio/hit_pingpong.wav",
+		"hard": "res://assets/audio/hit_pingpong.wav",
+		"land": "res://assets/audio/land_pingpong.wav",
+	},
 }
 
 ## Which sport this hall is currently hosting. Set once, when the match is built.

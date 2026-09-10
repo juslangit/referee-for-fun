@@ -38,6 +38,14 @@ const CARDS := [
 		"clip": "smash", "at": 6.0 / 24.0,
 		"offset": Vector3(3.7, 2.0, 2.5), "look": 1.20,
 	},
+	# Much closer than the other four, because the subject is much smaller. A table is
+	# a fifth the length of a badminton court, and standing where the tennis camera
+	# stands would photograph a hall with two people somewhere in it.
+	{
+		"id": "tabletennis", "scene": "res://scenes/table_tennis.tscn",
+		"sport": &"table_tennis", "clip": "smash", "at": 7.0 / 24.0,
+		"offset": Vector3(2.5, 1.50, 2.35), "look": 0.92,
+	},
 ]
 
 
@@ -69,6 +77,7 @@ func _photograph(card: Dictionary) -> void:
 		arena.settings.taught_beach = true
 		arena.settings.taught_indoor = true
 		arena.settings.taught_tennis = true
+		arena.settings.taught_table_tennis = true
 		arena.ui.match_requested.emit()
 		await get_tree().process_frame
 		if arena.pressure.exists():

@@ -203,6 +203,7 @@ func _has_been_taught() -> bool:
 		Career.BEACH: return settings.taught_beach
 		Career.INDOOR: return settings.taught_indoor
 		Career.TENNIS: return settings.taught_tennis
+		Career.TABLE_TENNIS: return settings.taught_table_tennis
 	return settings.taught
 
 
@@ -211,6 +212,7 @@ func _remember_being_taught() -> void:
 		Career.BEACH: settings.taught_beach = true
 		Career.INDOOR: settings.taught_indoor = true
 		Career.TENNIS: settings.taught_tennis = true
+		Career.TABLE_TENNIS: settings.taught_table_tennis = true
 		_: settings.taught = true
 	settings.save()
 
@@ -256,7 +258,28 @@ func _connect_menus() -> void:
 	ui.main_menu_requested.connect(func() -> void:
 		get_tree().paused = false
 		get_tree().change_scene_to_file("res://scenes/match.tscn"))
+	ui.settings_requested.connect(open_the_settings)
+	ui.settings_closed.connect(close_the_settings)
 	ui.quit_requested.connect(func() -> void: get_tree().quit())
+
+
+## The settings sheet, over whatever it was opened from.
+##
+## Every sport but badminton reaches this only from the pause menu, because every sport
+## but badminton has no title screen of its own. Badminton overrides it to keep the
+## title-screen route working as well.
+func open_the_settings() -> void:
+	ui.hide_pause_menu()
+	ui.show_settings(settings, true)
+
+
+## BACK, from a settings sheet opened over a paused match.
+##
+## The tree is still paused underneath — nothing here unpauses it — so this puts the
+## pause menu back exactly as it was, free-exit note and all.
+func close_the_settings() -> void:
+	ui.hide_settings()
+	ui.show_pause_menu(calls_made == 0)
 
 
 func _on_match_requested() -> void:
@@ -469,7 +492,7 @@ func finish(headline: String, tint: Color, removed: bool) -> void:
 
 ## The line at the top of the ending: which sport, and which rung of which ladder.
 ##
-## With four ladders running in parallel and one reputation across all of them, a screen
+## With five ladders running in parallel and one reputation across all of them, a screen
 ## that says "3 wrong calls" and nothing about where you were is a result without a
 ## match attached to it. The venue is also the whole of why the number is what it is —
 ## the same lie is nearly free at the school hall and career-ending at the final.
@@ -483,6 +506,7 @@ func sport_name() -> String:
 		Career.BEACH: return "BEACH VOLLEYBALL"
 		Career.INDOOR: return "INDOOR VOLLEYBALL"
 		Career.TENNIS: return "TENNIS"
+		Career.TABLE_TENNIS: return "TABLE TENNIS"
 	return "BADMINTON"
 
 
@@ -515,6 +539,12 @@ func _reckoning() -> String:
 ## Escape stops the match dead and gives the mouse back, because a menu you cannot
 ## click is not a menu.
 func pause_the_match() -> void:
+	# ESC with the settings sheet open means BACK, not "pause again". The match is
+	# already paused underneath it, and pausing a second time put the pause menu up
+	# behind the sheet where nobody could see it.
+	if ui.is_settings_open():
+		close_the_settings()
+		return
 	camera.set_active(false)
 	# The free exit is offered only while nothing has happened. See show_pause_menu.
 	ui.show_pause_menu(calls_made == 0)
@@ -535,8 +565,26 @@ var _ball: Ball
 var _aim := Vector3.ZERO
 
 
+## How high the tape is **above the playing surface**, not above the world.
+##
+## It reads as an absolute number in four of the five sports because their surface is
+## the ground, and it was one until table tennis, whose table stands 76 cm up. Handing
+## `send_over` an absolute 0.91 m to clear when `height_after` reports height above the
+## table meant nothing in the angle list ever passed the test, every shot fell through
+## to the 55-degree fallback, and the rallies were lobs.
 func net_height() -> float:
 	return 2.43
+
+
+## How much daylight a shot has to show over the tape.
+##
+## A constant until table tennis, where it could not be one: 14 cm of clearance over a
+## net 15 cm high asks every shot to pass at twice the height of the net, which on a
+## table 2.74 m long sends all of them off the far end. The number is really a fraction
+## of the net, and the flat constant only ever looked absolute because the other four
+## nets are all within half a metre of each other.
+func net_clearance() -> float:
+	return NET_CLEARANCE
 
 
 func floor_height() -> float:
@@ -573,7 +621,7 @@ func send_over(from: Vector3, to: Vector3, angles: Array) -> void:
 			continue
 		var at_net := ShotSolver.height_after(
 			from.y - floor_height(), velocity.length(), angle, to_the_net, shot)
-		if at_net > net_height() + NET_CLEARANCE:
+		if at_net > net_height() + net_clearance():
 			_aim = to
 			_ball.launch(from, velocity)
 			return

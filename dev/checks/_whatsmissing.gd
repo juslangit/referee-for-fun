@@ -2,7 +2,7 @@ extends Node
 
 ## Luqman reported three things after playing: no line judge calls in tennis, no
 ## reputation meter in volleyball, and line judges that should speak in every sport.
-## This checks all four sports for both, rather than guessing from the code.
+## This checks every sport for both, rather than guessing from the code.
 
 func _ready() -> void:
 	print("%-10s %7s %8s %9s %10s %9s" % [
@@ -12,6 +12,7 @@ func _ready() -> void:
 		["beach", "res://scenes/beach.tscn", Career.BEACH],
 		["indoor", "res://scenes/volleyball.tscn", Career.INDOOR],
 		["tennis", "res://scenes/tennis.tscn", Career.TENNIS],
+		["table tennis", "res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
 	]:
 		await _check(entry[0], entry[1], entry[2])
 	get_tree().quit()
@@ -30,6 +31,7 @@ func _check(name: String, scene: String, sport: StringName) -> void:
 	arena.settings.taught_beach = true
 	arena.settings.taught_indoor = true
 	arena.settings.taught_tennis = true
+	arena.settings.taught_table_tennis = true
 
 	var badminton := name == "badminton"
 	if badminton:

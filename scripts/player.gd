@@ -197,7 +197,7 @@ func serve_the_ball() -> void:
 ##
 ## It was played with the badminton smash until now, and the two have almost nothing in
 ## common: a smash is a short flat strike from a square stance, and a serve is the
-## slowest and largest movement in any of these four sports — the ball thrown up by the
+## slowest and largest movement in any of these five sports — the ball thrown up by the
 ## other hand, the racket dropped behind the back, contact at full stretch off the
 ## ground. It is also the only shot the umpire watches from beginning to end, because
 ## the foot fault is at the start of it and the net cord is at the end.

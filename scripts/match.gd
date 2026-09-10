@@ -282,6 +282,7 @@ func _ready() -> void:
 	ui.sport_chosen.connect(_on_sport_chosen)
 	ui.format_chosen.connect(_on_format_chosen)
 	ui.settings_requested.connect(_on_settings_requested)
+	ui.settings_closed.connect(close_the_settings)
 	ui.main_menu_requested.connect(_on_main_menu_requested)
 	ui.look_speed_changed.connect(_on_look_speed_changed)
 	ui.teaching_requested.connect(_on_teaching_requested)
@@ -427,6 +428,12 @@ func _go_to_sport(id: StringName) -> void:
 		get_tree().change_scene_to_file("res://scenes/tennis.tscn")
 		return
 
+	if id == &"table_tennis":
+		career.sport = Career.TABLE_TENNIS
+		career.save()
+		get_tree().change_scene_to_file("res://scenes/table_tennis.tscn")
+		return
+
 	if id != &"badminton":
 		return
 	career.sport = Career.BADMINTON
@@ -462,7 +469,15 @@ func _on_teaching_finished() -> void:
 		_on_main_menu_requested()
 
 
+## Badminton reaches the settings from two places, and they go back to two places.
+##
+## From the title screen BACK returns to the title screen, which is what it always did.
+## From the pause menu it returns to the pause menu, over a match that is still paused
+## and still waiting — which is the spine's behaviour, so that is handed straight back.
 func _on_settings_requested() -> void:
+	if get_tree().paused:
+		open_the_settings()
+		return
 	ui.hide_menus()
 	_menu_view()
 	ui.show_settings(settings)

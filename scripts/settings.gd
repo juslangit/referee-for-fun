@@ -37,6 +37,7 @@ var taught := false
 var taught_beach := false
 var taught_indoor := false
 var taught_tennis := false
+var taught_table_tennis := false
 
 
 static func load_or_default() -> Settings:
@@ -55,6 +56,8 @@ static func load_or_default() -> Settings:
 		"player", "taught_indoor", settings.taught_indoor)
 	settings.taught_tennis = file.get_value(
 		"player", "taught_tennis", settings.taught_tennis)
+	settings.taught_table_tennis = file.get_value(
+		"player", "taught_table_tennis", settings.taught_table_tennis)
 	return settings
 
 
@@ -68,6 +71,7 @@ func save() -> void:
 	file.set_value("player", "taught", taught)
 	file.set_value("player", "taught_beach", taught_beach)
 	file.set_value("player", "taught_indoor", taught_indoor)
+	file.set_value("player", "taught_table_tennis", taught_table_tennis)
 	file.set_value("player", "taught_tennis", taught_tennis)
 	file.save(PATH)
 

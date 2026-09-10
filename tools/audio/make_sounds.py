@@ -19,6 +19,7 @@ import math
 import os
 import random
 import struct
+import sys
 import wave
 
 HERE = os.path.dirname(os.path.realpath(__file__))
@@ -178,6 +179,49 @@ def shuttle_land():
     return envelope(gain(tap, 0.75), 0.001, 15.0)
 
 
+def ring(freq, seconds, decay):
+    """A damped sine: something hollow that has just been struck and is ringing.
+
+    Nothing else in this file needed one. A shuttle, a volleyball and a tennis ball are
+    all solid or stuffed and make a noise with no pitch in it — a burst of filtered
+    noise is the whole truth of them. A table tennis ball is a hollow celluloid sphere
+    40 mm across, and it **rings**: everybody who has ever heard the sport can hum the
+    note. Build it out of noise and it sounds like a small tennis ball rather than like
+    ping pong at all.
+    """
+    out = []
+    for i in range(int(seconds * RATE)):
+        t = i / RATE
+        out.append(math.sin(2.0 * math.pi * freq * t) * math.exp(-decay * t))
+    return out
+
+
+def bat_hit():
+    """Celluloid on rubber. A short hollow tok with a click of contact on the front."""
+    # The two tones are the ball and the blade behind it. A bat is a plywood board with
+    # a sheet of sponge rubber on it, so the note it gives back is lower and shorter
+    # than the ball's own — which is why a hit and a bounce are told apart by ear.
+    body = mix(gain(ring(1180.0, 0.10, 46.0), 0.85),
+               gain(ring(1810.0, 0.06, 78.0), 0.30))
+    click = gain(band_pass(white(0.02), 3600.0, 2.4), 0.55)
+    return envelope(normalise(mix(body, click), 0.82), 0.0006, 26.0)
+
+
+def table_bounce():
+    """The ball on the tabletop: higher, sharper and with the panel ringing under it.
+
+    Deliberately close to `bat_hit` and deliberately not the same. In this sport the bat
+    and the table make almost the same noise, which is exactly why the edge ball — a
+    click off the top versus a click off the side, two centimetres apart — is the call
+    the whole game is built around. If these two were easy to tell apart the sport would
+    not need an umpire sitting level with the surface.
+    """
+    ball = mix(gain(ring(1520.0, 0.09, 52.0), 0.9),
+               gain(ring(2270.0, 0.05, 96.0), 0.26))
+    panel = gain(low_pass(white(0.045), 700.0), 0.22)
+    return envelope(normalise(mix(ball, panel), 0.80), 0.0004, 30.0)
+
+
 def crowd_bed(centre, wobble, roughness, seconds=6.0):
     # `centre` is where the voices sit; the roll-off above it is derived from it, so an
     # angrier crowd comes out brighter as well as louder without a second knob.
@@ -235,18 +279,34 @@ def groan():
     return envelope(out, 0.09, 1.6, hold=length * 0.35)
 
 
-def main():
+# Every sound this file can build, by the name it is written under.
+#
+# Named rather than written out one after another because several of these have since
+# been replaced in the game by recordings, and re-running the script to add one new
+# sound used to resurrect four dead files nothing loads any more. Pass the ones you
+# want on the command line; pass nothing and it writes them all, as it always did.
+SOUNDS = {
+    "whistle.wav": whistle,
+    "hit_soft.wav": lambda: racket_hit(False),
+    "hit_hard.wav": lambda: racket_hit(True),
+    "shuttle_land.wav": shuttle_land,
+    "hit_pingpong.wav": bat_hit,
+    "land_pingpong.wav": table_bounce,
+    "crowd_calm.wav": lambda: crowd_bed(520.0, 0.16, 0.05),
+    "crowd_tense.wav": lambda: crowd_bed(760.0, 0.30, 0.34),
+    "applause.wav": applause,
+    "groan.wav": groan,
+}
+
+
+def main(wanted=None):
     os.makedirs(OUT, exist_ok=True)
     print("writing to %s" % OUT)
-    write("whistle.wav", whistle())
-    write("hit_soft.wav", racket_hit(False))
-    write("hit_hard.wav", racket_hit(True))
-    write("shuttle_land.wav", shuttle_land())
-    write("crowd_calm.wav", crowd_bed(520.0, 0.16, 0.05))
-    write("crowd_tense.wav", crowd_bed(760.0, 0.30, 0.34))
-    write("applause.wav", applause())
-    write("groan.wav", groan())
+    for name, build in SOUNDS.items():
+        if wanted and name not in wanted:
+            continue
+        write(name, build())
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

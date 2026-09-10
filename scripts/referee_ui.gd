@@ -15,6 +15,10 @@ signal play_requested()
 signal sport_chosen(id: StringName)
 signal format_chosen(doubles: bool)
 signal settings_requested()
+
+## BACK, when the settings were opened from a paused match rather than from the title
+## screen. The two go to different places and the sheet is the same sheet.
+signal settings_closed()
 signal main_menu_requested()
 signal look_speed_changed(radians_per_pixel: float)
 signal teaching_requested()
@@ -58,11 +62,11 @@ const METER_SHAKY := 0.30
 var _root: Control
 var _hud: Control
 
-## The sports, in the order they appear. Four of them are games; the other two are here
+## The sports, in the order they appear. Five of them are games; the last one is here
 ## because saying out loud what is coming is more honest than pretending it is finished.
 ##
-## The four finished sports are photographs of this game, rendered by dev/_cards.gd. The
-## two that are not built yet are public-domain Olympic pictograms — see
+## The finished sports are photographs of this game, rendered by dev/looks/_cards.gd. The
+## one that is not built yet is a public-domain Olympic pictogram — see
 ## assets/ui/ATTRIBUTION.md. That split is the whole point of the row: a real picture
 ## means a sport you can actually walk into.
 const SPORTS := [
@@ -75,8 +79,9 @@ const SPORTS := [
 		"tint": Color(0.44, 0.24, 0.52), "ready": true},
 	{"id": &"tennis", "name": "Tennis", "art": "res://assets/ui/card_tennis.png",
 		"tint": Color(0.20, 0.38, 0.58), "ready": true},
-	{"id": &"table_tennis", "name": "Table Tennis", "art": "res://assets/ui/sport_tabletennis.png",
-		"tint": Color(0.60, 0.34, 0.16), "ready": false},
+	{"id": &"table_tennis", "name": "Table Tennis",
+		"art": "res://assets/ui/card_tabletennis.png",
+		"tint": Color(0.60, 0.34, 0.16), "ready": true},
 	{"id": &"basketball", "name": "Basketball", "art": "res://assets/ui/sport_basketball.png",
 		"tint": Color(0.56, 0.22, 0.24), "ready": false},
 ]
@@ -310,7 +315,7 @@ func _build_sport_menu() -> void:
 	column.add_child(_make_label("WHICH SPORT?", TITLE_SIZE, UiTheme.CHALK))
 	column.add_child(_gap(6))
 	column.add_child(_make_label(
-		"Four of them are ready. The rest are on their way.",
+		"Five of them are ready. The last is on its way.",
 		PROMPT_SIZE, UiTheme.MUTED
 	))
 	column.add_child(_gap(22))
@@ -323,7 +328,8 @@ func _build_sport_menu() -> void:
 		row.add_child(_sport_card(sport))
 
 	column.add_child(_gap(22))
-	column.add_child(_centred(_make_wide_button("BACK", func() -> void: main_menu_requested.emit())))
+	column.add_child(_centred(_make_wide_button("BACK", func() -> void:
+		main_menu_requested.emit())))
 
 
 # --- one a side or two ----------------------------------------------------------
@@ -971,6 +977,109 @@ const TENNIS_LESSONS := [
 
 var _lesson := 0
 var _lessons: Array = BADMINTON_LESSONS
+
+const TABLE_TENNIS_LESSONS := [
+	{
+		"title": "THE JOB",
+		"body": "You are the umpire, in a chair beside the net, level with the top of "
+			+ "the table.\n\n"
+			+ "Singles, to eleven. The game plays a real point and records exactly where "
+			+ "the ball came down, to the millimetre.\n\n"
+			+ "There are no line judges. Not at this level, not at the World "
+			+ "Championships, not anywhere — the table is 2.74 metres long and there is "
+			+ "nowhere to put a second official that you cannot already see. Every truth "
+			+ "in this match goes through you and nobody else. There is nobody to agree "
+			+ "with, and nobody to blame.",
+		"keys": [
+			["SPACE", "call the score and start the point"],
+			["LEFT CLICK", "in"],
+			["RIGHT CLICK", "out, or a fault on a serve"],
+			["L", "let — see page four"],
+			["F", "a fault"],
+			["ESC", "pause"],
+		],
+	},
+	{
+		"title": "THE SCORE, AND WHOSE SERVE IT IS",
+		"body": "Games are to eleven, and you must win by two. From ten-all it goes on "
+			+ "until somebody is two clear.\n\n"
+			+ "The serve changes hands EVERY TWO POINTS. From ten-all it changes every "
+			+ "single point.\n\n"
+			+ "That second sentence is your job. Nobody else in the hall is keeping "
+			+ "track of it — the players are playing, and the crowd is watching the ball "
+			+ "— and everybody will notice the instant you get it wrong. You call the "
+			+ "score out before every point, server's number first, and that call is the "
+			+ "official record of it.\n\n"
+			+ "Nothing in this game charges you for losing count. The hall does.",
+	},
+	{
+		"title": "THE SERVE, AND THE STRICTEST LAW IN THIS GAME",
+		"body": "There is no second serve. A serve that misses is the point, gone.\n\n"
+			+ "The ball must sit on an open FLAT PALM, be thrown up at least 16 "
+			+ "centimetres, and stay VISIBLE TO THE RECEIVER from the moment it leaves "
+			+ "the hand until it is struck. Then it must bounce once on the server's own "
+			+ "half and once on the receiver's.\n\n"
+			+ "Press F and call ILLEGAL SERVICE.\n\n"
+			+ "Look at who that law protects. The receiver cannot possibly see a serve "
+			+ "hidden behind the server's own shoulder — that is what hiding it means. "
+			+ "You are the only person in the building placed to check any of it, on "
+			+ "every single point, for the whole match.\n\n"
+			+ "Which is also to say: you are the only person who can quietly stop "
+			+ "checking.",
+	},
+	{
+		"title": "THE NET, AND THE EDGE",
+		"body": "TWO calls, and they are what this sport is.\n\n"
+			+ "THE NET. A serve that touches the net and still lands good is a LET and "
+			+ "is played again. Press L. It costs nobody anything, which makes it the "
+			+ "cheapest thing here to invent — and watch the net as well as listen, "
+			+ "because a net that was really clipped shivers.\n\n"
+			+ "THE EDGE. A ball that clips the TOP EDGE of the table is IN. A ball that "
+			+ "clips the vertical SIDE, a centimetre lower, is OUT. Two centimetres "
+			+ "apart. They sound almost the same. They happen at twenty metres a "
+			+ "second.\n\n"
+			+ "You are sitting level with the surface, which is the only place in the "
+			+ "hall the difference between them can be seen from at all. Both players "
+			+ "will be certain, and one of them will be wrong.",
+	},
+	{
+		"title": "THE OTHER FAULTS",
+		"body": "Press F, then point at whoever did it.\n\n"
+			+ "TWO BOUNCES   the ball bounced twice on their half before they got to "
+			+ "it.\n"
+			+ "FREE HAND ON THE TABLE   the hand not holding the bat touched the "
+			+ "playing surface while the ball was live. They lose the point whatever "
+			+ "happened next.\n"
+			+ "STRUCK IN THE AIR   they hit the ball before it had bounced on their "
+			+ "side.\n\n"
+			+ "All three happen at the table, a metre and a half from your chair, and "
+			+ "all three are gone in a fifth of a second. Nobody is going to hand you a "
+			+ "replay at the community centre.\n\n"
+			+ "From the world tour up there is a match referee sitting two metres away "
+			+ "who can come to the table, and at the Worlds there are eight cameras on a "
+			+ "ball 40 millimetres across.",
+	},
+	{
+		"title": "YOUR NAME",
+		"body": "Nothing in this game counts your mistakes for you. What you get while "
+			+ "you referee is the room — how it sounds, and whether it comes out of its "
+			+ "seat — and one number, which is this one.\n\n"
+			+ "REPUTATION is your name, out of a hundred, and it follows you from match "
+			+ "to match and from sport to sport. It is the only thing here that outlives "
+			+ "the match it happened in.\n\n"
+			+ "The bar appears at the bottom of the screen ONLY WHEN IT MOVES, for about "
+			+ "three seconds, and then it is gone. So it is never something to stare "
+			+ "at.\n\n"
+			+ "It falls when you are wrong, and it creeps back up when you referee "
+			+ "cleanly. It does not tell you whether anybody BELIEVED a particular call "
+			+ "— nothing will ever tell you that.\n\n"
+			+ "In every other sport in this game you can hide a bad call behind a line "
+			+ "judge who said the same thing. Here you cannot. Everything the hall "
+			+ "believes about this match is something you told them.\n\n"
+			+ "Run it down to nothing and nobody will appoint you again.",
+	},
+]
+
 var _teaching: Control
 var _lesson_buttons: HBoxContainer
 
@@ -982,6 +1091,7 @@ func show_teaching(sport := Career.BADMINTON) -> void:
 		Career.BEACH: _lessons = BEACH_LESSONS
 		Career.INDOOR: _lessons = INDOOR_LESSONS
 		Career.TENNIS: _lessons = TENNIS_LESSONS
+		Career.TABLE_TENNIS: _lessons = TABLE_TENNIS_LESSONS
 		_: _lessons = BADMINTON_LESSONS
 	if _hud != null:
 		_hud.visible = false
@@ -1144,7 +1254,12 @@ func _build_settings_menu(settings: Settings) -> void:
 	column.add_child(_centred(window))
 
 	column.add_child(_gap(22))
-	column.add_child(_centred(_make_wide_button("BACK", func() -> void: main_menu_requested.emit())))
+	if _settings_over_a_match:
+		column.add_child(_centred(_make_wide_button("BACK TO THE MATCH", func() -> void:
+			settings_closed.emit())))
+	else:
+		column.add_child(_centred(_make_wide_button("BACK", func() -> void:
+			main_menu_requested.emit())))
 
 
 ## One labelled slider, with the value written out beside it. The number matters: a bare
@@ -1183,7 +1298,18 @@ func _slider_row(label: String, value: float, lowest: float, highest: float,
 	return row
 
 
-func show_settings(settings: Settings) -> void:
+## Where BACK goes: the title screen, or the pause menu it was opened over.
+var _settings_over_a_match := false
+
+
+## `over_a_match` is whether this was opened from the pause menu.
+##
+## Settings used to be reachable only from the title screen, which meant the one moment
+## a player actually discovers the crowd is too loud — halfway through a match, with a
+## hall roaring at them — was the one moment they could not do anything about it. The
+## only way out was to walk out, and walking out counts the same as being thrown off.
+func show_settings(settings: Settings, over_a_match := false) -> void:
+	_settings_over_a_match = over_a_match
 	if _hud != null:
 		_hud.visible = false
 	_build_settings_menu(settings)
@@ -1195,6 +1321,10 @@ func hide_settings() -> void:
 		_settings_menu.visible = false
 
 
+func is_settings_open() -> bool:
+	return _settings_menu != null and _settings_menu.visible
+
+
 func _build_pause_menu() -> void:
 	var built := _build_sheet("PauseMenu", Color(0.04, 0.05, 0.07, 0.86))
 	_pause_menu = built[0]
@@ -1203,6 +1333,11 @@ func _build_pause_menu() -> void:
 	column.add_child(_make_label("PAUSED", TITLE_SIZE, Color(0.96, 0.96, 0.94)))
 	column.add_child(_gap(22))
 	column.add_child(_centred(_make_wide_button("RESUME", func() -> void: resume_requested.emit())))
+
+	# The volume, from inside the match rather than only from the title screen.
+	column.add_child(_gap(6))
+	column.add_child(_centred(_make_wide_button("SETTINGS", func() -> void:
+		settings_requested.emit())))
 
 	# A way out that costs nothing, offered only before the match has begun to matter.
 	#
@@ -1618,9 +1753,9 @@ func show_career(career: Career) -> void:
 		))
 
 
-## All four ladders at once, under the one you are standing on.
+## All five ladders at once, under the one you are standing on.
 ##
-## You are one official with one name and four separate licences, and until now there
+## You are one official with one name and five separate licences, and until now there
 ## was nowhere that said so — each sport's screen showed its own ladder and the fact
 ## that a disaster at the beach is waiting for you at the badminton hall was something
 ## the player had to work out. The reputation at the top of this screen is the shared
@@ -1628,7 +1763,7 @@ func show_career(career: Career) -> void:
 func _add_the_other_ladders(career: Career) -> void:
 	_career_column.add_child(_gap(14))
 	_career_column.add_child(_make_label(
-		"ONE NAME, FOUR LADDERS", PROMPT_SIZE, UiTheme.MUTED))
+		"ONE NAME, FIVE LADDERS", PROMPT_SIZE, UiTheme.MUTED))
 	_career_column.add_child(_gap(4))
 
 	for which in Career.IN_ORDER:

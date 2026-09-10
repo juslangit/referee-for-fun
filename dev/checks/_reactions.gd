@@ -16,6 +16,7 @@ func _ready() -> void:
 		["beach", "res://scenes/beach.tscn", Career.BEACH],
 		["indoor", "res://scenes/volleyball.tscn", Career.INDOOR],
 		["tennis", "res://scenes/tennis.tscn", Career.TENNIS],
+		["table tennis", "res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
 	]:
 		await _check(entry[0], entry[1], entry[2])
 	get_tree().quit()
@@ -32,6 +33,7 @@ func _check(name: String, scene: String, sport: StringName) -> void:
 	arena.settings.taught_beach = true
 	arena.settings.taught_indoor = true
 	arena.settings.taught_tennis = true
+	arena.settings.taught_table_tennis = true
 	arena.ui.match_requested.emit()
 	await get_tree().process_frame
 	if arena.pressure.exists():

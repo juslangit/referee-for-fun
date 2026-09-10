@@ -70,6 +70,13 @@ const OFFICIAL_HEIGHT := 1.76
 const RACKET_LENGTH := 0.67
 const TENNIS_RACKET_LENGTH := 0.685
 
+## A table tennis bat, which is a quarter the length of either racket. There is no
+## downloaded model for one, so it is built here out of a disc and a handle — a bat is
+## simple enough that a bought model would look no better and would need fitting.
+const BAT_LENGTH := 0.26
+const BAT_HEAD_RADIUS := 0.079
+const BAT_BLADE_THICKNESS := 0.017
+
 ## How far the butt of the handle sits inside the fist rather than balanced on top of
 ## it. A hand closes around a grip; it does not hold a racket by the very end.
 const GRIP_INSET := 0.05
@@ -131,7 +138,8 @@ static func _load_ready(path: String) -> Node3D:
 ## model, and so do not scale with it — measured while fitting, the bib sat at a fixed
 ## height and set a floor the fit could never get under. Every player came out about
 ## 1.4 m tall no matter what scale the model was given.
-## `carries` names the racket: `&"badminton"`, `&"tennis"`, or `&""` for nothing at all.
+## `carries` names what goes in the hand: `&"badminton"`, `&"tennis"`, `&"bat"`, or
+## `&""` for nothing at all.
 ## Beach and indoor volleyball players carry nothing, and a volleyball player holding a
 ## badminton racket is a funnier bug than it is a small one.
 static func dress_player(figure: Node3D, carries := &"badminton") -> void:
@@ -151,11 +159,19 @@ static func dress_player(figure: Node3D, carries := &"badminton") -> void:
 ## The alternative — hanging it off the figure at a fixed offset — was fine while
 ## everybody stood still and looks ridiculous the moment their arms start swinging.
 static func _hold_racket(figure: Node3D, carries := &"badminton") -> void:
-	var tennis := carries == &"tennis"
-	var held := tennis_racket() if tennis else racket()
+	var held: Node3D = null
+	var length := RACKET_LENGTH
+	match carries:
+		&"tennis":
+			held = tennis_racket()
+			length = TENNIS_RACKET_LENGTH
+		&"bat":
+			held = bat()
+			length = BAT_LENGTH
+		_:
+			held = racket()
 	if held == null:
 		return
-	var length := TENNIS_RACKET_LENGTH if tennis else RACKET_LENGTH
 	# On the people layer with its owner, whichever way it ends up attached below. The
 	# overhead camera leaves people out, and a racket that stayed on the court layer was
 	# the one part of a player that turned up in the shuttle cam.
@@ -537,6 +553,45 @@ static func racket() -> Node3D:
 ## whose name is the exporter's, so it is taken whole rather than a mesh at a time.
 static func tennis_racket() -> Node3D:
 	return _part(TENNIS_KIT, TENNIS_RACKET_NODE, TENNIS_RACKET_LENGTH)
+
+
+## A table tennis bat, built rather than loaded: a red rubber face on a wooden blade,
+## with a flared handle. Its long axis is Y with the head at the top, which is what
+## `_hold_racket` expects of anything it puts in a hand.
+static func bat() -> Node3D:
+	var made := Node3D.new()
+	made.name = "Bat"
+
+	var blade := MeshInstance3D.new()
+	blade.name = "Blade"
+	var head := CylinderMesh.new()
+	head.top_radius = BAT_HEAD_RADIUS
+	head.bottom_radius = BAT_HEAD_RADIUS
+	head.height = BAT_BLADE_THICKNESS
+	head.radial_segments = 20
+	blade.mesh = head
+	# Lying in the plane of the swing, not flat like a drinks coaster.
+	blade.rotation = Vector3(deg_to_rad(90.0), 0.0, 0.0)
+	blade.position = Vector3(0.0, BAT_LENGTH * 0.5 - BAT_HEAD_RADIUS, 0.0)
+	blade.material_override = _flat(Color(0.62, 0.09, 0.10))
+	made.add_child(blade)
+
+	var handle := MeshInstance3D.new()
+	handle.name = "Handle"
+	var grip := BoxMesh.new()
+	grip.size = Vector3(0.028, BAT_LENGTH * 0.38, 0.019)
+	handle.mesh = grip
+	handle.position = Vector3(0.0, -BAT_LENGTH * 0.5 + BAT_LENGTH * 0.19, 0.0)
+	handle.material_override = _flat(Color(0.42, 0.29, 0.17))
+	made.add_child(handle)
+	return made
+
+
+static func _flat(colour: Color) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = colour
+	material.roughness = 0.85
+	return material
 
 
 static func shuttlecock() -> Node3D:

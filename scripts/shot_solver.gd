@@ -61,6 +61,15 @@ static func tennis_flight() -> Flight:
 		TennisBall.TENNIS_TERMINAL, TennisBall.TENNIS_RADIUS, false)
 
 
+## The table tennis ball, which is the lightest thing in this game and the only one
+## whose drag genuinely dominates its flight. A 2.7 g ball has a terminal velocity of
+## about 9 m/s against a tennis ball's 30, so a smash slows dramatically on its way
+## across — which is the reason the sport works on a table this small.
+static func table_tennis_flight() -> Flight:
+	return Flight.new(
+		TableTennisBall.TT_TERMINAL, TableTennisBall.TT_RADIUS, false)
+
+
 ## Speeds worth searching between, in m/s. The upper end is well past a smash.
 const MIN_SPEED := 1.0
 const MAX_SPEED := 140.0

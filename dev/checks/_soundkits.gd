@@ -2,13 +2,13 @@ extends Node
 
 ## Does each sport now sound like itself?
 ##
-## All four shared one set of files until now, so a shuttlecock landing was also a
+## Every sport shared one set of files until now, so a shuttlecock landing was also a
 ## volleyball dropping into sand and a tennis ball off a hard court. The surface is half
 ## of what a landing tells you, and this game is about judging landings.
 
 func _ready() -> void:
 	print("%-12s %-34s %-34s %s" % ["sport", "a soft contact", "a hard one", "the landing"])
-	for sport in [&"badminton", &"beach", &"indoor", &"tennis"]:
+	for sport in [&"badminton", &"beach", &"indoor", &"tennis", &"table_tennis"]:
 		var hall := Sound.new()
 		hall.kit = sport
 		add_child(hall)
@@ -32,6 +32,7 @@ func _ready() -> void:
 		["beach", "res://scenes/beach.tscn"],
 		["indoor", "res://scenes/volleyball.tscn"],
 		["tennis", "res://scenes/tennis.tscn"],
+		["table tennis", "res://scenes/table_tennis.tscn"],
 	]:
 		var arena: Node = load(entry[1]).instantiate()
 		arena.print_truth_while_testing = false

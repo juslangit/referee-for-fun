@@ -50,6 +50,7 @@ const BADMINTON := &"badminton"
 const BEACH := &"beach"
 const INDOOR := &"indoor"
 const TENNIS := &"tennis"
+const TABLE_TENNIS := &"table_tennis"
 
 ## Which sports are played by one a side as well as two.
 ##
@@ -364,13 +365,89 @@ const TENNIS_LADDER := [
 	},
 ]
 
+## The table tennis ladder.
+##
+## Note what is false all the way down it: **line_judges**. Table tennis has none, at any
+## level, in the real sport — the table is 2.74 m long and there is nowhere to put a
+## second official that the umpire cannot already see. So this is the one ladder in the
+## game where climbing it never gives you anybody to hide behind. What it gives you
+## instead is a match referee, who at the top two rungs will look at what you said.
+const TABLE_TENNIS_LADDER := [
+	{
+		"name": "Community centre",
+		"crowd": 0.10,
+		"blurb": "Four tables in a hall and a folding chair for the umpire.",
+		"line_judges": false,
+		"close_cam": true,
+		"hawk_eye": false,
+		"quick": true,
+		"dressing": Venue.Tier.SCHOOL,
+		"scrutiny": 0.55,
+		"matches_needed": 2,
+		"reputation_needed": 0.40,
+	},
+	{
+		"name": "League night",
+		"crowd": 0.30,
+		"blurb": "Best of three, and both captains have the rulebook open on the bench.",
+		"line_judges": false,
+		"close_cam": true,
+		"hawk_eye": false,
+		"quick": true,
+		"dressing": Venue.Tier.SCHOOL,
+		"scrutiny": 0.85,
+		"matches_needed": 2,
+		"reputation_needed": 0.50,
+	},
+	{
+		"name": "National ranking event",
+		"crowd": 0.55,
+		"blurb": "Barriers, a scoreboard that is not a notepad, and a service law nobody is going to let you ignore.",
+		"line_judges": false,
+		"close_cam": true,
+		"hawk_eye": false,
+		"quick": false,
+		"dressing": Venue.Tier.REGIONAL,
+		"scrutiny": 1.05,
+		"matches_needed": 3,
+		"reputation_needed": 0.55,
+	},
+	{
+		"name": "World tour",
+		"crowd": 0.82,
+		"blurb": "A match referee two metres away who can and will come to the table.",
+		"line_judges": false,
+		"close_cam": true,
+		"hawk_eye": true,
+		"quick": false,
+		"dressing": Venue.Tier.REGIONAL,
+		"scrutiny": 1.35,
+		"matches_needed": 3,
+		"reputation_needed": 0.60,
+	},
+	{
+		"name": "Worlds, the show court",
+		"crowd": 1.0,
+		"blurb": "Eight cameras on a ball 40 mm across, and every edge you call played back to the hall.",
+		"line_judges": false,
+		"close_cam": true,
+		"hawk_eye": true,
+		"quick": false,
+		"dressing": Venue.Tier.ARENA,
+		"scrutiny": 1.75,
+		"matches_needed": 0,
+		"reputation_needed": 1.0,
+	},
+]
+
 ## The sports in the order they are shown, and what each is called on screen.
-const IN_ORDER := [BADMINTON, BEACH, INDOOR, TENNIS]
+const IN_ORDER := [BADMINTON, BEACH, INDOOR, TENNIS, TABLE_TENNIS]
 const NAMES := {
 	BADMINTON: "Badminton",
 	BEACH: "Beach volleyball",
 	INDOOR: "Indoor volleyball",
 	TENNIS: "Tennis",
+	TABLE_TENNIS: "Table tennis",
 }
 
 
@@ -383,6 +460,8 @@ static func name_of(which: StringName) -> String:
 ## were about to referee.
 static func format_of(which: StringName, quick: bool) -> String:
 	match which:
+		TABLE_TENNIS:
+			return "best of three to 11" if quick else "best of five to 11"
 		TENNIS:
 			return "one short set, four games" if quick else "best of three sets"
 		BEACH:
@@ -397,6 +476,7 @@ const LADDERS := {
 	BEACH: BEACH_LADDER,
 	INDOOR: INDOOR_LADDER,
 	TENNIS: TENNIS_LADDER,
+	TABLE_TENNIS: TABLE_TENNIS_LADDER,
 }
 
 

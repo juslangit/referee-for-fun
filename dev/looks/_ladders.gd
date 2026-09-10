@@ -1,6 +1,6 @@
 extends Node
 
-## The career screen with all four ladders on it.
+## The career screen with every ladder on it.
 ##
 ## One official, one reputation, four separate licences. Until now each sport's screen
 ## showed only its own ladder, so the fact that a disaster at the beach is waiting for
