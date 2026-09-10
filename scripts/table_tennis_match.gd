@@ -56,8 +56,9 @@ const TABLE_CLEARANCE := 0.032
 ## Both small, and deliberately. A table tennis player covers very little ground — the
 ## table is 1.5 m wide — and the game is decided by what they get to in a tenth of a
 ## second rather than by how far they run.
-## How long they take to walk round the table.
-const CHANGEOVER_SECONDS := 2.2
+## How long they take to walk round the table, and how far out they go to do it.
+const CHANGEOVER_SECONDS := 3.0
+const ROOM_BESIDE_THE_TABLE := 0.45
 
 const TABLE_SPEED := 3.4
 const BAT_REACH := 1.05
@@ -168,6 +169,33 @@ func end_of(team: Sides.Team) -> float:
 func side_defending(z: float) -> Sides.Team:
 	var team := Sides.half_containing(z)
 	return Sides.opponent(team) if _ends_swapped else team
+
+
+## How much room a person needs behind their end line.
+##
+## Enough that a body half a metre across is clear of the edge rather than touching it.
+const ROOM_BEHIND_THE_END := 0.34
+
+
+## Keeps somebody behind their own end line, whatever they were sent to chase.
+##
+## **Table tennis is the first sport in this game with furniture in the playing area.**
+## Players are Node3Ds walked towards a destination — there is no collision on a player
+## anywhere in this project, and there has never needed to be, because the other four
+## sports are played on the floor the players are standing on. Here a chase point 55 cm
+## behind a ball that dropped short landed inside the table's footprint, and the player
+## walked through a table 76 cm high to get to it.
+##
+## Every point a player is sent to goes through this. Clamping the destination rather
+## than adding a physics body to Player is the smaller change and the truer one: the
+## table is not something a player is meant to bump into and recover from, it is
+## somewhere they never go.
+func _off_the_table(point: Vector3, whose_end: Sides.Team) -> Vector3:
+	var side := end_of(whose_end)
+	var line := TableTennisSpec.HALF_LENGTH + ROOM_BEHIND_THE_END
+	var clear := point
+	clear.z = maxf(point.z, line) if side > 0.0 else minf(point.z, -line)
+	return clear
 
 
 ## Above the table, which is what the shot solver measures against — not above the
@@ -370,7 +398,7 @@ func start_rally() -> void:
 			TableTennisSpec.HALF_WIDTH - 0.1),
 		SERVE_HEIGHT,
 		side * (TableTennisSpec.HALF_LENGTH + SERVE_BEHIND))
-	server.position = Vector3(from.x, 0.0, from.z)
+	server.position = _off_the_table(Vector3(from.x, 0.0, from.z), serving)
 	receiver.go_home()
 
 	# The first bounce, on the server's own half. Near the middle of it: a serve that
@@ -552,8 +580,9 @@ func _take_the_stroke(here: Vector3) -> void:
 	if _letting_it_go:
 		_defender.stand_off()
 	else:
-		_defender.chase(Vector3(target.x, 0.0,
-			target.z + signf(target.z) * 0.55))
+		_defender.chase(_off_the_table(
+			Vector3(target.x, 0.0, target.z + signf(target.z) * 0.55),
+			Sides.opponent(hitter)))
 
 	send_over(Vector3(here.x, maxf(here.y, STRIKE_HEIGHT), here.z), target, RALLY_ANGLES)
 
@@ -611,8 +640,10 @@ func _stage_any_incident() -> void:
 	else:
 		rally.volleyed_by = culprit
 	rally.incident_visibility = maxf(rally.incident_visibility, _incident_visibility)
-	offender.lunge(Vector3(offender.position.x, 0.0,
-		end_of(culprit) * (TableTennisSpec.HALF_LENGTH - 0.15)), 0.7)
+	# Right up against the end, leaning in — not standing in the middle of the table,
+	# which is where `HALF_LENGTH - 0.15` used to put them.
+	offender.lunge(_off_the_table(
+		Vector3(offender.position.x, 0.0, 0.0), culprit), 0.7)
 
 
 func _on_ball_landed(point: Vector3) -> void:
@@ -685,8 +716,9 @@ func _the_serve_landed(point: Vector3) -> void:
 	_aimed_to_end = false
 	_letting_it_go = false
 	_beat = Beat.RALLY
-	_defender.chase(Vector3(point.x, 0.0,
-		point.z - end_of(serving) * 0.55))
+	_defender.chase(_off_the_table(
+		Vector3(point.x, 0.0, point.z - end_of(serving) * 0.55),
+		Sides.opponent(serving)))
 
 
 ## The ball bounced twice on one half: whoever was meant to play it did not reach it.
@@ -757,13 +789,82 @@ func award_the_point(winner: Sides.Team) -> void:
 ## across is unplayable against a light.
 func _change_ends() -> void:
 	_ends_swapped = not _ends_swapped
+	ui.announce("CHANGE OF ENDS", UiTheme.ACCENT, CHANGEOVER_SECONDS)
+	ui.react("they swap ends and wipe the table down", CHANGEOVER_SECONDS)
+	sound.whistle()
+	_walk_round_the_table()
+
+
+## They go round the table rather than through it.
+##
+## Player has one destination and no path between here and it, so sending somebody
+## straight from one end to the other walks them through 2.74 m of tabletop — which is
+## the same bug as a chase point landing on the table, at the one moment of the match
+## when both of them cross it. Every other sport can send a player anywhere on the floor
+## and be right.
+##
+## Three legs, and each one is clear of the table by construction: out to the side while
+## still behind their own end, along the side past both ends, then back in to the middle
+## of the new one. That is also simply what players do — they pick up their bat and walk
+## round, on opposite sides of the table so they are not squeezing past each other.
+## Waits until everybody has reached where they were sent, or until the time is up.
+##
+## Gated on arrival rather than on a share of the changeover, because the three legs are
+## nowhere near the same length: the walk along the side of the table is three and a half
+## metres and the steps either side of it are half of one. Splitting the time equally
+## left the long leg unfinished, and the next leg then set off for the far end from
+## halfway down the side — straight across the table, which is the exact thing this walk
+## exists to avoid. Measured, that put somebody 30 cm inside the tabletop for a fifth of
+## a second every change of ends.
+func _everybody_gets_there(cap := CHANGEOVER_SECONDS) -> void:
+	var left := cap
+	while left > 0.0:
+		var still_walking := false
+		for player in players:
+			if not player.has_arrived():
+				still_walking = true
+				break
+		if not still_walking:
+			return
+		await get_tree().physics_frame
+		if _phase == Phase.REMOVED:
+			return
+		left -= get_physics_process_delta_time()
+
+
+## Which side of the table this player walks round, so the two of them are not squeezing
+## past each other. It is their team, and it does not change when the ends do — the point
+## is only that the two of them pick different sides.
+func _rounds_on(player: Player) -> float:
+	return 1.0 if player.team == Sides.Team.RED else -1.0
+
+
+func _walk_round_the_table() -> void:
+	var beside := TableTennisSpec.HALF_WIDTH + ROOM_BESIDE_THE_TABLE
+	var behind := TableTennisSpec.HALF_LENGTH + ROOM_BEHIND_THE_END
+
+	for player in players:
+		# Out to the side, still behind the end they are leaving. `_ends_swapped` has
+		# already flipped, so `end_of` is the end they are walking to.
+		player.chase(Vector3(_rounds_on(player) * beside, 0.0,
+			-end_of(player.team) * behind))
+
+	await _everybody_gets_there()
+	if _phase == Phase.REMOVED:
+		return
+	for player in players:
+		# Along the side, past the end of the table. Never over it: |x| is outside the
+		# table's own half-width for the whole of this leg.
+		player.chase(Vector3(_rounds_on(player) * beside, 0.0,
+			end_of(player.team) * behind))
+
+	await _everybody_gets_there()
+	if _phase == Phase.REMOVED:
+		return
 	for player in players:
 		player.home = _home_of(player.team)
 		player.go_home()
 		player.rotation.y = PI if end_of(player.team) > 0.0 else 0.0
-	ui.announce("CHANGE OF ENDS", UiTheme.ACCENT, CHANGEOVER_SECONDS)
-	ui.react("they swap ends and wipe the table down", CHANGEOVER_SECONDS)
-	sound.whistle()
 
 
 func _unhandled_input(event: InputEvent) -> void:

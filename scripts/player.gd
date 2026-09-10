@@ -328,6 +328,17 @@ func go_home() -> void:
 	_destination = home
 
 
+## Whether they have reached wherever they were last sent.
+##
+## Anything that walks a player through a sequence of places needs this, because the legs
+## are rarely the same length and a share-of-the-time-each split leaves the long one
+## unfinished. Table tennis walks them round the table at a change of ends and found out.
+func has_arrived(within := 0.15) -> bool:
+	var here := Vector2(position.x, position.z)
+	var there := Vector2(_destination.x, _destination.z)
+	return here.distance_to(there) <= within
+
+
 ## Whether the shuttle is close enough, and at a sensible height, to be hit.
 func can_strike(shuttle_position: Vector3) -> bool:
 	if not chasing:
