@@ -893,8 +893,18 @@ func the_hall_says(shout: String) -> void:
 	# fifth. This is the only function that needs the camera, so this is where it is
 	# set, and no sport can be written that reaches a shout without passing through it.
 	ui.chair_camera = camera
-	ui.say_from_the_crowd(shout, seating.somebody_to_shout(
-		camera.global_position, -camera.global_basis.z))
+	var eye := camera.global_position
+	var facing := -camera.global_basis.z
+	ui.say_from_the_crowd(shout, seating.somebody_to_shout(eye, facing))
+
+	# A hall that has made its mind up about you is not one person. Two or three of them
+	# are shouting at once, from different parts of the stand, and one bubble made the
+	# loudest moment in the game look exactly like the quietest.
+	if suspicion.mood < Suspicion.Mood.HOSTILE:
+		return
+	for i in randi_range(1, 2):
+		ui.say_from_the_crowd(Crowd.another_hostile_voice(),
+			seating.somebody_to_shout(eye, facing))
 
 
 ## How plainly wrong a call has to be before anybody gets out of their seat, and how much

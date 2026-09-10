@@ -162,6 +162,15 @@ var _reason_label: Label
 var _reason_left := 0.0
 var _reason_shown := 0.0
 
+## What the note said when the match was paused, so it can be put back afterwards.
+##
+## Pausing takes it down, because a sentence in the corner sitting across the RESUME
+## button is worse than no sentence. But the note has no clock and comes down only when
+## the umpire whistles the next rally, so a pause that simply deleted it threw away the
+## one thing the player had not finished reading — and a player who opens the settings
+## to turn the crowd down is exactly the player who was still looking at it.
+var _reason_paused := ""
+
 ## Whether the note is sitting there waiting to be read rather than counting down.
 var _reason_holding := false
 
@@ -1397,6 +1406,8 @@ func show_pause_menu(can_leave_freely := false) -> void:
 	# straight across the RESUME button.
 	clear_messages()
 	hide_reputation()
+	if _reason != null and _reason.visible and _reason_holding:
+		_reason_paused = _reason_label.text
 	hide_reason()
 	hide_bubble()
 	if _leave_button != null:
@@ -1660,12 +1671,20 @@ func _tick_the_reason(delta: float) -> void:
 ## follow a place in the hall, so it gets the one reference it needs and nothing more.
 var chair_camera: Camera3D
 
-var _bubble: PanelContainer
-var _bubble_label: Label
-var _bubble_tail: Polygon2D
-var _bubble_at := Vector3.INF
-var _bubble_left := 0.0
-var _bubble_shown := 0.0
+## Three of them, not one.
+##
+## A hall that has made its mind up about you is not one person shouting: it is several,
+## from different parts of the stand, over each other. One bubble at a time made the
+## loudest moment in the game look like the quietest, because a room of three hundred
+## people produced exactly as many voices as a school gym with nine.
+const VOICES := 3
+
+var _bubbles: Array[PanelContainer] = []
+var _bubble_labels: Array[Label] = []
+var _bubble_tails: Array[Polygon2D] = []
+var _bubble_ats: Array[Vector3] = []
+var _bubble_lefts: Array[float] = []
+var _bubble_showns: Array[float] = []
 
 
 ## The bubble over a spectator's head, and the tail that points at them.
@@ -1675,9 +1694,19 @@ var _bubble_shown := 0.0
 ## from the chair — so text drawn in the world arrives four pixels high and edge-on. A
 ## panel that merely *follows* the head keeps a size a person can read from any seat in
 ## the room while still belonging to somebody.
-func _build_bubble() -> PanelContainer:
-	_bubble = PanelContainer.new()
-	_bubble.name = "CrowdBubble"
+func _build_bubbles() -> Control:
+	var holder := Control.new()
+	holder.name = "CrowdBubbles"
+	holder.set_anchors_preset(Control.PRESET_FULL_RECT)
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for i in VOICES:
+		holder.add_child(_build_bubble(i))
+	return holder
+
+
+func _build_bubble(index: int) -> PanelContainer:
+	var bubble := PanelContainer.new()
+	bubble.name = "CrowdBubble%d" % index
 	# A white bubble with dark type in it, which is not what anything else on this
 	# interface looks like and is deliberate. Every other panel is a dark plate with a
 	# coloured edge, because every other panel is the game talking to the umpire. This
@@ -1693,29 +1722,35 @@ func _build_bubble() -> PanelContainer:
 	skin.content_margin_right = 18
 	skin.content_margin_top = 10
 	skin.content_margin_bottom = 10
-	_bubble.add_theme_stylebox_override("panel", skin)
-	_bubble.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_bubble.modulate = Color(1, 1, 1, 0)
-	_bubble.visible = false
-	_bubble.z_index = 1
+	bubble.add_theme_stylebox_override("panel", skin)
+	bubble.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bubble.modulate = Color(1, 1, 1, 0)
+	bubble.visible = false
+	bubble.z_index = 1
 
-	_bubble_label = _make_label("", UiTheme.HEADING, UiTheme.INK)
-	_bubble_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_bubble_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_bubble_label.custom_minimum_size = Vector2(BUBBLE_MAX_WIDTH, 0)
-	_bubble.add_child(_bubble_label)
+	var label := _make_label("", UiTheme.HEADING, UiTheme.INK)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.custom_minimum_size = Vector2(BUBBLE_MAX_WIDTH, 0)
+	bubble.add_child(label)
 
 	# Drawn as a child of the bubble so it moves with it and inherits its fade, and
 	# pointing straight down because the bubble is always directly over the head.
-	_bubble_tail = Polygon2D.new()
-	_bubble_tail.color = UiTheme.CHALK
-	_bubble_tail.polygon = PackedVector2Array([
+	var tail := Polygon2D.new()
+	tail.color = UiTheme.CHALK
+	tail.polygon = PackedVector2Array([
 		Vector2(-BUBBLE_TAIL, 0.0), Vector2(BUBBLE_TAIL, 0.0),
 		Vector2(0.0, BUBBLE_TAIL * 1.5),
 	])
-	_bubble.add_child(_bubble_tail)
+	bubble.add_child(tail)
 
-	return _bubble
+	_bubbles.append(bubble)
+	_bubble_labels.append(label)
+	_bubble_tails.append(tail)
+	_bubble_ats.append(Vector3.INF)
+	_bubble_lefts.append(0.0)
+	_bubble_showns.append(0.0)
+	return bubble
 
 
 ## Puts a line in somebody's mouth. `at` is the world point just above their head.
@@ -1723,73 +1758,92 @@ func _build_bubble() -> PanelContainer:
 ## An empty line or a speaker off in the infinite distance both mean "nobody said
 ## anything", which is a real answer — a quiet lie draws no shout at all, and the hall
 ## is only allowed to be certain about the things it could actually see.
+##
+## Takes the quietest slot when all three are busy, so a fourth voice replaces the one
+## that has been on screen longest rather than being dropped. In practice three is
+## enough: the hall only ever speaks with more than one voice when it is hostile.
 func say_from_the_crowd(line: String, at: Vector3) -> void:
-	if _bubble == null or _hud == null or not _hud.visible:
+	if _bubbles.is_empty() or _hud == null or not _hud.visible:
 		return
 	if line.is_empty() or at == Vector3.INF:
 		return
-	_bubble_label.text = line
-	_bubble_at = at
-	_bubble.visible = true
-	_bubble_left = BUBBLE_FADE + BUBBLE_HOLD + BUBBLE_FADE
-	_follow_the_bubble()
+
+	var slot := 0
+	var quietest := INF
+	for i in _bubbles.size():
+		if _bubble_lefts[i] <= 0.0:
+			slot = i
+			break
+		if _bubble_lefts[i] < quietest:
+			quietest = _bubble_lefts[i]
+			slot = i
+
+	_bubble_labels[slot].text = line
+	_bubble_ats[slot] = at
+	_bubbles[slot].visible = true
+	_bubble_lefts[slot] = BUBBLE_FADE + BUBBLE_HOLD + BUBBLE_FADE
+	_follow_the_bubble(slot)
 
 
 func hide_bubble() -> void:
-	if _bubble == null:
-		return
-	_bubble.visible = false
-	_bubble.modulate.a = 0.0
-	_bubble_left = 0.0
-	_bubble_shown = 0.0
-	_bubble_at = Vector3.INF
+	for i in _bubbles.size():
+		_bubbles[i].visible = false
+		_bubbles[i].modulate.a = 0.0
+		_bubble_lefts[i] = 0.0
+		_bubble_showns[i] = 0.0
+		_bubble_ats[i] = Vector3.INF
 
 
-## Keeps the bubble over its speaker while the umpire looks around.
+## Keeps a bubble over its speaker while the umpire looks around.
 ##
 ## Hidden rather than clamped when the speaker goes off screen or behind the chair. A
 ## bubble pinned to the edge of the screen claims somebody is shouting from a place
 ## nobody is sitting, and the player turning their head is exactly the moment they
 ## would notice.
-func _follow_the_bubble() -> void:
-	if _bubble == null or not _bubble.visible:
+func _follow_the_bubble(i: int) -> void:
+	var bubble := _bubbles[i]
+	if not bubble.visible:
 		return
 	if chair_camera == null or not is_instance_valid(chair_camera):
 		return
-	if chair_camera.is_position_behind(_bubble_at):
-		_bubble.modulate.a = 0.0
+	if chair_camera.is_position_behind(_bubble_ats[i]):
+		bubble.modulate.a = 0.0
 		return
 
-	var point := chair_camera.unproject_position(_bubble_at)
-	var size := _bubble.get_combined_minimum_size()
+	var point := chair_camera.unproject_position(_bubble_ats[i])
+	var size := bubble.get_combined_minimum_size()
 	var screen := get_viewport().get_visible_rect().size
 	var place := Vector2(point.x - size.x * 0.5, point.y - size.y - BUBBLE_LIFT)
 
 	if (point.x < 0.0 or point.x > screen.x or place.y < 0.0
 			or point.y > screen.y):
-		_bubble.modulate.a = 0.0
+		bubble.modulate.a = 0.0
 		return
 
-	_bubble.position = place
-	_bubble.size = size
-	_bubble_tail.position = Vector2(size.x * 0.5, size.y)
-	_bubble.modulate.a = _bubble_shown
+	bubble.position = place
+	bubble.size = size
+	_bubble_tails[i].position = Vector2(size.x * 0.5, size.y)
+	bubble.modulate.a = _bubble_showns[i]
 
 
 func _tick_the_bubble(delta: float) -> void:
-	if _bubble == null or _bubble_left <= 0.0:
-		return
-	_bubble_left -= delta
-	if _bubble_left <= 0.0:
-		hide_bubble()
-		return
+	for i in _bubbles.size():
+		if _bubble_lefts[i] <= 0.0:
+			continue
+		_bubble_lefts[i] -= delta
+		if _bubble_lefts[i] <= 0.0:
+			_bubbles[i].visible = false
+			_bubbles[i].modulate.a = 0.0
+			_bubble_showns[i] = 0.0
+			_bubble_ats[i] = Vector3.INF
+			continue
 
-	if _bubble_left <= BUBBLE_FADE:
-		_bubble_shown = _bubble_left / BUBBLE_FADE
-	else:
-		var since := (BUBBLE_FADE + BUBBLE_HOLD + BUBBLE_FADE) - _bubble_left
-		_bubble_shown = clampf(since / BUBBLE_FADE, 0.0, 1.0)
-	_follow_the_bubble()
+		if _bubble_lefts[i] <= BUBBLE_FADE:
+			_bubble_showns[i] = _bubble_lefts[i] / BUBBLE_FADE
+		else:
+			var since := (BUBBLE_FADE + BUBBLE_HOLD + BUBBLE_FADE) - _bubble_lefts[i]
+			_bubble_showns[i] = clampf(since / BUBBLE_FADE, 0.0, 1.0)
+		_follow_the_bubble(i)
 
 
 func hide_reason() -> void:
@@ -1819,6 +1873,12 @@ func clear_messages() -> void:
 
 func hide_pause_menu() -> void:
 	_pause_menu.visible = false
+	# Back to whatever the umpire was still reading when they paused. The shout is not
+	# put back with it: a bubble is somebody speaking at a moment, and that moment has
+	# gone, whereas the note is a standing fact about what the last call cost.
+	if _reason_paused != "":
+		show_reason(_reason_paused)
+		_reason_paused = ""
 
 
 func _centred(control: Control) -> HBoxContainer:
@@ -2088,6 +2148,7 @@ func show_hud(shown: bool) -> void:
 
 
 func hide_menus() -> void:
+	_reason_paused = ""
 	if _hud != null:
 		_hud.visible = true
 	hide_sport_menu()
@@ -2258,7 +2319,7 @@ func _build_hud() -> void:
 
 	hud.add_child(_build_reputation_meter())
 	hud.add_child(_build_reason_note())
-	hud.add_child(_build_bubble())
+	hud.add_child(_build_bubbles())
 
 
 ## The score bug at the top of the screen, the way a broadcast does it: a block of each

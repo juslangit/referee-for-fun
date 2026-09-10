@@ -305,6 +305,15 @@ static func said_about_call(visibility: float, mood: Suspicion.Mood,
 	return _pick(SAID_DOUBTFUL)
 
 
+## Another voice from the same hostile room, for when one is not enough.
+##
+## Only ever drawn from the hostility bank, because this is only ever asked for once the
+## hall has made its mind up. A settled room that suddenly produced three simultaneous
+## shouts would be saying something the mood does not support.
+static func another_hostile_voice() -> String:
+	return _pick(SAID_HOSTILITY)
+
+
 static func said_about_delay(seconds: float) -> String:
 	if Suspicion.hesitation_cost(seconds) <= 0.0:
 		return ""

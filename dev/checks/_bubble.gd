@@ -160,20 +160,21 @@ func _somebody_actually_says_it() -> int:
 		# the hall had said nothing.
 		print("   rally %d: visibility %.3f  %s" % [
 			attempt, rally.visibility(), Rally.Verdict.keys()[rally.verdict()]])
-		if ui._bubble.visible and not ui._bubble_label.text.is_empty():
+		if _speaking(ui).size() > 0:
 			spoke = true
 			break
 
 	if rally == null:
 		print("   no rally ever reached a call — nothing to test")
 		return 0
-	print("   said: %s" % ui._bubble_label.text)
+	for i: int in _speaking(ui):
+		print("   said: %s" % ui._bubble_labels[i].text)
 	if not spoke:
 		print("   nobody said anything to a call given the wrong way   <-- WRONG")
 		return 1
 
 	# It must be pointing at a place in the hall, not at the origin or at infinity.
-	var at: Vector3 = ui._bubble_at
+	var at: Vector3 = ui._bubble_ats[_speaking(ui)[0]]
 	if at == Vector3.INF:
 		print("   the bubble is anchored nowhere   <-- WRONG")
 		bad += 1
@@ -199,5 +200,46 @@ func _somebody_actually_says_it() -> int:
 	# the bubble — so the off-screen guard correctly hides it and every pixel is nought.
 	# `dev/looks/_bubbleshot` takes the picture at 1920x1080 instead.
 	print("   drawn at %v on a %v viewport (headless: too small to place it)" % [
-		ui._bubble.position, get_viewport().get_visible_rect().size])
+		ui._bubbles[_speaking(ui)[0]].position, get_viewport().get_visible_rect().size])
+	bad += await _a_hostile_hall_has_more_than_one_voice(hall)
 	return bad
+
+
+## Which of the three bubbles currently have somebody talking in them.
+func _speaking(ui: RefereeUI) -> Array[int]:
+	var out: Array[int] = []
+	for i in ui._bubbles.size():
+		if ui._bubbles[i].visible and not ui._bubble_labels[i].text.is_empty():
+			out.append(i)
+	return out
+
+
+## One voice is a school gym. Three hundred people who have decided you are bent should
+## not produce the same single bubble a settled room does — that made the loudest moment
+## in the game look exactly like the quietest.
+func _a_hostile_hall_has_more_than_one_voice(hall: Node) -> int:
+	print("")
+	print("a hostile hall speaks with more than one voice")
+	var ui: RefereeUI = hall.ui
+	ui.hide_bubble()
+	hall.suspicion.mood = Suspicion.Mood.SETTLED
+	hall.the_hall_says(Crowd.said_about_call(0.9, Suspicion.Mood.SETTLED, true))
+	for f in 4:
+		await get_tree().process_frame
+	var settled := _speaking(ui).size()
+
+	ui.hide_bubble()
+	hall.suspicion.mood = Suspicion.Mood.HOSTILE
+	hall.the_hall_says(Crowd.said_about_call(0.9, Suspicion.Mood.HOSTILE, true))
+	for f in 4:
+		await get_tree().process_frame
+	var hostile := _speaking(ui).size()
+
+	print("   settled hall: %d voice(s)   hostile hall: %d voice(s)" % [settled, hostile])
+	if settled != 1:
+		print("   a settled hall should say one thing at a time   <-- WRONG")
+		return 1
+	if hostile < 2:
+		print("   a hostile hall said no more than a settled one   <-- WRONG")
+		return 1
+	return 0

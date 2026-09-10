@@ -29,15 +29,18 @@ func _ready() -> void:
 	# Straight to the loudest thing anybody says, rather than playing until a rally
 	# happens to produce one. This is a photograph, not a test of when it fires.
 	hall.ui.react("sustained booing from both ends", 6.0)
+	# A hostile room, so the picture shows what several voices at once look like.
+	hall.suspicion.mood = Suspicion.Mood.HOSTILE
 	hall.the_hall_says(Crowd._pick(Crowd.SAID_HOSTILITY))
 	for f in 20:
 		await get_tree().process_frame
 
 	var ui: RefereeUI = hall.ui
-	print("said: %s" % ui._bubble_label.text)
-	print("anchored at %v" % ui._bubble_at)
-	print("drawn at %v, size %v, opacity %.2f" % [
-		ui._bubble.position, ui._bubble.size, ui._bubble.modulate.a])
+	for i in ui._bubbles.size():
+		if ui._bubbles[i].visible:
+			print("said: %-34s at %v, drawn %v, opacity %.2f" % [
+				ui._bubble_labels[i].text, ui._bubble_ats[i],
+				ui._bubbles[i].position, ui._bubbles[i].modulate.a])
 	print("viewport %v" % get_viewport().get_visible_rect().size)
 
 	await RenderingServer.frame_post_draw
