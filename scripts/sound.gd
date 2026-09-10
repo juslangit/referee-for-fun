@@ -18,7 +18,7 @@ extends Node3D
 ## that had no room in it.
 const CALM := "res://assets/audio/crowd_calm.mp3"
 const TENSE := "res://assets/audio/crowd_tense.mp3"
-const WHISTLE := "res://assets/audio/whistle.mp3"
+const WHISTLE := "res://assets/audio/whistle.wav"
 
 ## The line judge, calling a ball out.
 ##
@@ -26,7 +26,7 @@ const WHISTLE := "res://assets/audio/whistle.mp3"
 ## signals with their hands — so silence here is information, and a shout always means
 ## the same thing. Calling both would make the loudest event in a rally happen on every
 ## rally, which is the same as it happening on none.
-const JUDGE_OUT := "res://assets/audio/judge_out.mp3"
+const JUDGE_OUT := "res://assets/audio/judge_out.wav"
 const JUDGE_DB := -7.0
 const HIT_SOFT := "res://assets/audio/hit_soft.wav"
 const HIT_HARD := "res://assets/audio/hit_hard.wav"
@@ -51,18 +51,18 @@ const KITS := {
 	},
 	&"beach": {
 		"soft": HIT_SOFT,
-		"hard": "res://assets/audio/hit_volley_hard.mp3",
-		"land": "res://assets/audio/land_sand.mp3",
+		"hard": "res://assets/audio/hit_volley_hard.wav",
+		"land": "res://assets/audio/land_sand.wav",
 	},
 	&"indoor": {
 		"soft": HIT_SOFT,
-		"hard": "res://assets/audio/hit_volley_hard.mp3",
+		"hard": "res://assets/audio/hit_volley_hard.wav",
 		"land": "res://assets/audio/land_wood.ogg",
 	},
 	&"tennis": {
-		"soft": "res://assets/audio/hit_tennis.mp3",
-		"hard": "res://assets/audio/hit_tennis.mp3",
-		"land": "res://assets/audio/land_hardcourt.mp3",
+		"soft": "res://assets/audio/hit_tennis.wav",
+		"hard": "res://assets/audio/hit_tennis.wav",
+		"land": "res://assets/audio/land_hardcourt.wav",
 	},
 	# The one sport where the bat and the table make nearly the same noise — a hollow
 	# click either way — which is exactly why the edge ball is decided by a sound the
@@ -76,8 +76,8 @@ const KITS := {
 
 ## Which sport this hall is currently hosting. Set once, when the match is built.
 var kit := &"badminton"
-const APPLAUSE := "res://assets/audio/applause.mp3"
-const GROAN := "res://assets/audio/groan.mp3"
+const APPLAUSE := "res://assets/audio/applause.wav"
+const GROAN := "res://assets/audio/groan.wav"
 
 ## How loud each thing sits, in decibels. The crowd is deliberately well down: it is a
 ## bed to be felt rather than listened to, and a hall you have to talk over is a hall
