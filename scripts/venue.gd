@@ -238,6 +238,9 @@ func _build_lamps(spec: Dictionary) -> void:
 	add_child(_lights)
 
 	var energy: float = spec["court_light"]
+	var lit := _lamps_with_light_in_them(count)
+	# The same light on the court in total, from fewer places.
+	var brighter := float(count) / float(lit.size())
 	for i in count:
 		var side := 1.0 if i % 2 == 0 else -1.0
 		var along := (float(i / 2) / maxf(1.0, float(count / 2 - 1)) - 0.5) * 2.0
@@ -248,20 +251,43 @@ func _build_lamps(spec: Dictionary) -> void:
 			fitting.position = where
 			_lights.add_child(fitting)
 
+		if not i in lit:
+			continue
 		var beam := SpotLight3D.new()
 		beam.name = "Beam"
 		beam.position = where
 		beam.look_at_from_position(where, Vector3(0.0, 0.0, along * 3.0), Vector3.UP)
-		beam.light_energy = energy
+		beam.light_energy = energy * brighter
 		beam.light_color = Color(1.0, 0.98, 0.94)
 		beam.spot_range = 18.0
 		beam.spot_angle = 34.0
 		beam.spot_angle_attenuation = 0.8
-		# Only one or two of them cast shadows. Twelve shadow-casting spotlights on a
-		# hall full of people costs more than the rest of the game together, and the
-		# court already has the sun's shadow on it.
-		beam.shadow_enabled = i < 2
+		# One facing pair casts shadows. Twelve shadow-casting spotlights on a hall full of
+		# people costs more than the rest of the game together, and the court already has
+		# the sun's shadow on it.
+		beam.shadow_enabled = i == lit[0] or i == lit[1]
 		_lights.add_child(beam)
+
+
+## Which fittings have a real light in them: two facing pairs, placed the same distance
+## either side of the net.
+##
+## Every fitting used to hold a spotlight — eight in a school hall, fourteen at a final —
+## and every one of them reached nearly every pixel of the screen. Measured on a MacBook
+## Air, the lamps alone were half of every frame: the top venue ran at 24 frames a second
+## with them and 50 without. Four real lights carrying the same total brightness light
+## the court in a way nobody can tell apart from the chair (`dev/shots/fps_four_lamps.png`
+## against `fps_everything_on.png`), and every fitting stays on the truss, so a promotion
+## still looks like a bigger rig.
+const REAL_LAMP_PAIRS := 2
+
+func _lamps_with_light_in_them(count: int) -> Array:
+	var pairs := count / 2
+	if pairs <= REAL_LAMP_PAIRS:
+		return range(count)
+	var near := floori(float(pairs - 1) * 0.25 + 0.5)
+	var far := pairs - 1 - near
+	return [near * 2, near * 2 + 1, far * 2, far * 2 + 1]
 
 
 # --- the perimeter --------------------------------------------------------------

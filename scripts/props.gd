@@ -59,7 +59,11 @@ static func node(path: String, height: float, correction := Transform3D.IDENTITY
 ## node tree, so every surface is merged into one mesh with a surface per material.
 ## Taking only the first mesh — which is the obvious thing to write — seats three
 ## hundred people in the front half of a chair.
-static func merged(path: String, height: float, correction := Transform3D.IDENTITY) -> Array:
+##
+## `keep` below one trades detail for speed — see `simplified`. The seats need it and the
+## people do not.
+static func merged(path: String, height: float, correction := Transform3D.IDENTITY,
+		keep := 1.0) -> Array:
 	if not ResourceLoader.exists(path):
 		return []
 	var model: Node3D = load(path).instantiate()
@@ -94,7 +98,13 @@ static func merged(path: String, height: float, correction := Transform3D.IDENTI
 			var shaded: StandardMaterial3D = (paint as StandardMaterial3D).duplicate()
 			shaded.vertex_color_use_as_albedo = true
 			builder.set_material(shaded)
+		# Simplifying needs shared corners to know which triangles are neighbours, and
+		# a merged mesh comes out with every triangle owning its own three.
+		if keep < 1.0:
+			builder.index()
 		builder.commit(mesh)
+	if keep < 1.0:
+		mesh = simplified(mesh, keep)
 
 	var box := mesh.get_aabb()
 	if box.size.y <= 0.0001:
@@ -103,6 +113,45 @@ static func merged(path: String, height: float, correction := Transform3D.IDENTI
 	var stand := Transform3D.IDENTITY.scaled(Vector3.ONE * fit)
 	stand.origin.y -= box.position.y * fit
 	return [mesh, stand]
+
+
+## The same model with fewer triangles, keeping roughly `keep` of them.
+##
+## For the things drawn by the hundred. The stadium seat off Sketchfab is 7,404 triangles
+## — as many as half a player — and there are 312 of them, which made the seats alone
+## eighty per cent of everything drawn in the hall and held badminton to twenty-odd
+## frames a second. From the chair a seat is a few pixels across and nobody can count its
+## bolts.
+##
+## The work is done by the same level-of-detail generator Godot's importer uses, and the
+## coarsest level that still keeps `keep` of the triangles is taken for good. Anything
+## that goes wrong along the way — a mesh with no data to read, a generator that found
+## nothing to remove — hands back the original, because a seat drawn slowly is better
+## than no seat.
+static func simplified(mesh: ArrayMesh, keep: float) -> ArrayMesh:
+	var source := ImporterMesh.new()
+	for surface in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(surface)
+		if arrays.is_empty() or arrays[Mesh.ARRAY_INDEX] == null:
+			return mesh
+		source.add_surface(mesh.surface_get_primitive_type(surface), arrays, [], {},
+			mesh.surface_get_material(surface))
+	source.generate_lods(25.0, 60.0, [])
+
+	var fewer := ArrayMesh.new()
+	for surface in source.get_surface_count():
+		var arrays := source.get_surface_arrays(surface)
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var wanted := int(float(indices.size()) * keep)
+		# Levels come finest first. The last one still holding enough triangles is the one.
+		for level in source.get_surface_lod_count(surface):
+			var coarser := source.get_surface_lod_indices(surface, level)
+			if coarser.size() >= wanted and coarser.size() < indices.size():
+				indices = coarser
+		arrays[Mesh.ARRAY_INDEX] = indices
+		fewer.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		fewer.surface_set_material(surface, source.get_surface_material(surface))
+	return fewer
 
 
 ## The transform that scales a model to `height` and stands it on the floor. Measured

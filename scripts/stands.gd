@@ -88,6 +88,11 @@ const CROWD_MODEL := "res://assets/sketchfab/simple_low_poly_character/simple_lo
 const SEAT_HEIGHT := 0.86
 const SEAT_DEPTH := 0.34
 
+## How much of the downloaded seat's detail is kept. It is 7,404 triangles as it comes,
+## there are 312 of them, and they were most of the reason badminton ran at twenty-odd
+## frames a second. See `Props.simplified`.
+const SEAT_DETAIL := 0.12
+
 ## A yaw put on the crowd model so that it faces the way the seat is turned. Which
 ## direction a model calls forward is a decision its author made and did not write
 ## down, so this is set by looking at the hall rather than worked out.
@@ -386,7 +391,7 @@ func _build_crowd() -> void:
 		# The rows had their occupants right and their chairs backwards, which reads as
 		# a hall where everybody is standing in front of a seat facing the wrong way.
 		var chair := Props.merged(
-			Props.SEAT, SEAT_HEIGHT, Props.turned(CROWD_FACING) * Props.z_up())
+			Props.SEAT, SEAT_HEIGHT, Props.turned(CROWD_FACING) * Props.z_up(), SEAT_DETAIL)
 		if not chair.is_empty():
 			var greys: Array[Color] = []
 			for i in _total:
@@ -479,6 +484,11 @@ func _make_crowd_mesh(
 	instance.name = part
 	instance.multimesh = multi
 	instance.layers = Figure.PEOPLE_LAYER
+	# No shadows from the stands. Every shadow-casting light draws its casters again —
+	# the hall light several times over, once per shadow cascade — so three hundred seats
+	# and the people in them were being drawn seven or eight times a frame, for shadows
+	# that fall on the steps behind them where nobody in the chair is looking.
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(instance)
 	return instance
 

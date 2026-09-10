@@ -14,7 +14,7 @@ They are sorted by what they do with what they find:
 | folder | what is in it |
 |---|---|
 | `checks/` | **84 scenes that print numbers.** Everything with an answer that can be wrong: fair play, aim, scoring, rotation, pricing, whether a match can finish. These are the ones to run after changing anything. |
-| `looks/` | **46 scenes that take pictures.** The hall from the chair, a lesson page, a pose held at the frame that matters. Judged by eye, because some things only a person can see. |
+| `looks/` | **48 scenes that take pictures.** The hall from the chair, a lesson page, a pose held at the frame that matters. Judged by eye, because some things only a person can see. |
 | `shots/` | Where the pictures land. Ignored by git — output, not source. |
 
 Run one with:
@@ -41,6 +41,8 @@ The ones worth keeping in mind:
 | `_worstcalls` | Does the end-of-match replay keep the right calls, show all of them, and give way to the result — and does the paper come out when, and only when, the umpire was taken off or the career ended? All five sports, plus every combination of facts the paper can print, checked for pronouns and trademarks. Puts the career save back afterwards. |
 | `_replayshot` | Pictures of the replay and the paper at full size, in `looks/`. `SPORT=badminton\|beach\|indoor\|tennis\|table_tennis`, `TIER=`, `PAGE=front` for a career that ends. |
 | `_badmintonreview` | Does a badminton review finish? Asks for one at the national championship directly. |
+| `_fps` | How fast does every sport run, at the bottom and top of its ladder, and what does each expensive thing cost? Windowed, vsync off, real rallies. `ONLY=badminton`, `SECONDS=6`, `TRIALS=lamp,upscale` to run only the trials whose names contain those words, `SHOTS=1` to keep a picture of each. In `looks/`. |
+| `_budget` | Where the triangles are: every visible model in a venue by triangles times copies, and which cast shadows. Found the 7,404-triangle stadium seat that held badminton to twenty frames a second. `SPORT=`, `TIER=`. In `looks/`. |
 | `_lessonback` | Can a player read the rules again, in every sport? Checks the ladder offers HOW TO REFEREE, that it opens that sport's lesson, and that GOT IT comes back to the ladder. |
 | `_endings` | Can a match in each sport actually finish, and how many rallies does the shortest one take? Every other harness stops after a fixed count, so the ending screen and the career fold-in had never been reached in either volleyball. |
 | `_faultkey` | Does F open the fault panel and complete a call, in both volleyballs? Written after both prompts turned out to advertise a key nothing was listening to. |

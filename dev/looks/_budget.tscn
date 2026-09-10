@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://dev/looks/_budget.gd" id="1"]
+
+[node name="Budget" type="Node"]
+script = ExtResource("1")
