@@ -66,21 +66,12 @@ func reviewable(rally: Rally) -> bool:
 	return rally.crossed_the_net
 
 
-## Who, if anybody, asks for the review. The side the call went against, if they have a
-## review left and they believe in it enough to spend one.
-func challenger(rally: Rally) -> Sides.Team:
-	if not reviewable(rally):
-		return Sides.Team.NONE
-
-	var lost := Sides.opponent(rally.point_goes_to())
-	if lost == Sides.Team.NONE or remaining(lost) <= 0:
-		return Sides.Team.NONE
-
-	return who_challenges(
-		lost,
-		rally.verdict() == Rally.Verdict.WRONG,
-		rally.visibility(),
-		rally.margin)
+## `challenger(rally)` used to be here: badminton's own route to who asks for a review.
+## It was a second copy of the decision `OfficiatedMatch.who_would_challenge()` makes for
+## every other sport, and differed only in asking `reviewable()` first. The spine asks
+## each sport `can_be_reviewed()` now and badminton answers with `reviewable()`, so there
+## is one decision. Before it went, both were run on the same 4,200 rallies with the same
+## seed and disagreed on none of them.
 
 
 ## Whether the side a call went against spends a review on it.

@@ -448,9 +448,7 @@ func _wait_or_skip(seconds: float) -> void:
 ## standing. Those stay the official's word against the venue's.
 func who_would_challenge() -> Sides.Team:
 	var rally = current_rally()
-	if rally == null or rally.call == null or not rally.is_settled:
-		return Sides.Team.NONE
-	if not (rally.call.judges_the_landing or rally.call.judges_the_touch):
+	if not can_be_reviewed(rally):
 		return Sides.Team.NONE
 
 	var lost := Sides.opponent(rally.point_goes_to())
@@ -461,6 +459,24 @@ func who_would_challenge() -> Sides.Team:
 		closeness = (1.0 - rally.touch_visibility) * Challenge.DOUBT_RANGE
 	return challenge.who_challenges(
 		lost, rally.verdict() == Rally.Verdict.WRONG, rally.visibility(), closeness)
+
+
+## Whether this rally's call is something a review can settle.
+##
+## Asked of each sport rather than written once, because the sports disagree about one
+## thing and it matters. Badminton's rally knows whether the shuttle ever crossed the
+## net, and one that did not has no landing on the far side for a camera to look at — so
+## badminton answers with `Challenge.reviewable()`, which refuses it. The other sports
+## keep rally classes of their own that do not track that, and are reviewable on a
+## landing or, at the beach, a touch.
+##
+## This question was the only real difference between two whole copies of
+## `who_would_challenge`: the one above, and badminton's, which went through
+## `Challenge.challenger()` instead. Everything else they did was the same arithmetic.
+func can_be_reviewed(rally) -> bool:
+	if rally == null or rally.call == null or not rally.is_settled:
+		return false
+	return rally.call.judges_the_landing or rally.call.judges_the_touch
 
 
 ## +1 if the call helped BLUE, -1 if it helped RED, 0 if it helped nobody.

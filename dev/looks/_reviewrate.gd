@@ -57,11 +57,17 @@ func _ready() -> void:
 
 func _rate(arena: Node, margin: float, lie: bool, label: String) -> void:
 	var asked := 0
+	# Through the match's own who_would_challenge, not a side door into Challenge. This
+	# used to call Challenge.challenger(), which was a second copy of the decision the
+	# game actually makes — so the rate printed here was the rate of the copy. Setting
+	# the arena's rally is safe because this loop never yields a frame.
+	var was = arena.rally
 	for i in 10000:
 		arena.challenge.reset()
-		var rally := _rally(margin, lie)
-		if arena.challenge.challenger(rally) != Sides.Team.NONE:
+		arena.rally = _rally(margin, lie)
+		if arena.who_would_challenge() != Sides.Team.NONE:
 			asked += 1
+	arena.rally = was
 	print("%-34s %9.1f%%" % [label, 100.0 * float(asked) / 10000.0])
 
 

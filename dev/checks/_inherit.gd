@@ -57,7 +57,7 @@ const REPLACEMENTS_UNDERSTOOD := {
 	"badminton/judge_watching": "adds the guard that nobody judges a shuttle that never crossed the net",
 	"badminton/score_line": "badminton counts games where the spine counts sets; this is the hook working as intended",
 	"badminton/price_the_call": "reaches the same arithmetic by suspicion.register(rally)",
-	"badminton/who_would_challenge": "delegates to Challenge.challenger(); the spine computes closeness inline. Two implementations of one idea, and they could still converge",
+	"badminton/can_be_reviewed": "a shuttle that never crossed the net is not reviewable; Challenge.reviewable() knows, and the other sports' rallies do not track it",
 }
 
 ## How many lines of spine behaviour count as worth inheriting. Below this it is a

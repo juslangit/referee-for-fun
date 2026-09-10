@@ -21,6 +21,8 @@ func _ready() -> void:
 		print()
 
 	_and_when_nothing_happened()
+	print("")
+	print(_verdict())
 	get_tree().quit()
 
 
@@ -28,18 +30,18 @@ func _three_ways(kind: String) -> void:
 	# Called correctly.
 	var right := _rally_with(kind)
 	right.record_call(VolleyCallBook.get_call(StringName(kind)), Sides.Team.RED)
-	_report(kind, kind.to_upper(), right)
+	_report(kind, &"right", kind.to_upper(), right)
 
 	# Missed: the referee judges the ball and says nothing about the lineup.
 	var missed := _rally_with(kind)
 	missed.record_call(VolleyCallBook.get_call(&"in"))
-	_report(kind, "IN — never noticed", missed)
+	_report(kind, &"missed", "IN — never noticed", missed)
 
 	# Called against the wrong side, which is a different way of being wrong.
 	var misdirected := _rally_with(kind)
 	misdirected.record_call(
 		VolleyCallBook.get_call(StringName(kind)), Sides.Team.BLUE)
-	_report(kind, "%s on the other side" % kind.to_upper().substr(0, 10), misdirected)
+	_report(kind, &"misdirected", "%s on the other side" % kind.to_upper().substr(0, 10), misdirected)
 
 
 ## A rally that RED lost by a positional fault, with the ball landing cleanly in.
@@ -64,12 +66,69 @@ func _and_when_nothing_happened() -> void:
 	clean.struck_by = Sides.Team.RED
 	clean.record_landing(Vector3(1.0, VolleyCourt.SURFACE_Y, 4.0), Sides.Team.BLUE)
 	clean.record_call(VolleyCallBook.get_call(&"rotation_fault"), Sides.Team.BLUE)
-	_report("nothing at all", "OUT OF ROTATION", clean)
+	_report("nothing at all", &"invented", "OUT OF ROTATION", clean)
 
 
-func _report(kind: String, said: String, rally: VolleyRally) -> void:
+## Every row, kept so the table can be judged as well as printed.
+var _rows: Array[Dictionary] = []
+
+
+func _report(kind: String, way: StringName, said: String, rally: VolleyRally) -> void:
+	_rows.append({
+		"kind": kind, "way": way,
+		"correct": rally.verdict() == Rally.Verdict.CORRECT,
+		"seen": rally.visibility(), "to": rally.point_goes_to(),
+	})
 	print("%-16s %-22s %-9s %-8.2f %s" % [
 		kind, said,
 		"correct" if rally.verdict() == Rally.Verdict.CORRECT else "WRONG",
 		rally.visibility(),
 		Sides.label(rally.point_goes_to())])
+
+
+
+## Whether the table says what the note at the top of this file says it must.
+##
+## This scene printed its table and stopped for as long as it existed, so it was only as
+## good as whoever happened to read it. The three rules it was written to show are now
+## checked: called correctly costs nothing and gives the point to the side that was
+## fouled; missed or called against the wrong side costs something; and inventing a fault
+## out of nothing costs at least as much as anything else here, because a lineup is a
+## matter of record and both benches have it written down.
+func _verdict() -> String:
+	var failures: Array[String] = []
+	var loudest := 0.0
+	var invented := -1.0
+	for row: Dictionary in _rows:
+		var kind: String = row["kind"]
+		match row["way"]:
+			&"right":
+				if not row["correct"]:
+					failures.append("%s, called correctly, was scored WRONG" % kind)
+				elif row["seen"] > 0.0:
+					failures.append("%s, called correctly, still cost %.2f" % [kind, row["seen"]])
+				if row["to"] != Sides.Team.BLUE:
+					failures.append("%s, called correctly, gave the point to %s instead of the side that was fouled"
+						% [kind, Sides.label(row["to"])])
+			&"missed", &"misdirected":
+				if row["correct"]:
+					failures.append("%s, %s, was scored correct" % [kind, row["way"]])
+				elif row["seen"] <= 0.0:
+					failures.append("%s, %s, cost nothing" % [kind, row["way"]])
+			&"invented":
+				if row["correct"]:
+					failures.append("a fault invented out of nothing was scored correct")
+				invented = row["seen"]
+		if row["way"] != &"invented":
+			loudest = maxf(loudest, row["seen"])
+
+	if invented >= 0.0 and invented < loudest:
+		failures.append("inventing a fault cost %.2f, less than the %.2f of a real one missed or misdirected"
+			% [invented, loudest])
+
+	if failures.is_empty():
+		return "PASS — the four positional calls are priced the way the rules say"
+	var out := "%d PROBLEM(S)" % failures.size()
+	for line: String in failures:
+		out += "\n   %s" % line
+	return out

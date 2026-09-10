@@ -1359,11 +1359,13 @@ func announce_the_call(call: CallType, against: Sides.Team, winner: Sides.Team) 
 	super(call, against, winner)
 
 
-## Who asks for a review. Badminton's Challenge knows its own Rally.
-func who_would_challenge() -> Sides.Team:
-	if rally == null:
-		return Sides.Team.NONE
-	return challenge.challenger(rally)
+## A shuttle that never crossed the net has no landing on the far side for the camera
+## to look at, and a net touch or a carry is not reviewable in the real sport either.
+## `Challenge.reviewable()` already knows both. The rest of the decision — who lost the
+## call, how sure they are, whether they have a review left — is the spine's, the same
+## as in every other sport, where it used to be a second copy reached another way.
+func can_be_reviewed(r) -> bool:
+	return challenge.reviewable(r)
 
 
 # --- sitting through a review ---------------------------------------------------
