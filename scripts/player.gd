@@ -66,6 +66,9 @@ var chasing := false
 var _destination := Vector3.ZERO
 var _lunge_left := 0.0
 var _lunge_spot := Vector3.ZERO
+## How much longer they stay on the spot they are standing on, whatever `_destination`
+## says. Only the volleyball serve uses it.
+var _planted_left := 0.0
 
 ## The clips on the forged character, and which one is playing.
 var _animator: AnimationPlayer
@@ -189,8 +192,39 @@ func block() -> void:
 	_play("vb_block", true)
 
 
-func serve_the_ball() -> void:
+## When the hand meets the ball in `vb_serve`: frame 15 at 24 fps. Keyed in
+## tools/meshy/volleyball_clips.py as SERVE_CONTACT_FRAME, and the two must agree —
+## the match holds the ball in the air for exactly this long after the whistle.
+const VB_SERVE_CONTACT := 15.0 / 24.0
+
+## Where the hitting hand is at that frame, measured from the server's feet by
+## dev/looks/_serveshot: this far in front, and this far out to the hitting side. The
+## server stands that much behind and beside the ball, so it is struck by the hand and
+## not by the top of their head. The height is 2.06 m to the wrist, about 2.15 m to the
+## palm — the beach serve's height exactly, and ten centimetres under the indoor one.
+const VB_SERVE_REACH := 0.22
+const VB_SERVE_WIDE := 0.18
+
+
+## Luqman's "volleyball 1": wind up, meet the ball, point the arm at the far court.
+##
+## Facing `toward` and planted on the spot for the whole clip. A server used to be put
+## at the serving spot and then slide off towards their home position mid-swing, which a
+## serve a third of this length hid and this one would not: the follow-through is held,
+## and a held pose gliding across the floor is the first thing anybody would notice.
+func serve_the_ball(toward: Vector3) -> void:
+	var heading := Vector2(toward.x - position.x, toward.z - position.z)
+	if heading.length() > 0.0005:
+		rotation.y = atan2(heading.x, heading.y)
+		# The match puts them where the ball will be struck; the hand meets it in front
+		# and to one side.
+		var facing := heading.normalized()
+		var hitting_side := Vector2(-facing.y, facing.x)
+		var step := facing * VB_SERVE_REACH + hitting_side * VB_SERVE_WIDE
+		position -= Vector3(step.x, 0.0, step.y)
 	_play("vb_serve", true)
+	if _animator != null and _animator.has_animation("vb_serve"):
+		_planted_left = _animator.get_animation("vb_serve").length
 
 
 ## A tennis serve, which is its own action and not a smash.
@@ -297,6 +331,9 @@ func _physics_process(delta: float) -> void:
 	if _lunge_left > 0.0:
 		_lunge_left -= delta
 		aim = _lunge_spot
+	if _planted_left > 0.0:
+		_planted_left -= delta
+		aim = position
 
 	var here := Vector2(position.x, position.z)
 	var there := Vector2(aim.x, aim.z)
@@ -321,6 +358,7 @@ func _physics_process(delta: float) -> void:
 ## Go after the shuttle, to the spot they believe it will land.
 func chase(point: Vector3) -> void:
 	chasing = true
+	_planted_left = 0.0
 	_destination = Vector3(point.x, 0.0, point.z)
 
 

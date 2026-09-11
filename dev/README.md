@@ -14,7 +14,7 @@ They are sorted by what they do with what they find:
 | folder | what is in it |
 |---|---|
 | `checks/` | **84 scenes that print numbers.** Everything with an answer that can be wrong: fair play, aim, scoring, rotation, pricing, whether a match can finish. These are the ones to run after changing anything. |
-| `looks/` | **48 scenes that take pictures.** The hall from the chair, a lesson page, a pose held at the frame that matters. Judged by eye, because some things only a person can see. |
+| `looks/` | **49 scenes that take pictures.** The hall from the chair, a lesson page, a pose held at the frame that matters. Judged by eye, because some things only a person can see. |
 | `shots/` | Where the pictures land. Ignored by git — output, not source. |
 
 Run one with:
@@ -59,6 +59,7 @@ The ones worth keeping in mind:
 | `_beachteach` | The beach lesson, and a review on screen. |
 | `_clickcheck` | Is the mouse free on every screen that has a button on it, and what visible control is sitting over the menu? Written after buttons before a beach match turned out to be drawn, lit and completely dead. |
 | `_vbposes` | The six volleyball clips, one character each, held at the moment that matters. The poses are authored blind as numbers in a Python file, so this is the only way to find out whether "both arms locked in front" produced that. |
+| `_serveshot` | The volleyball serve (Luqman's "volleyball 1") from beside the server, ten frames timed from the whistle, and how far the hand is from the ball at the frame of contact. Run it with `--fixed-fps 120` or the frames are not at the times they are labelled with. |
 | `_beachflow` | Can a player reach a beach rally from the menu? Checks the sport card is there and playable, then drives the beach scene from the career screen to a call pressing only what a player can press. |
 | `_sportshot` | The sport menu, now that more than one card is lit. |
 | `_beachplay` | Beach volleyball's fair-play check: plays a match calling everything truthfully — line, touch and faults — and reports what the game charged for it. Must be zero. |
