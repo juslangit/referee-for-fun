@@ -5,6 +5,8 @@
     tools/meshy/meshy.py make shuttlecock "a badminton shuttlecock, ..." --prop
     tools/meshy/meshy.py make athlete_a "a badminton player, ..." --rig --height 1.80
     tools/meshy/meshy.py animate athlete_a 59 victory_cheer
+    tools/meshy/meshy.py motion smash "a badminton player ..." --duration 3
+    tools/meshy/meshy.py animate athlete_a motion:smash smash
     tools/meshy/meshy.py show
 
 Every task is recorded in tools/meshy/manifest.json before it is polled, so a run
@@ -16,6 +18,10 @@ Costs, from the API pricing page as of 2026-09-08:
 
     text-to-3d preview   20     rigging      5
     text-to-3d refine    10     animation    3
+    text-to-motion       10  (prime; swift is 3)
+
+A text-to-motion clip is kept by Meshy for three days, so it has to be put onto the
+characters with `animate ... motion:<label>` inside that window.
 """
 
 import argparse
@@ -186,23 +192,61 @@ def cmd_make(args):
             fetch(url, ASSETS / args.name / f"{args.name}_{clip}.glb")
 
 
+def cmd_motion(args):
+    """Generates a motion clip from a description, to be put onto characters later.
+
+    Meshy's library has nothing that is a badminton shot in it; this is how one is made
+    without keying it by hand. Motions live under their own key in the manifest, apart
+    from the characters, because one motion goes onto every character.
+    """
+    state = load()
+    motions = state.setdefault("motions", {})
+    if args.label in motions:
+        print(f"  motion {args.label} already made")
+        task_id = motions[args.label]["task"]
+    else:
+        print(f"  motion: {args.prompt[:70]}...")
+        task_id = call("POST", "v1/text-to-motion", {
+            "prompt": args.prompt,
+            "duration": args.duration,
+            "mode": args.mode,
+        })["result"]
+        motions[args.label] = {"task": task_id, "prompt": args.prompt,
+                               "duration": args.duration, "mode": args.mode}
+        state["spent"] = state.get("spent", 0) + (10 if args.mode == "prime" else 3)
+        save(state)
+    done = wait("v1/text-to-motion", task_id, args.label)
+    result = done.get("result") or done
+    print(f"    {result.get('duration_ms', '?')} ms, {result.get('motion_format', '?')}, "
+          f"kept until {done.get('expires_at', '?')}")
+
+
 def cmd_animate(args):
-    """Applies one library animation to an already-rigged character."""
+    """Applies one library animation, or one generated motion, to a rigged character.
+
+    `action` is a library id, or `motion:<label>` for a clip made by `motion`.
+    """
     state = load()
     asset = state["assets"].get(args.name, {})
     if "rig" not in asset:
         sys.exit(f"{args.name} has not been rigged")
+
+    body = {"rig_task_id": asset["rig"]}
+    if args.action.startswith("motion:"):
+        motion = state.get("motions", {}).get(args.action.split(":", 1)[1])
+        if motion is None:
+            sys.exit(f"no motion called {args.action.split(':', 1)[1]} — make it first")
+        body["motion_task_id"] = motion["task"]
+    else:
+        body["action_id"] = int(args.action)
 
     stage = f"anim_{args.label}"
     if stage in asset:
         print(f"  {args.label} already made")
         task_id = asset[stage]
     else:
-        print(f"  animating: {args.label} (action {args.action})")
-        task_id = call("POST", "v1/animations", {
-            "rig_task_id": asset["rig"],
-            "action_id": int(args.action),
-        })["result"]
+        print(f"  animating: {args.label} ({args.action})")
+        task_id = call("POST", "v1/animations", body)["result"]
         record(state, args.name, stage, task_id, 3)
     done = wait("v1/animations", task_id, args.label)
 
@@ -239,6 +283,13 @@ def main():
     make.add_argument("--height", type=float, default=1.78)
     make.add_argument("--polycount", type=int, default=12000)
     make.set_defaults(run=cmd_make)
+
+    motion = subs.add_parser("motion")
+    motion.add_argument("label")
+    motion.add_argument("prompt")
+    motion.add_argument("--duration", type=float, default=3.0)
+    motion.add_argument("--mode", choices=("prime", "swift"), default="prime")
+    motion.set_defaults(run=cmd_motion)
 
     animate = subs.add_parser("animate")
     animate.add_argument("name")

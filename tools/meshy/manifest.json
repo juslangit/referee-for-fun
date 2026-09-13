@@ -1,21 +1,25 @@
 {
   "assets": {
     "athlete_meshy": {
+      "anim_smash": "01a09b8d-0e4b-7477-8268-52766cbdb584",
       "preview": "01a07cc2-a2de-71f8-a489-9aa357c39ec4",
       "refine": "01a07cc3-4b1c-7731-820b-0a340aaf9fb9",
       "rig": "01a07cc6-21d2-7403-960d-aa3d29355993"
     },
     "official": {
+      "anim_smash": "01a09b8d-6470-76ba-950f-bf4553b3de70",
       "preview": "01a07cdf-2a2f-76ab-b82a-a7641fcacc67",
       "refine": "01a07ced-7287-7160-8d96-1b4a0e384cdb",
       "rig": "01a07cf6-0a1f-77d6-9eb7-3c4c6a7c2e88"
     },
     "player_blue": {
+      "anim_smash": "01a09b8c-5ca2-715e-b951-179f673d25d5",
       "preview": "01a07ccf-c624-737e-9be8-f4e0775d4f77",
       "refine": "01a07cd0-8aad-7385-8f2f-e1ad5e0909ca",
       "rig": "01a07cd4-20ee-73fa-bbf1-12bddbb7f6b3"
     },
     "player_red": {
+      "anim_smash": "01a09b8c-ad7f-716a-88dc-e3e6b0e241f9",
       "preview": "01a07cd4-b468-73ee-bb61-1baa859ea3c5",
       "refine": "01a07cd7-2051-73ad-89ef-48eef6a6bae2",
       "rig": "01a07cde-a183-740b-8403-22338af793f7"
@@ -25,5 +29,13 @@
       "refine": "01a07cc0-7afb-7668-99a2-11907468b0e5"
     }
   },
-  "spent": 170
+  "motions": {
+    "smash": {
+      "duration": 2.5,
+      "mode": "prime",
+      "prompt": "A right-handed badminton player does a jumping overhead smash. Starts side-on in a ready stance, right arm cocks the racket back behind the head while the left arm points up at the shuttle. Scissor-kick jump, whips the right arm up and hits hard at full stretch above the head, then snaps the arm down across the body and lands balanced.",
+      "task": "01a09b8b-d467-74e9-ad4e-e06d4c6d15d5"
+    }
+  },
+  "spent": 192
 }
