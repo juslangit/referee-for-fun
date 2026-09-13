@@ -19,7 +19,13 @@ func _ready() -> void:
 		["table tennis", "res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
 	]:
 		await _check(entry[0], entry[1], entry[2])
+	print("PASS" if _problems.is_empty() else "FAIL:\n   " + "\n   ".join(_problems))
 	get_tree().quit()
+
+
+## What a wrong call for RED has to produce in every sport: RED celebrating, BLUE arguing,
+## and somebody in the stands on their feet.
+var _problems: Array[String] = []
 
 
 func _check(name: String, scene: String, sport: StringName) -> void:
@@ -51,6 +57,7 @@ func _check(name: String, scene: String, sport: StringName) -> void:
 		waited += 1
 	if arena._phase != arena.Phase.AWAITING_CALL:
 		print("%-10s no rally to react to" % name)
+		_problems.append("%s: no rally to react to" % name)
 		arena.queue_free()
 		return
 
@@ -64,7 +71,15 @@ func _check(name: String, scene: String, sport: StringName) -> void:
 	print("   after a wrong call that gave RED the point:")
 	for side in clips:
 		print("      %-5s %s" % [side, ", ".join(clips[side])])
-	print("   anybody on their feet in the stands: %s" % _standing(arena))
+	var standing := _standing(arena)
+	print("   anybody on their feet in the stands: %s" % standing)
+	for player in arena.players:
+		var wanted := "celebrate" if player.team == Sides.Team.RED else "argue"
+		if player._clip != wanted:
+			_problems.append("%s: a %s player did %s, not %s" % [
+				name, Sides.label(player.team), player._clip, wanted])
+	if not standing:
+		_problems.append("%s: nobody in the stands got up" % name)
 
 	arena.queue_free()
 	await get_tree().process_frame
@@ -89,12 +104,21 @@ func _a_point_to_red(arena: Node) -> void:
 	for field in ["not_up_by", "reached_over_by"]:
 		if field in rally:
 			rally.set(field, Sides.Team.NONE)
-	if arena.sport() != Career.TENNIS:
-		rally.inside_the_antennae = true
-		rally.contacts = 3
-	else:
-		rally.is_a_serve = false
-		rally.clipped_the_cord = false
+	match arena.sport():
+		Career.TENNIS:
+			rally.is_a_serve = false
+			rally.clipped_the_cord = false
+		Career.TABLE_TENNIS:
+			rally.is_a_serve = false
+			rally.clipped_the_net = false
+			rally.clipped_the_edge = false
+			rally.illegal_service = false
+			rally.double_bounce_by = Sides.Team.NONE
+			rally.touched_the_table_by = Sides.Team.NONE
+			rally.volleyed_by = Sides.Team.NONE
+		_:
+			rally.inside_the_antennae = true
+			rally.contacts = 3
 
 	# Blatant: a metre outside, called in. Nobody in the building could miss it.
 	rally.landing_point = Vector3(0.0, 0.02, 90.0)
@@ -115,11 +139,15 @@ func _in_call(arena: Node) -> CallType:
 		return TennisCallBook.get_call(&"in")
 	if arena.sport() == Career.INDOOR:
 		return VolleyCallBook.get_call(&"in")
+	if arena.sport() == Career.TABLE_TENNIS:
+		return TableTennisCallBook.get_call(&"in")
 	return BeachCallBook.get_call(&"in")
 
 
 func _standing(arena: Node) -> bool:
-	var stands = arena.court.stands
+	# Asked of the sport rather than read off `court`: table tennis hangs its stands off
+	# the table, and has no `court` at all.
+	var stands = arena.the_stands()
 	if stands == null:
 		return false
 	for group in stands._crowd_holds.size():

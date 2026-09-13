@@ -21,7 +21,17 @@ func _ready() -> void:
 	_it_has_to_be_earned()
 	print()
 	await _in_a_real_match()
+	print()
+	print("PASS" if _problems.is_empty() else "FAIL:\n   " + "\n   ".join(_problems))
 	get_tree().quit()
+
+
+var _problems: Array[String] = []
+
+
+func _must_be(what: String, got: int, wanted: int) -> void:
+	if got != wanted:
+		_problems.append("%s: %d, must be %d" % [what, got, wanted])
 
 
 ## The whole path, through judge() rather than through Suspicion on its own.
@@ -48,7 +58,14 @@ func _in_a_real_match() -> void:
 	var approved := 0
 	var nodded := 0
 	print("   %4s %-9s %-38s %s" % ["#", "verdict", "what the hall said", "players"])
-	for r in 9:
+	# Lies until two of them were plain enough to sour the room, then seven straight calls.
+	# Lying on the first two rallies regardless came out 0/0 whenever both were edge balls
+	# nobody could read — which the game is right to forgive nothing for.
+	var visible_lies := 0
+	var straight := 0
+	for r in 24:
+		if straight >= 7:
+			break
 		hall.start_rally()
 		var w := 0
 		while hall._phase != hall.Phase.AWAITING_CALL and w < 4000:
@@ -59,8 +76,10 @@ func _in_a_real_match() -> void:
 
 		var rally = hall.rally
 		hall._awaiting_since = Time.get_ticks_msec()
-		# Two plain lies to sour the room, then referee straight.
-		var lying := r < 2
+		# A line stays up for 2.6 s and a short rally is shorter than that, so the last
+		# call's line can still be on screen. Read, it counted one coming round twice.
+		hall.ui._reaction_label.text = ""
+		var lying := visible_lies < 2
 		if lying:
 			hall.make_call(&"in" if not rally.was_in else &"out")
 		elif rally.is_a_let():
@@ -69,6 +88,13 @@ func _in_a_real_match() -> void:
 			hall.make_call(&"illegal_service", rally.served_by)
 		else:
 			hall.make_call(&"in" if rally.rightful_winner() == rally.struck_by else &"out")
+
+		if lying:
+			if rally.verdict() == Rally.Verdict.WRONG \
+					and rally.visibility() >= Suspicion.SOURS_THE_ROOM:
+				visible_lies += 1
+		else:
+			straight += 1
 
 		var said := ""
 		var nodding := false
@@ -92,8 +118,13 @@ func _in_a_real_match() -> void:
 		if hall.board.is_over or hall._phase == hall.Phase.REMOVED:
 			break
 
+	if straight < 7:
+		_problems.append("the match ran out after %d visible lies and %d straight calls"
+			% [visible_lies, straight])
 	print("   the hall came round %d time(s)   (MUST BE 1)" % approved)
 	print("   the players acknowledged it %d time(s)   (MUST BE 1)" % nodded)
+	_must_be("the hall came round in a match", approved, 1)
+	_must_be("the players acknowledged it in a match", nodded, 1)
 
 
 func _the_hall_never_turns_on_a_correct_call() -> void:
@@ -110,6 +141,7 @@ func _the_hall_never_turns_on_a_correct_call() -> void:
 				print("   %-10s visibility %.1f -> %s" % [
 					Suspicion.Mood.keys()[mood], seen, said])
 	print("  lines drawn by a correct call: %d   (MUST BE 0)" % spoke)
+	_must_be("lines drawn by a correct call", spoke, 0)
 
 	print("")
 	print("and it still objects to a WRONG one, which is the whole point of it")
@@ -120,6 +152,7 @@ func _the_hall_never_turns_on_a_correct_call() -> void:
 			silent += 1
 		print("   visibility %.2f -> %s" % [seen, said if not said.is_empty() else "(nothing)"])
 	print("  plainly wrong calls that drew nothing: %d   (MUST BE 0)" % silent)
+	_must_be("plainly wrong calls that drew nothing", silent, 0)
 
 
 func _the_room_comes_round() -> void:
@@ -151,6 +184,7 @@ func _it_has_to_be_earned() -> void:
 			said += 1
 	print("   12 correct calls from a clean sheet -> the hall spoke %d times   (MUST BE 0)"
 		% said)
+	_must_be("a clean sheet congratulated", said, 0)
 
 	print("")
 	print("and a lie nobody could see leaves nothing to forgive")
@@ -164,6 +198,7 @@ func _it_has_to_be_earned() -> void:
 			after += 1
 	print("   an invisible lie, then six correct calls -> spoke %d times   (MUST BE 0)"
 		% after)
+	_must_be("an invisible lie forgiven", after, 0)
 
 	print("")
 	print("but it only forgives you once per bad patch")
@@ -177,6 +212,7 @@ func _it_has_to_be_earned() -> void:
 			times += 1
 	print("   one visible lie, then nine correct calls -> spoke %d times   (MUST BE 1)"
 		% times)
+	_must_be("one visible lie forgiven", times, 1)
 
 
 func _wrong(suspicion: Suspicion, seen: float) -> void:
