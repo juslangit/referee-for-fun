@@ -101,9 +101,15 @@ func _check(name: String, scene: String, sport: StringName, reputation: float,
 			continue
 		if path[path.size() - 1].distance_to(landing) > 0.001:
 			problems.append("%s: a replay path does not end at the landing" % name)
-		if path[0].distance_to(landing) < 0.3:
-			problems.append("%s: a replay path barely moves (%.2f m)" % [
-				name, path[0].distance_to(landing)])
+		# How far the flight ever gets from the landing, not where it starts. A short last
+		# shot is replayed with the one before it, and in table tennis that one is struck
+		# from right above the landing: a full two-shot rally started 17 cm from where it
+		# came down, and read as a path that never moved.
+		var farthest := 0.0
+		for point in path:
+			farthest = maxf(farthest, point.distance_to(landing))
+		if farthest < 0.3:
+			problems.append("%s: a replay path barely moves (%.2f m)" % [name, farthest])
 		var lowest := INF
 		for point in path:
 			lowest = minf(lowest, point.y)
