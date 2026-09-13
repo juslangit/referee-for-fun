@@ -2,10 +2,10 @@ extends Node
 
 ## Can a badminton call actually be reviewed?
 ##
-## The spine's `review()` points `ball_cam` at the landing, and badminton keeps its
-## overhead camera as `shuttle_cam` and never sets `ball_cam`. Badminton's own `_review`,
-## which uses the right camera, is not called by anything. This asks the question straight:
-## at the national championship, where reviews exist, run one and see whether it finishes.
+## The spine's `review()` points `ball_cam` at the landing. Badminton keeps its overhead
+## camera as `shuttle_cam`, and until 2026-09-13 never set `ball_cam`, so every badminton
+## review stopped on its first frame. This asks the question straight: at the national
+## championship, where reviews exist, run one and see whether it finishes.
 
 func _ready() -> void:
 	var hall: Node = load("res://scenes/match.tscn").instantiate()
@@ -34,14 +34,24 @@ func _ready() -> void:
 	var rally: Rally = hall.rally
 	rally.record_call(CallBook.get_call(&"in" if not rally.was_in else &"out"))
 	print("asking for a review of: %s" % rally.describe())
-	var finished := false
+	# A lambda captures a local by value, so a plain `finished = true` inside it never
+	# reached the loop below, and this said NEVER FINISHED even of a review that had.
+	var state := {"finished": false}
 	var run := func() -> void:
 		await hall.review(Sides.Team.RED)
-		finished = true
+		state.finished = true
 	run.call()
-	for f in 600:
+	# A review is REVIEW_SUSPENSE + REVIEW_VERDICT of real time, and headless frames are
+	# not a clock: 600 of them went by before a working review had finished.
+	var started := Time.get_ticks_msec()
+	while not state.finished and Time.get_ticks_msec() - started < 10000:
 		await get_tree().process_frame
-		if finished:
-			break
-	print("the review %s" % ("finished" if finished else "NEVER FINISHED"))
+	print("the review took %.2f s" % ((Time.get_ticks_msec() - started) / 1000.0))
+	print("the review %s" % ("finished" if state.finished else "NEVER FINISHED"))
+	var problems: Array[String] = []
+	if hall.ball_cam != hall.shuttle_cam:
+		problems.append("ball_cam is not badminton's overhead camera")
+	if not state.finished:
+		problems.append("the review never finished")
+	print("PASS" if problems.is_empty() else "FAIL: " + ", ".join(problems))
 	get_tree().quit()

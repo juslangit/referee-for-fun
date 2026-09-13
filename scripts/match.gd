@@ -303,6 +303,9 @@ func _ready() -> void:
 	shuttle_cam = ShuttleCam.new()
 	shuttle_cam.name = "ShuttleCam"
 	add_child(shuttle_cam)
+	# The spine's review looks through `ball_cam`. Badminton's overhead camera is the same
+	# camera under its own name; left unset, every badminton review stopped on its first frame.
+	ball_cam = shuttle_cam
 
 	sound = Sound.new()
 	sound.name = "Sound"
@@ -1371,50 +1374,6 @@ func announce_the_call(call: CallType, against: Sides.Team, winner: Sides.Team) 
 ## as in every other sport, where it used to be a second copy reached another way.
 func can_be_reviewed(r) -> bool:
 	return challenge.reviewable(r)
-
-
-# --- sitting through a review ---------------------------------------------------
-#
-# The wait before the answer is the point of a review: it is the only moment in this
-# game where an umpire has to sit and find out, in public, whether they got away with
-# something. That half of it is not skippable and should not be.
-#
-# The half **after** the answer is just reading a line you have already read, and on the
-# tenth review of a match it is dead time. So that half takes SPACE.
-
-
-## Plays the review out: the challenge, a pause, and then the answer. Returns whether
-## the call was overturned.
-##
-## The pause is not decoration. A review that resolved instantly would be a line of text;
-## the second and a half between the hall asking and the hall finding out is the only
-## time in this game an umpire has to wait to learn whether they got away with it.
-func _review(asked: Sides.Team) -> bool:
-	_reviewing = true
-	var overturned := rally.verdict() == Rally.Verdict.WRONG
-
-	shuttle_cam.aim_at(rally.landing_point)
-	ui.show_review(asked, challenge.remaining(asked), shuttle_cam.texture())
-	sound.react(false)
-	await get_tree().create_timer(REVIEW_SUSPENSE).timeout
-
-	var truth := "IN" if rally.was_in else "OUT"
-	if overturned:
-		ui.set_review_verdict("%s  ·  CALL OVERTURNED" % truth, Color(0.96, 0.42, 0.36))
-	else:
-		ui.set_review_verdict("%s  ·  CALL STANDS" % truth, Color(0.55, 0.85, 0.60))
-
-	challenge.settle(asked, overturned)
-	suspicion.register_review(rally, overturned)
-	sound.react(not overturned)
-	ui.react(Crowd.react_to_review(overturned))
-	the_hall_says(Crowd.said_about_review(overturned))
-
-	ui.set_review_hint("SPACE   ·   carry on")
-	await _wait_or_skip(REVIEW_VERDICT)
-	ui.hide_review()
-	_reviewing = false
-	return overturned
 
 
 func _on_warning_issued() -> void:
