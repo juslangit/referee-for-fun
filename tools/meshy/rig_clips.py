@@ -8,7 +8,7 @@ of the clips the game needs and two it would be a waste of time to key by hand. 
 an animation library for the rest, but nothing in it is badminton — so the shots are
 authored here, on Meshy's own rig, and the result is one file with everything in it.
 
-Reads  assets/meshy/<name>/<name>_rigged.glb  (plus _walking and _running)
+Reads  assets/meshy/<name>/<name>_rigged.glb  (plus _walking, _running and _smash)
 Writes assets/meshy/<name>/<name>_animated.glb
 
 Both sports' clips go into that one file. Badminton's are named for the shot; beach
@@ -93,12 +93,31 @@ def load_character(name):
     return rig
 
 
-def steal_animation(name, suffix, clip_name, rig):
+# The smash is Meshy's own, made from a description by `meshy.py motion smash` and put
+# onto each character's rig by Meshy (`meshy.py animate <name> motion:smash smash`). It
+# is 2.5 s of wind-up, scissor jump, strike and landing; the game starts a shot the
+# instant the racket meets the shuttle, so only the part from just before contact to the
+# landing is kept. Contact is frame 24 of Meshy's clip (the hand at its highest, 2.6 m
+# up), which puts it 6 frames into the trimmed one — the same quarter of a second the
+# hand-keyed smash took, so nothing in the game had to be retimed.
+SMASH_FRAMES = (17.6, 40.8)
+
+# Which of the Hips' location channels carry the journey rather than the body's own
+# rise and fall. On Meshy's rig the Hips bone's Y axis is the world's up: in the smash,
+# channel 0 is 0.8 m of drift to the side, 1 is the 0.65 m jump and 2 is forwards and
+# back.
+HIPS_SIDEWAYS_AND_FORWARDS = (0, 2)
+
+
+def steal_animation(name, suffix, clip_name, rig, frames=None, drop=(0, 1)):
     """Takes one of Meshy's own animations and leaves the rest of the file behind.
 
     An action is only a list of curves addressed by bone name, so once it is in the
     file it plays on any rig with the same bones — and every Meshy export of the same
     character has exactly the same skeleton.
+
+    `frames` keeps only that stretch of the clip, moved to start at frame 0. `drop` is
+    which of the Hips' location channels to throw away.
     """
     path = source(name, suffix)
     if not os.path.exists(path):
@@ -116,6 +135,9 @@ def steal_animation(name, suffix, clip_name, rig):
         print(f"  {suffix} had no animation in it")
         return None
 
+    # A generated motion arrives with a second, near-empty action of a fraction of a
+    # frame beside the real one. The clip is the long one.
+    fresh.sort(key=lambda a: a.frame_range[1] - a.frame_range[0], reverse=True)
     action = fresh[0]
     for spare in fresh[1:]:
         bpy.data.actions.remove(spare)
@@ -125,8 +147,21 @@ def steal_animation(name, suffix, clip_name, rig):
     # at twice the speed. The hips keep their bounce and lose their journey.
     travel = curves(action)
     for curve in list(travel):
-        if curve.data_path.endswith(".location") and curve.array_index in (0, 1):
+        if curve.data_path.endswith(".location") and curve.array_index in drop:
             travel.remove(curve)
+
+    if frames is not None:
+        first, last = frames
+        for curve in travel:
+            points = curve.keyframe_points
+            for index in reversed(range(len(points))):
+                if not first - 0.01 <= points[index].co.x <= last + 0.01:
+                    points.remove(points[index])
+            for point in points:
+                point.co.x -= first
+                point.handle_left.x -= first
+                point.handle_right.x -= first
+        action.frame_range = (0.0, last - first)
 
     action.name = clip_name
     action.use_fake_user = True
@@ -227,9 +262,15 @@ def forge(name):
 
     steal_animation(name, "_walking", "walk", rig)
     steal_animation(name, "_running", "run", rig)
+    meshy_smash = steal_animation(name, "_smash", "smash", rig, frames=SMASH_FRAMES,
+                                  drop=HIPS_SIDEWAYS_AND_FORWARDS)
 
     rig.animation_data_create()
     for clip_name, clip in CLIPS.items():
+        # The hand-keyed smash stays in badminton_clips.py as the fallback for a
+        # character with no Meshy smash file.
+        if clip_name == "smash" and meshy_smash is not None:
+            continue
         build_clip(rig, clip_name, clip)
 
     rig.animation_data.action = None
