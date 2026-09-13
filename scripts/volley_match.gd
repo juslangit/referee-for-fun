@@ -428,16 +428,15 @@ func start_rally() -> void:
 	var server := nearest_of(serving, Vector3(from.x, 0.0, from.z))
 	if server != null:
 		server.position = Vector3(from.x, 0.0, from.z)
-		server.serve_the_ball()
-
-	send_over(from, target, SERVE_ANGLES)
+		server.serve_the_ball(target)
 
 	var receiver := nearest_of(Sides.opponent(serving), target)
 	receiver.chase(target)
 	_phase = Phase.IN_PLAY
 	sound.whistle()
-	sound.strike(from, false)
 	ui.set_prompt("watch it")
+	# The whistle, then the wind-up, then the ball — not all three on one frame.
+	toss_then_serve(from, target, SERVE_ANGLES, Player.VB_SERVE_CONTACT)
 
 
 func _somewhere_in(team: Sides.Team, inset: float) -> Vector3:

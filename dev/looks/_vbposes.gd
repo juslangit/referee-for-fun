@@ -12,7 +12,7 @@ const AT := {
 	"vb_set": 0.45,
 	"vb_spike": 0.38,
 	"vb_block": 0.30,
-	"vb_serve": 0.32,
+	"vb_serve": 0.30,
 }
 
 

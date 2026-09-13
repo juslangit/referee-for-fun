@@ -758,6 +758,37 @@ func send_over(from: Vector3, to: Vector3, angles: Array) -> void:
 	send(from, to, 55.0)
 
 
+## How far below the contact point the server lets go of the toss.
+const VOLLEYBALL_TOSS_BELOW := 0.9
+
+
+## A volleyball serve: the ball tossed out of the server's hand, then hit when their arm
+## gets there.
+##
+## The rally is already IN_PLAY while the ball is up, as it is in the rules — the
+## whistle has gone. `contact_after` is the serve clip's own frame of contact in seconds,
+## and the toss is thrown so that it is back at `from` at exactly that moment, so the ball
+## and the animation agree by construction rather than by being tuned against each
+## other. The same arrangement as tennis's `_toss_it_up`.
+func toss_then_serve(from: Vector3, target: Vector3, angles: Array, contact_after: float) -> void:
+	# Where the ball is going next, set before it is hit. Left pointing at wherever the
+	# last rally ended, a toss that went up near that spot would count as having arrived
+	# there and be dug before anybody had served it.
+	_aim = target
+	var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
+	var fall := 0.5 * gravity * contact_after * contact_after
+	_ball.launch(from - Vector3(0.0, VOLLEYBALL_TOSS_BELOW, 0.0),
+		Vector3(0.0, (VOLLEYBALL_TOSS_BELOW + fall) / contact_after, 0.0))
+	var this_rally = current_rally()
+	# Not process_always, so a pause stops the wind-up along with the ball.
+	await get_tree().create_timer(contact_after, false).timeout
+	# The rally can have been abandoned, paused out of or walked away from meanwhile.
+	if _phase != Phase.IN_PLAY or current_rally() != this_rally:
+		return
+	sound.strike(from, false)
+	send_over(from, target, angles)
+
+
 ## Where a shot's path crosses the plane of the net, in x.
 ##
 ## Exact rather than approximate. Drag acts along the direction of travel, so a ball's

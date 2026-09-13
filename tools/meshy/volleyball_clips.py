@@ -77,6 +77,39 @@ READY = lean({
 }, 18)
 
 
+# The server, upright behind the line with the arms loose. Nobody serves out of the
+# crouch the rest of the rally is played from.
+STANDING = lean({
+    "Spine02": (4, 0, 0),
+    "LeftUpLeg": (-8, 0, -4),
+    "LeftLeg": (14, 0, 0),
+    "RightUpLeg": (-8, 0, 4),
+    "RightLeg": (14, 0, 0),
+    "LeftArm": (0, 70, 0),
+    "LeftForeArm": (0, 0, -10),
+    "RightArm": (0, -70, 0),
+    "RightForeArm": (0, 0, 10),
+}, 4)
+
+
+def _turned(pose, degrees):
+    """Turns the whole body about the vertical, positive to the player's left.
+
+    On the hips, like `lean`, and for the same reason: the spine carries almost none of
+    the torso on this rig. A turn about the vertical through the hips takes the legs
+    round with it but leaves the feet on the floor, which is what a server's feet do.
+    """
+    turned = dict(pose)
+    hips = turned.get("Hips", (0, 0, 0))
+    turned["Hips"] = (hips[0], hips[1], hips[2] + degrees)
+    return turned
+
+
+# vb_serve's frame of contact. Must agree with Player.VB_SERVE_CONTACT, which is this in
+# seconds — the game holds the ball in the air until then.
+SERVE_CONTACT_FRAME = 15
+
+
 # Arms straight and locked together in front, which is the whole shape of a dig. Both
 # elbows go nearly straight — a bent arm is the commonest fault in the sport and it
 # reads instantly as wrong to anybody who has played.
@@ -214,30 +247,70 @@ CLIPS = {
 
     # --- starting it off ---------------------------------------------------------
     #
-    # A standing float serve: ball held up in the off hand, a short step, and a flat
-    # punch through it with a still wrist. No jump, because a jump serve needs the ball
-    # tossed several metres and this rig has nothing to toss.
+    # Luqman's "volleyball 1", made in Meshy's AI motion tool on 2026-09-11. Meshy would
+    # not let the animation itself be downloaded, so this is keyed by hand off a screen
+    # recording of it, pose for pose: the hitting arm cocked with the elbow high and the
+    # hand by the head while the knees dip, straight up through the ball as the body
+    # turns, then flung forward to point at the far court and *held* there — the part of
+    # it that reads from the chair — before it drops and the server squares up again.
+    #
+    # A standing float serve. The ball is tossed out of the left hand at frame 0 and
+    # met on SERVE_CONTACT_FRAME; Player.VB_SERVE_CONTACT is that frame in seconds, and
+    # the game waits exactly that long after the whistle before the ball leaves.
     "vb_serve": {
         "loop": False,
         "keys": [
-            (0, lean(_with(READY,
-                           LeftUpLeg=(-14, 0, -6), RightUpLeg=(-14, 0, 6),
-                           LeftLeg=(28, 0, 0), RightLeg=(28, 0, 0),
-                           LeftArm=(0, -6, -74), LeftForeArm=(0, 0, -34),
-                           RightArm=(0, 34, -54), RightForeArm=(0, 0, -46)), 10)),
-            (7, _with(READY,
-                      LeftUpLeg=(-10, 0, -6), RightUpLeg=(-10, 0, 6),
-                      LeftLeg=(20, 0, 0), RightLeg=(20, 0, 0),
-                      Spine02=(-10, 0, 0), neck=(-10, 0, 0),
-                      LeftArm=(0, 6, -70), LeftForeArm=(0, 0, -40),
-                      RightArm=(0, 86, 14), RightForeArm=(0, 0, -8))),
-            (12, _with(READY,
-                       LeftUpLeg=(-16, 0, -6), RightUpLeg=(-16, 0, 6),
-                       LeftLeg=(30, 0, 0), RightLeg=(30, 0, 0),
-                       Spine02=(10, 0, 0),
-                       LeftArm=(0, 26, -58), LeftForeArm=(0, 0, -44),
-                       RightArm=(0, 6, 62), RightForeArm=(0, 0, 34))),
-            (22, READY),
+            # Ball held out in front in the left hand, hitting arm relaxed and back.
+            (0, _turned(_with(STANDING,
+                              LeftArm=(0, 10, -70), LeftForeArm=(0, 0, -45),
+                              RightArm=(0, -60, -20), RightForeArm=(0, 0, 10)), -10)),
+            # The toss: left hand up and away, the right arm on its way up.
+            (5, _turned(_with(STANDING,
+                              LeftUpLeg=(-12, 0, -4), RightUpLeg=(-12, 0, 4),
+                              LeftLeg=(22, 0, 0), RightLeg=(22, 0, 0),
+                              neck=(-10, 0, 0),
+                              LeftArm=(0, -50, -70), LeftForeArm=(0, 0, -6),
+                              RightArm=(0, 10, -30), RightForeArm=(0, 50, 0)), -18)),
+            # Cocked. Elbow above the shoulder and pulled back, forearm up, hand by the
+            # ear; knees down; eyes on the ball. The pose the recording holds longest
+            # before the swing.
+            (10, _turned(_with(STANDING,
+                               LeftUpLeg=(-18, 0, -4), RightUpLeg=(-18, 0, 4),
+                               LeftLeg=(34, 0, 0), RightLeg=(34, 0, 0),
+                               Spine02=(-6, 0, 0), neck=(-14, 0, 0),
+                               LeftArm=(0, 50, -30), LeftForeArm=(0, 0, -40),
+                               RightArm=(0, 30, -25), RightForeArm=(0, 80, 0)), -25)),
+            # Up through it, legs driving, the turn starting, up on the toes — the ball
+            # is tossed from 2.15–2.25 m, and a flat-footed server's hand does not get
+            # there.
+            (13, _moved(_turned(_with(STANDING,
+                               LeftUpLeg=(-6, 0, -4), RightUpLeg=(-6, 0, 4),
+                               LeftLeg=(10, 0, 0), RightLeg=(10, 0, 0),
+                               Spine02=(-4, 0, 0), neck=(-12, 0, 0),
+                               LeftArm=(0, 55, -15), LeftForeArm=(0, 0, -30),
+                               RightArm=(0, 80, -10), RightForeArm=(0, 30, 0)), -6), 0.06)),
+            # Contact: arm long, just in front of the head.
+            (SERVE_CONTACT_FRAME, _moved(_turned(_with(STANDING,
+                               LeftUpLeg=(-2, 0, -4), RightUpLeg=(-2, 0, 4),
+                               LeftLeg=(4, 0, 0), RightLeg=(4, 0, 0),
+                               neck=(-10, 0, 0),
+                               LeftArm=(0, 55, -5), LeftForeArm=(0, 0, -30),
+                               RightArm=(0, 82, 90), RightForeArm=(0, 0, 2)), 10), 0.10)),
+            # Follow-through: arm straight out at the far court, body turned after it,
+            # the other hand back at the hip.
+            (19, _turned(lean(_with(STANDING,
+                                    LeftArm=(0, 70, 20), LeftForeArm=(0, 0, -30),
+                                    RightArm=(0, 8, 88), RightForeArm=(0, 0, 4)), 8), 30)),
+            # ...and held, which is most of what makes it this animation.
+            (30, _turned(lean(_with(STANDING,
+                                    LeftArm=(0, 70, 22), LeftForeArm=(0, 0, -32),
+                                    RightArm=(0, 2, 86), RightForeArm=(0, 0, 6)), 8), 32)),
+            # The arm drops and the server starts to come back round.
+            (38, _turned(_with(STANDING,
+                               LeftArm=(0, 70, 10), LeftForeArm=(0, 0, -20),
+                               RightArm=(0, -45, 50), RightForeArm=(0, 0, 10)), 20)),
+            # Square again.
+            (50, STANDING),
         ],
     },
 }
