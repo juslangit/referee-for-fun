@@ -42,8 +42,9 @@ func _ready() -> void:
 	print("and every sport's own kit")
 	var missing := 0
 	for sport in Sound.KITS:
-		for which in ["soft", "hard", "land"]:
-			if not ResourceLoader.exists(String(Sound.KITS[sport][which])):
-				missing += 1
+		for which in ["soft", "hard", "land", "net", "steps"]:
+			for path in Sound.KITS[sport].get(which, []):
+				if not ResourceLoader.exists(String(path)):
+					missing += 1
 	print("   files that do not exist: %d   (must be 0)" % missing)
 	get_tree().quit()

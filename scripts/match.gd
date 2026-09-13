@@ -800,7 +800,7 @@ func enter_ready() -> void:
 	# look at in the gap between rallies. It used to happen inside _start_rally, which
 	# meant the four of them snapped into place and the serve went in the same frame.
 	_set_up_the_serve()
-	ui.set_prompt("SPACE  whistle          W  service court          F  cards")
+	ui.set_prompt("SPACE  play          W  service court          F  cards")
 
 	# The hall gets on with having an opinion whether or not anything just happened.
 	if randf() < AMBIENT_CHANCE:
@@ -1491,6 +1491,7 @@ func _weigh_the_debt() -> void:
 
 func _update_score() -> void:
 	ui.set_score(board, serving)
+	hear_the_board()
 	ui.set_reviews(
 		challenge.remaining(Sides.Team.RED),
 		challenge.remaining(Sides.Team.BLUE),
@@ -1507,6 +1508,7 @@ func _on_game_won(team: Sides.Team) -> void:
 	challenge.reset()
 	if board.is_over:
 		return
+	sound.set_won()
 	ui.announce("GAME  ·  %s" % Sides.label(team), Sides.colour(team), 2.6)
 
 

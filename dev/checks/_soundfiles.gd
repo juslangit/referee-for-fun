@@ -18,7 +18,10 @@ const SOURCE := "res://scripts/sound.gd"
 func _ready() -> void:
 	var text := FileAccess.get_file_as_string(SOURCE)
 	var found := RegEx.new()
-	found.compile("res://assets/audio/[A-Za-z0-9_]+\\.(mp3|wav|ogg)")
+	# Folders as well as names. The pattern used to stop at the first slash, so when the
+	# sports' sounds moved into folders on 2026-09-13 every one of them would have been
+	# skipped without a word — the exact silence this check exists to catch.
+	found.compile("res://assets/audio/[A-Za-z0-9_/]+\\.(mp3|wav|ogg)")
 
 	var paths: Array[String] = []
 	for hit in found.search_all(text):

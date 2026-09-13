@@ -158,6 +158,7 @@ func build_the_venue() -> void:
 	_ball.floor_height = BeachCourt.SURFACE_Y
 	add_child(_ball)
 	_ball.landed.connect(_on_ball_landed)
+	_ball.bounced.connect(_on_ball_bounced)
 	_ball.freeze = true
 
 	ball_cam = ShuttleCam.new()
@@ -540,6 +541,13 @@ func _attack(from: Vector3) -> void:
 	sound.strike(from, true)
 	_meet_the_attack(against, from, target)
 	send_over(from, target, [ATTACK_ANGLE, 6.0, 16.0, 28.0])
+
+
+## The bounces after the landing. The landing itself is heard in _on_ball_landed, with
+## the rest of what happens when the ball comes down.
+func _on_ball_bounced(point: Vector3, speed: float, first: bool) -> void:
+	if not first and sound != null:
+		sound.bounce(point, speed)
 
 
 func _on_ball_landed(point: Vector3) -> void:

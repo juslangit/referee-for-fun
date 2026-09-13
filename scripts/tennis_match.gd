@@ -226,6 +226,7 @@ func build_the_venue() -> void:
 	_ball.floor_height = TennisCourt.SURFACE_Y
 	add_child(_ball)
 	_ball.landed.connect(_on_ball_landed)
+	_ball.bounced.connect(_on_ball_bounced)
 	_ball.freeze = true
 
 	ball_cam = ShuttleCam.new()
@@ -383,7 +384,7 @@ func enter_ready() -> void:
 	if _serve_number == 2:
 		ui.set_prompt("SPACE  second serve")
 	else:
-		ui.set_prompt("SPACE  whistle the serve")
+		ui.set_prompt("SPACE  call the score and serve")
 
 
 ## Which side of the centre mark the server stands, and which box they serve into.
@@ -447,8 +448,11 @@ func start_rally() -> void:
 		-side * (TennisSpec.HALF_LENGTH + 0.5)))
 
 	var target := _serve_target()
+	_cord_to_hear = -1.0
 	if rally.clipped_the_cord:
 		target = _drag_it_over_the_cord(target)
+		_cord_to_hear = rally.cord_visibility
+		_server_end = signf(from.z)
 
 	server.serve_for_tennis()
 	sound.whistle()
@@ -572,10 +576,20 @@ func _roll_for_one_fault() -> void:
 
 # --- the point being played -----------------------------------------------------
 
+## A serve that clipped the cord is heard doing it, as it goes over. How plainly, from
+## nought to one, or below nought when there is nothing to hear; and which end it was
+## served from, so the moment it crosses is the moment it changes ends.
+var _cord_to_hear := -1.0
+var _server_end := 0.0
+
+
 func _physics_process(delta: float) -> void:
 	if _phase != Phase.IN_PLAY:
 		return
 	_rally_seconds += delta
+	if _cord_to_hear >= 0.0 and signf(_ball.global_position.z) != _server_end:
+		sound.net_cord(Vector3(_ball.global_position.x, net_height(), 0.0), _cord_to_hear)
+		_cord_to_hear = -1.0
 	if _rally_seconds > RALLY_LIMIT:
 		_end_the_point(_ball.landing_point if _ball.has_landed else _ball.global_position)
 		return
@@ -723,6 +737,12 @@ func _stage_any_incident() -> void:
 	court.shake(0.6)
 
 
+## Every bounce is heard, not only the one the point is decided on. See Sound.bounce.
+func _on_ball_bounced(point: Vector3, speed: float, _first: bool) -> void:
+	if sound != null:
+		sound.bounce(point, speed)
+
+
 func _on_ball_landed(point: Vector3) -> void:
 	if _phase != Phase.IN_PLAY:
 		return
@@ -798,7 +818,6 @@ func _end_the_point(point: Vector3) -> void:
 	_awaiting_since = Time.get_ticks_msec()
 	line_judges_watch(rally.landing_point, rally.margin, rally.was_in)
 	mark_the_landing(rally.landing_point)
-	sound.landing(rally.landing_point)
 	if has_close_cam:
 		ball_cam.aim_at(rally.landing_point)
 		ui.show_close_cam(ball_cam.texture())

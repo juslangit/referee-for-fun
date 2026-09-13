@@ -34,9 +34,10 @@ func _listen(scene: String) -> void:
 	await get_tree().process_frame
 	print("%-10s bed follows suspicion: %-4s   at 0.75 the mix is asked for %.2f" % [
 		sport, "yes" if bed_follows else "NO", arena.sound._wanted_mood])
+	# A ball is heard landing either once, by the match, or on every bounce, by the ball.
 	print("           hears the ball struck: %-4s  hears it land: %s" % [
 		"yes" if _uses(scene, "sound.strike") else "NO",
-		"yes" if _uses(scene, "sound.landing") else "NO"])
+		"yes" if _uses(scene, "sound.landing") or _uses(scene, "sound.bounce") else "NO"])
 
 	arena.queue_free()
 	await get_tree().process_frame

@@ -359,6 +359,8 @@ func _on_match_requested() -> void:
 ## A new set hands both sides their challenges back. Sports with more to reset override
 ## this and call up to it.
 func _on_set_won(_team: Sides.Team) -> void:
+	if not board.is_over:
+		sound.set_won()
 	challenge.reset()
 	show_where_you_stand()
 	_show_reviews()
@@ -383,7 +385,29 @@ func go_ready() -> void:
 		return
 	_phase = Phase.READY
 	ui.set_score(board, serving)
+	hear_the_board()
 	enter_ready()
+
+
+## The score as it last went up on the board, and which board, so that each point is
+## heard going up once — and a new match's 0–0 is not heard as a point.
+var _board_said := ""
+var _board_id := 0
+
+
+## A tick from the hanging board when the score on it has changed. One place for all five
+## sports, called wherever the HUD's score is refreshed after a point.
+func hear_the_board() -> void:
+	if board == null or sound == null:
+		return
+	# Points and games as well as the line: tennis and table tennis give `score_line` only
+	# the sets, which change a few times a match, and the board ticked for none of the
+	# points in between.
+	var now := "%s %s %s" % [board.points, board.games, score_line()]
+	if board.get_instance_id() == _board_id and now != _board_said:
+		sound.scoreboard()
+	_board_id = board.get_instance_id()
+	_board_said = now
 
 
 func _show_reviews() -> void:
@@ -422,7 +446,7 @@ func review(asked: Sides.Team) -> bool:
 
 	ball_cam.aim_at(landing)
 	ui.show_review(asked, challenge.remaining(asked), ball_cam.texture())
-	sound.react(false)
+	sound.review_begins()
 	await get_tree().create_timer(REVIEW_SUSPENSE).timeout
 
 	if overturned:
@@ -432,6 +456,7 @@ func review(asked: Sides.Team) -> bool:
 
 	challenge.settle(asked, overturned)
 	suspicion.register_review_judgement(seen, leaned, overturned)
+	sound.review_answer(overturned)
 	sound.react(not overturned)
 	ui.react(Crowd.react_to_review(overturned))
 	the_hall_says(Crowd.said_about_review(overturned))
@@ -574,6 +599,8 @@ func close_the_night(headline: String, detail: String, tint: Color, removed: boo
 	if _closing:
 		return
 	_closing = true
+	if sound != null:
+		sound.match_over(removed)
 	var in_the_paper := removed or (career != null and career.is_over)
 	# Everything the paper knows is read now, before anything waits.
 	var story: Dictionary = Newspaper.story(_what_the_papers_know(removed, venue_name)) \
