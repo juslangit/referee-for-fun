@@ -83,13 +83,14 @@ const METER_SHAKY := 0.30
 var _root: Control
 var _hud: Control
 
-## The sports, in the order they appear. Five of them are games; the last one is here
-## because saying out loud what is coming is more honest than pretending it is finished.
+## The sports, in the order they appear. Every card is a photograph of this game,
+## rendered by dev/looks/_cards.gd.
 ##
-## The finished sports are photographs of this game, rendered by dev/looks/_cards.gd. The
-## one that is not built yet is a public-domain Olympic pictogram — see
-## assets/ui/ATTRIBUTION.md. That split is the whole point of the row: a real picture
-## means a sport you can actually walk into.
+## A sport that is not built yet can still sit in the row with "ready": false — it is
+## drawn dim, with COMING SOON under the name, and its art should be one of the
+## public-domain Olympic pictograms in assets/ui/ (see ATTRIBUTION.md), so a real picture
+## always means a sport you can actually walk into. Basketball sat here like that until
+## 2026-09-11 and was taken out: it needs a referee who walks, not one in a chair.
 const SPORTS := [
 	{"id": &"badminton", "name": "Badminton", "art": "res://assets/ui/card_badminton.png",
 		"tint": Color(0.16, 0.44, 0.30), "ready": true},
@@ -103,8 +104,6 @@ const SPORTS := [
 	{"id": &"table_tennis", "name": "Table Tennis",
 		"art": "res://assets/ui/card_tabletennis.png",
 		"tint": Color(0.60, 0.34, 0.16), "ready": true},
-	{"id": &"basketball", "name": "Basketball", "art": "res://assets/ui/sport_basketball.png",
-		"tint": Color(0.56, 0.22, 0.24), "ready": false},
 ]
 
 ## How big one card is. Tall, like the reference — a sport reads better as a portrait of
@@ -348,9 +347,8 @@ func show_main_menu(career: Career) -> void:
 
 ## The row of sports. One card each: a picture, and the name under it.
 ##
-## Only badminton opens. The rest are drawn dim with COMING SOON across them, which is
-## the honest version of a full screen — the alternative was one card on its own, and a
-## menu that asks you to choose between one thing is not really asking.
+## Every sport in SPORTS gets a card. One marked not ready is drawn dim with COMING SOON
+## under its name and cannot be pressed.
 func _build_sport_menu() -> void:
 	var built := _build_sheet("SportMenu", Color(0.03, 0.04, 0.06, 0.55))
 	_sport_menu = built[0]
@@ -360,7 +358,7 @@ func _build_sport_menu() -> void:
 	column.add_child(_make_label("WHICH SPORT?", TITLE_SIZE, UiTheme.CHALK))
 	column.add_child(_gap(6))
 	column.add_child(_make_label(
-		"Five of them are ready. The last is on its way.",
+		"Five sports. One name to keep across all of them.",
 		PROMPT_SIZE, UiTheme.MUTED
 	))
 	column.add_child(_gap(22))
