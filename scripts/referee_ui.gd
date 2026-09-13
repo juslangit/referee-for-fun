@@ -216,6 +216,11 @@ func _ready() -> void:
 	_build_newspaper()
 	_briefing.visible = false
 
+	# Last of all, so every button above is already in the tree when it starts listening.
+	var clicks := UiSound.new()
+	clicks.name = "UiSound"
+	add_child(clicks)
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	# Escape closes the pause menu. It has to be handled here rather than in the
@@ -614,7 +619,7 @@ const BADMINTON_LESSONS := [
 			+ "happened. You will.\n\n"
 			+ "You can tell the truth. Nothing here requires you to.",
 		"keys": [
-			["SPACE", "whistle the rally in"],
+			["SPACE", "call the score and play"],
 			["LEFT CLICK", "in"],
 			["RIGHT CLICK", "out"],
 			["L", "let — play it again"],
@@ -675,7 +680,7 @@ const BADMINTON_LESSONS := [
 			+ "them are level with each other, somebody is in the wrong box, and the "
 			+ "server's score tells you which.\n\n"
 			+ "When somebody gets that wrong, press W.\n\n"
-			+ "Say it before you whistle and the serve is simply taken again. Say it "
+			+ "Say it before you call play and the serve is simply taken again. Say it "
 			+ "after the rally and it is too late to undo anything: the error is "
 			+ "corrected and the score stands, exactly as the law has it.\n\n"
 			+ "This one cannot win anybody a point, which makes it the only call here "

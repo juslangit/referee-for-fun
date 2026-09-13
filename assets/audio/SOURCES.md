@@ -21,10 +21,12 @@ To fetch the originals again:
     sfx get 813420 --name hit_volley_hard  # volleyball spike
     sfx get 653920                         # crowd bed, calm   (the game uses the mp3 preview)
     sfx get 868982                         # crowd bed, tense  (the game uses the mp3 preview)
-    sfx pack impact-sounds                 # Kenney, for footstep_wood_000.ogg
+    sfx pack impact-sounds                 # Kenney, for the wood and court footsteps
+    sfx pack interface-sounds              # Kenney, for the menus, the board and the review
 
 Each original is then converted to 16-bit 48 kHz WAV with the `afconvert` that ships with
-macOS — there is no ffmpeg on this machine — and copied up under the name in the tables:
+macOS and copied up under the name in the tables (everything added since 2026-09-13 is cut
+with ffmpeg by `tools/audio/cut_sounds.py` instead, which fetches its own originals):
 
     afconvert -f WAVE -d LEI16@48000 --src-complexity bats <original>.wav <name>.wav
 
@@ -57,29 +59,77 @@ The sports used to share one set of eight files, so a shuttlecock landing was al
 volleyball hitting sand and a tennis ball hitting a hard court. They are completely
 different noises and the surface is half of what a landing tells you.
 
+**Since 2026-09-13 every sound here is a recording.** The badminton and table tennis
+sounds built by `tools/audio/make_sounds.py` were the last placeholders and are gone.
+Everything cut out of a longer recording is cut by `tools/audio/cut_sounds.py`, which
+names the Freesound id, where in the recording the event is and how long to keep, and
+fetches the original if it is missing:
+
+    python3 tools/audio/cut_sounds.py
+
+That script is also how the tennis bounce was found to be wrong: `land_hardcourt.wav` had
+been copied up whole, and the whole recording is **three** bounces — so every tennis
+landing in the game bounced three times. It is cut to one now, three ways.
+
 | File | Used by | Source |
 |---|---|---|
-| `shuttle_land.wav` | badminton — a shuttle stops dead | CC0 |
+| `badminton/badminton_hit_soft.wav` | badminton — a clear or a drop | Badminton.wav by PerMagnusLindborg (#324244), CC0 |
+| `badminton/badminton_hit_hard.wav` | badminton — a smash | Badminton hit by 14FPanskaBubik_Lukas (#418533), with the racket swish of SWSH_Badminton Racquet_Recording_02 by JW_Audio (#838767) laid under it, both CC0 |
+| `badminton/badminton_land.wav` | badminton — a shuttle landing on its cork | cork_drops.wav by DirectD3D (#555240), CC0, softened |
 | `land_sand.wav` | beach volleyball | Fs_Sand_01 by renandosanjos (#854616), CC0 |
-| `land_wood.ogg` | indoor volleyball | Kenney impact-sounds, CC0 |
-| `land_hardcourt.wav` | tennis | Sports Tennis Ball Bouncing by amsaenz03 (#788264), CC0 |
-| `hit_soft.wav`, `hit_hard.wav` | badminton racket | CC0 |
-| `hit_volley_hard.wav` | a volleyball spiked | Volleyball spike by Luisa_Sanchez (**#813420**), CC0 |
+| `volleyball/indoor_land_1.wav`, `_2` | indoor volleyball — a ball on a sprung wooden floor | Bouncing Basketball by DigPro120 (#859910), CC0, raised a little for a lighter ball |
+| `volleyball/volley_hit_soft_1.wav`, `_2` | both volleyballs — a forearm pass and a set | 09_Volleyball outdoor hit-2 by 16HPanskaResatko_Matej (#497968), CC0 |
+| `hit_volley_hard.wav` | both volleyballs — a spike | Volleyball spike by Luisa_Sanchez (**#813420**), CC0 |
 | `hit_tennis.wav` | a tennis racket | Tennis-Ball-Hit by kletton97 (#710041), CC0 |
-| `hit_pingpong.wav` | a bat | built by `tools/audio/make_sounds.py` — our own work |
-| `land_pingpong.wav` | the tabletop | built by `tools/audio/make_sounds.py` — our own work |
+| `tennis/tennis_land_1.wav`, `_2`, `_3` | tennis — one bounce each | Sports Tennis Ball Bouncing by amsaenz03 (#788264), CC0 |
+| `tennis/tennis_net_cord.wav` | tennis — a serve clipping the cord | Net Impact Tennis Ball Smacks Bounces by amsaenz03 (#788265), CC0 |
+| `table_tennis/tt_hit_1.wav` | a bat | Ping pong hit by 14FPanskaBubik_Lukas (#418556), CC0 |
+| `table_tennis/tt_hit_2.wav` | a bat | Ping pong ball hit by michorvath (#269718), CC0 |
+| `table_tennis/tt_bounce_1.wav`, `_2` | the tabletop, and the edge ball | Dropping ping pong ball on table by giddster (#414460), CC0 |
+| `table_tennis/tt_net.wav` | a serve clipping the net | #788265 again, raised in pitch for a ball a tenth of the mass |
 
-The two table tennis sounds are **generated rather than downloaded**, which is the only
-place in this folder that is true. A ping pong ball is a hollow celluloid sphere and it
-**rings** — everybody who has heard the sport can hum the note — so it is built as a
-damped sine rather than the burst of filtered noise that is the whole truth of every
-other ball here. The CC0 recordings that exist are all several seconds of a rally, and
-there is no ffmpeg on this machine to cut a single hit out of one.
+The **edge ball** has no file of its own. A ball off the top edge and a ball off the side
+sound almost the same — that is the call — so both are the table bounce, played a
+fraction higher for the top edge and lower and flatter for the side. See `Sound.edge`.
 
-The two are deliberately close to each other and deliberately not the same. In this
-sport the bat and the table make almost the same noise, which is exactly why the edge
-ball — a click off the top versus a click off the side, two centimetres apart — is the
-call the whole sport is built around.
+## Feet
+
+| File | Used by | Source |
+|---|---|---|
+| `steps/step_wood_1.ogg` … `_4` | badminton, indoor volleyball, table tennis | Kenney impact-sounds, `footstep_wood_000`–`003`, CC0 |
+| `steps/step_court_1.ogg` … `_4` | tennis, on a hard court | Kenney impact-sounds, `footstep_concrete_000`–`003`, CC0 |
+| `steps/step_sand_1.wav` … `_5` | beach volleyball | Steps_Fine_Snow_Or_Sand_Strong 19, 22, 24, 25, 27 by BlondPanda (#778557, #778561, #778563, #778564, #778566), CC0 |
+| `steps/squeak_1.wav` | a shoe stopping — every indoor court sport, and tennis | Rubber Shoe Squeak by baidonovan (#187343), CC0 |
+| `steps/squeak_2.wav` | the same | basketball shoes by conradts (#190558), CC0 |
+
+## The room outside the rally, and the menus
+
+| File | What it is | Source |
+|---|---|---|
+| `hall/scoreboard_tick.ogg` | the hanging board changing after a point | Kenney interface-sounds `tick_001`, CC0 |
+| `hall/set_cheer.mp3` | a set or a game won | Crowd Cheer 3 by Krizin (#651641), CC0 |
+| `hall/match_cheer.mp3` | the match won | Crowd Cheer 7 by Krizin (#651644), CC0 |
+| `hall/removed_boo.mp3` | the umpire taken off the match | JM_AMB_INT_Crowd Sport 01 - Booing by Julien_Matthey (#557189), CC0 |
+| `hall/review_open.ogg` | a review coming up on the big screen | Kenney interface-sounds `maximize_006`, CC0 |
+| `hall/review_oooh.mp3` | the hall drawing its breath for it | Crowd Oooh (#324890), CC0 |
+| `hall/review_stands.ogg` | the call stands | Kenney interface-sounds `confirmation_001`, CC0 |
+| `hall/review_overturned.ogg` | the call is overturned | Kenney interface-sounds `error_006`, CC0 |
+| `ui/ui_hover.ogg` | the pointer onto a button | Kenney interface-sounds `tick_002`, CC0 |
+| `ui/ui_press.ogg` | a button pressed | Kenney interface-sounds `click_001`, CC0 |
+
+The four crowd files are mp3 at 192 kbps rather than WAV — eight seconds of 48 kHz stereo
+is 1.5 MB as a WAV — and not Ogg, because the Homebrew ffmpeg has only its experimental
+Vorbis encoder and Godot will not import Opus.
+
+## Who makes which noise
+
+Decided with Luqman on 2026-09-13, by how each sport is really officiated:
+
+- **Only volleyball's referee blows a whistle.** Tennis, badminton and table tennis
+  umpires start a point with their voice. `Sound.whistle()` is still called everywhere
+  a point starts; the sport's kit decides whether anything is heard.
+- **Only tennis and badminton line judges shout OUT.** A volleyball line judge signals
+  with a flag, and table tennis has no line judges at all.
 
 ## Quality
 

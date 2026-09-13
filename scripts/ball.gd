@@ -17,6 +17,15 @@ extends RigidBody3D
 
 signal landed(point: Vector3)
 
+## Every time it comes up off the surface — the landing and each bounce after it — with
+## how fast it arrived. `landed` is the truth and fires once; this is the noise, and in
+## tennis and table tennis the ball makes it on nearly every stroke. Emitted after
+## `landed`, so whoever hears it already knows what the landing was.
+##
+## Not emitted for a crossing that did not bounce: a table tennis ball that misses the
+## table passes through the height of the tabletop and carries on to the floor.
+signal bounced(point: Vector3, speed: float, first: bool)
+
 ## FIVB: 260 to 280 grams, 66 to 68 cm around. These are the defaults; a subclass sets
 ## its own before _ready runs, which is how the tennis ball exists without a second copy
 ## of the flight code.
@@ -183,7 +192,9 @@ func _check_for_landing() -> void:
 	# moving, which volleyball ignores and tennis has to keep watching: the second
 	# bounce is what ends a point.
 	if bounces > 1:
+		var arriving := linear_velocity.length()
 		_bounce_again()
+		_report_bounce(contact, arriving, false)
 		return
 	landing_point = Vector3(contact.x, floor_height, contact.z)
 	landing_speed = linear_velocity.length()
@@ -195,6 +206,13 @@ func _check_for_landing() -> void:
 	global_position = landing_point + Vector3(0.0, radius, 0.0)
 	_bounce_again()
 	landed.emit(landing_point)
+	_report_bounce(landing_point, landing_speed, true)
+
+
+func _report_bounce(where: Vector3, speed: float, first: bool) -> void:
+	if linear_velocity.y <= 0.0:
+		return
+	bounced.emit(where, speed, first)
 
 
 ## The point is over: give the ball a moment and then stop it where it lies.

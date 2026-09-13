@@ -18,6 +18,9 @@ const BODY_RADIUS := 0.22
 ## legs, which is true to life and completely useless for judging a line.
 const PEOPLE_LAYER := 2
 
+## Everybody playing, so the hall can hear their feet. See Sound._physics_process.
+const GROUP := &"athletes"
+
 ## Highest and lowest a shuttle can be and still be hit. The top of the range is an
 ## overhead smash; the bottom is a scrambling lift off the floor.
 const HIGHEST_STRIKE := 2.85
@@ -92,6 +95,7 @@ func setup(for_team: Sides.Team, home_position: Vector3) -> void:
 	home = home_position
 	position = home_position
 	_destination = home_position
+	add_to_group(GROUP)
 	_build_body()
 
 

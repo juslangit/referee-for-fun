@@ -252,6 +252,7 @@ func build_the_venue() -> void:
 	_ball.floor_height = TableTennisSpec.HEIGHT
 	add_child(_ball)
 	_ball.landed.connect(_on_ball_landed)
+	_ball.bounced.connect(_on_ball_bounced)
 	_ball.freeze = true
 
 	ball_cam = ShuttleCam.new()
@@ -539,10 +540,23 @@ func _roll_for_one_fault() -> void:
 
 # --- the point being played -----------------------------------------------------
 
+## A serve that clipped the net is heard doing it, as it goes over. The same as tennis's
+## cord: how plainly, or below nought for nothing to hear, and the end it came from.
+var _net_to_hear := -1.0
+var _server_end := 0.0
+
+## The physics frame an edge ball was heard on, so the bounce that comes with it in the
+## same frame is not heard as well.
+var _edge_heard_on := -1
+
+
 func _physics_process(delta: float) -> void:
 	if _phase != Phase.IN_PLAY:
 		return
 	_rally_seconds += delta
+	if _net_to_hear >= 0.0 and signf(_ball.global_position.z) != _server_end:
+		sound.net_cord(Vector3(_ball.global_position.x, net_height(), 0.0), _net_to_hear)
+		_net_to_hear = -1.0
 	if _rally_seconds > RALLY_LIMIT:
 		_end_the_point(_ball.landing_point if _ball.has_landed else _ball.global_position)
 		return
@@ -652,6 +666,15 @@ func _stage_any_incident() -> void:
 		Vector3(offender.position.x, 0.0, 0.0), culprit), 0.7)
 
 
+## Every bounce is heard, on the table and off it. See Sound.bounce.
+func _on_ball_bounced(point: Vector3, speed: float, first: bool) -> void:
+	if sound == null:
+		return
+	if first and _edge_heard_on == Engine.get_physics_frames():
+		return
+	sound.bounce(point, speed)
+
+
 func _on_ball_landed(point: Vector3) -> void:
 	if _phase != Phase.IN_PLAY:
 		return
@@ -665,6 +688,13 @@ func _on_ball_landed(point: Vector3) -> void:
 			if _aimed_to_end or not TableTennisSpec.is_in(point):
 				_aimed_to_end = true
 				_end_the_point(point)
+
+	# The edge is heard as the edge. Only a landing the point stopped for has been
+	# measured against it — a ball played on was never asked — and a ball off the side
+	# does not bounce, so without this it would make no sound at all.
+	if rally != null and rally.clipped_the_edge and sound != null:
+		sound.edge(point, TableTennisSpec.margin(point) >= 0.0)
+		_edge_heard_on = Engine.get_physics_frames()
 
 
 ## The serve's first bounce, on the server's own half, and then over.
@@ -686,6 +716,8 @@ func _the_serve_bounced_at_home(point: Vector3) -> void:
 	var target := _serve_lands_at
 	if rally.clipped_the_net:
 		target = _drag_it_over_the_net(target)
+		_net_to_hear = rally.net_visibility
+		_server_end = signf(point.z)
 	send_over(Vector3(point.x, TableTennisSpec.HEIGHT + 0.06, point.z),
 		target, SERVE_ANGLES)
 
@@ -749,7 +781,6 @@ func _end_the_point(point: Vector3) -> void:
 	_phase = Phase.AWAITING_CALL
 	_awaiting_since = Time.get_ticks_msec()
 	mark_the_landing(rally.landing_point)
-	sound.landing(rally.landing_point)
 	if has_close_cam:
 		ball_cam.aim_at(rally.landing_point)
 		ui.show_close_cam(ball_cam.texture())

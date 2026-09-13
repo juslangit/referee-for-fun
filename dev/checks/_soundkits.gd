@@ -19,11 +19,11 @@ func _ready() -> void:
 	print()
 	var missing := 0
 	for sport in Sound.KITS:
-		for which in ["soft", "hard", "land"]:
-			var path: String = Sound.KITS[sport][which]
-			if not ResourceLoader.exists(path):
-				print("   MISSING  %s / %s  ->  %s" % [sport, which, path])
-				missing += 1
+		for which in ["soft", "hard", "land", "net", "steps"]:
+			for path in Sound.KITS[sport].get(which, []):
+				if not ResourceLoader.exists(String(path)):
+					print("   MISSING  %s / %s  ->  %s" % [sport, which, path])
+					missing += 1
 	print("files that do not exist: %d   (must be 0)" % missing)
 
 	print()
@@ -44,5 +44,9 @@ func _ready() -> void:
 	get_tree().quit()
 
 
+## Every file the sport can pick from, since each is a list now and one is chosen per hit.
 func _name(hall: Sound, which: String) -> String:
-	return hall._from_kit(which).get_file()
+	var names: Array[String] = []
+	for path in hall._kit().get(which, []):
+		names.append(String(path).get_file().get_basename())
+	return ", ".join(names)

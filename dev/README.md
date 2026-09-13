@@ -36,6 +36,7 @@ The ones worth keeping in mind:
 | `_menus` | The three front-of-game screens. |
 | `_seat`, `_layout`, `_close` | The hall from the chair, from above, and up close. `TIER=0..2` picks the venue. |
 | `_card`, `_courtmap` | Regenerate the artwork in `assets/ui/`. |
+| `_everysound` | Does everything that happens make its own sound, in all five sports? Plays real points and counts what the hall was asked to play: bounces between strokes, feet, the net cord, the edge ball, the scoreboard, a review, a set, the end of the match and a menu click — and that the whistle is only heard in volleyball and the OUT shout only in tennis and badminton. `RALLIES=12`. Puts the career save back. |
 | `_soundwiring` | Is the room audible in every sport? Checks the crowd bed follows suspicion and that the ball is heard being struck and landing. Both volleyballs shipped without any of it. |
 | `_servelaw` | Can a serve struck below 1.15 m still clear the net and reach the service box, and does each of the three service faults price correctly called, missed and invented? |
 | `_worstcalls` | Does the end-of-match replay keep the right calls, show all of them, and give way to the result — and does the paper come out when, and only when, the umpire was taken off or the career ended? All five sports, plus every combination of facts the paper can print, checked for pronouns and trademarks. Puts the career save back afterwards. |

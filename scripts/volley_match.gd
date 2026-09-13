@@ -128,6 +128,7 @@ func build_the_venue() -> void:
 	_ball.floor_height = VolleyCourt.SURFACE_Y
 	add_child(_ball)
 	_ball.landed.connect(_on_ball_landed)
+	_ball.bounced.connect(_on_ball_bounced)
 	_ball.freeze = true
 
 	ball_cam = ShuttleCam.new()
@@ -629,6 +630,13 @@ func _meet_the_attack(defending: Sides.Team, from: Vector3, target: Vector3) -> 
 
 func _is_front_row_player(team: Sides.Team, player: Player) -> bool:
 	return not _is_back_row(team, player)
+
+
+## The bounces after the landing. The landing itself is heard in _on_ball_landed, with
+## the rest of what happens when the ball comes down.
+func _on_ball_bounced(point: Vector3, speed: float, first: bool) -> void:
+	if not first and sound != null:
+		sound.bounce(point, speed)
 
 
 func _on_ball_landed(point: Vector3) -> void:

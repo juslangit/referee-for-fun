@@ -12,7 +12,7 @@ func _ready() -> void:
 	await get_tree().physics_frame
 	arena.ui.hide_menus()
 	arena._umpire_view()
-	arena.ui.set_prompt("SPACE  whistle          W  service court          F  cards")
+	arena.ui.set_prompt("SPACE  play          W  service court          F  cards")
 
 	# RED serving at nought, so the right-hand court is correct.
 	arena.board = Scoreboard.new(false)
