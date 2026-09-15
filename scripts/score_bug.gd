@@ -75,7 +75,8 @@ func use_sport(which: StringName) -> void:
 ## Read by RefereeUI, which also has to move the commentary out of the way of it.
 func corner() -> int:
 	match sport:
-		Career.BADMINTON: return Control.PRESET_TOP_LEFT
+		# ISTAF's world feed puts sepak takraw's bug top left, as the BWF does badminton's.
+		Career.BADMINTON, Career.TAKRAW: return Control.PRESET_TOP_LEFT
 		Career.BEACH, Career.INDOOR: return Control.PRESET_CENTER_BOTTOM
 		_: return Control.PRESET_BOTTOM_LEFT
 
@@ -429,7 +430,7 @@ func _what_one_point_wins(board: Scoreboard, team: Sides.Team) -> String:
 
 	if board.games[team] + 1 >= board.games_needed:
 		return "MATCH POINT"
-	return "SET POINT" if layout == Layout.STRIP else "GAME POINT"
+	return "SET POINT" if layout == Layout.STRIP or sport == Career.TAKRAW else "GAME POINT"
 
 
 func show_reviews(red: int, blue: int, enabled: bool) -> void:
@@ -476,6 +477,11 @@ class ServeMark extends Control:
 				draw_colored_polygon(PackedVector2Array([
 					c + Vector2(r, -r), c + Vector2(r, r), c + Vector2(-r * 0.8, 0)]),
 					UiTheme.ACCENT)
+			Career.TAKRAW:
+				# ISTAF's feed marks the serving team with a small orange arrow.
+				draw_colored_polygon(PackedVector2Array([
+					c + Vector2(-r * 0.8, -r), c + Vector2(-r * 0.8, r), c + Vector2(r, 0)]),
+					Color(1.0, 0.55, 0.10))
 			_:
 				draw_circle(c, r, Color.WHITE)
 				draw_arc(c, r, 0.0, TAU, 20, UiTheme.INK, 2.0)

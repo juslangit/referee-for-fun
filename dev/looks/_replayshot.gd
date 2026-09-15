@@ -7,7 +7,7 @@ extends Node
 ## off the match, and photographs four moments: the ball in flight, the close view with the
 ## truth under it, the result, and the paper.
 ##
-##   SPORT   badminton (default), beach, indoor, tennis, table_tennis
+##   SPORT   badminton (default), beach, indoor, tennis, table_tennis, takraw
 ##   TIER    which rung of the ladder (default 2 — below the rungs with reviews)
 ##   PAGE    front for a career that ends here, anything else for the inside page
 
@@ -19,6 +19,7 @@ const SCENES := {
 	"indoor": ["res://scenes/volleyball.tscn", Career.INDOOR],
 	"tennis": ["res://scenes/tennis.tscn", Career.TENNIS],
 	"table_tennis": ["res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
+	"takraw": ["res://scenes/sepak_takraw.tscn", Career.TAKRAW],
 }
 
 
@@ -45,6 +46,7 @@ func _ready() -> void:
 	arena.settings.taught_indoor = true
 	arena.settings.taught_tennis = true
 	arena.settings.taught_table_tennis = true
+	arena.settings.taught_takraw = true
 	if id == Career.BADMINTON:
 		arena._on_match_requested()
 		if arena.pressure.exists():

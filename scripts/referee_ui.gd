@@ -116,12 +116,21 @@ const SPORTS := [
 		"art": "res://assets/ui/card_tabletennis.png",
 		"portrait": "res://assets/ui/portrait_tabletennis.png",
 		"band": Color(0.74, 0.34, 0.22), "tint": Color(0.60, 0.34, 0.16), "ready": true},
+	# Drawn alone on 2026-09-15 with the sheet as its style reference, and fitted to the
+	# sheet's framing by tools/ui/prepare_art.gd.
+	{"id": &"takraw", "name": "Sepak Takraw",
+		"art": "res://assets/ui/card_takraw.png",
+		"portrait": "res://assets/ui/portrait_takraw.png",
+		"band": Color(0.80, 0.62, 0.08), "tint": Color(0.62, 0.48, 0.06), "ready": true},
 ]
 
 ## How big one card is on the sport screen. Tall — a sport reads better as a portrait of
 ## somebody playing it than as a square. On the title screen the tiles stretch to fill
 ## the row instead, so the five always span the screen whatever size the window is.
-const CARD := Vector2(270.0, 440.0)
+##
+## Narrowed when the sixth sport arrived: six cards and their gaps have to fit a 1280-pixel
+## window, which is the smallest the game is played in.
+const CARD := Vector2(184.0, 340.0)
 
 ## Which part of a portrait a tile shows: from just above the head down past the hands, so
 ## the racket, ball or bat that says which sport it is stays in the picture.
@@ -597,7 +606,7 @@ func _build_sport_menu() -> void:
 	column.add_child(_make_label("WHICH SPORT?", TITLE_SIZE, UiTheme.CHALK))
 	column.add_child(_gap(6))
 	column.add_child(_make_label(
-		"Five sports. One name to keep across all of them.",
+		"Six sports. One name to keep across all of them.",
 		PROMPT_SIZE, UiTheme.MUTED
 	))
 	column.add_child(_gap(22))
@@ -646,16 +655,24 @@ func show_format_menu(sport: StringName) -> void:
 		"%s" % Career.name_of(sport).to_upper(), TITLE_SIZE, UiTheme.CHALK))
 	_format_column.add_child(_gap(6))
 	_format_column.add_child(_make_label(
-		"One a side or two? They are different jobs.", PROMPT_SIZE, UiTheme.MUTED))
+		"Three a side or two? They are different jobs." if sport == Career.TAKRAW
+			else "One a side or two? They are different jobs.", PROMPT_SIZE, UiTheme.MUTED))
 	_format_column.add_child(_gap(20))
 
 	var singles := "the narrow court, and the server's score says which box"
 	var doubles := "the full width, and a serving order to keep track of"
+	var first_word := "SINGLES"
 	if sport == Career.TENNIS:
 		singles = "the narrow court — the tramlines are out"
 		doubles = "the tramlines are live, except on the serve"
+	elif sport == Career.TAKRAW:
+		# Sepak takraw's "one a side" does not exist. Its two formats are regu, three a side
+		# with a tekong serving from a circle, and doubles, served from behind the back line.
+		first_word = "REGU"
+		singles = "three a side — the tekong's foot in the circle, two at the net"
+		doubles = "two a side — served from behind the back line, partners take turns"
 
-	_format_column.add_child(_centred(_make_wide_button("SINGLES", func() -> void:
+	_format_column.add_child(_centred(_make_wide_button(first_word, func() -> void:
 		format_chosen.emit(false))))
 	_format_column.add_child(_make_label(singles, PROMPT_SIZE - 2, UiTheme.MUTED))
 	_format_column.add_child(_gap(10))
@@ -718,8 +735,15 @@ func _sport_card(sport: Dictionary, yours := false) -> Button:
 	name_row.add_theme_constant_override("separation", 10)
 	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	band.add_child(name_row)
-	var caption := UiTheme.label(String(sport["name"]).to_upper(), UiTheme.BODY,
+	# Two names are too long for a card six can fit across a 1280 window, and a name cut to
+	# "SEPAK TAKR..." is worse than a name a size smaller.
+	var letters := String(sport["name"]).length()
+	var name_size := UiTheme.BODY if letters <= 11 else (UiTheme.SMALL - 2 if letters <= 13 else UiTheme.SMALL - 7)
+	var caption := UiTheme.label(String(sport["name"]).to_upper(), name_size,
 		Color.WHITE if ready else UiTheme.MUTED, UiTheme.heavy())
+	# Every band the same height whatever size its name is set in.
+	caption.custom_minimum_size.y = UiTheme.BODY * 1.75
+	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	caption.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	caption.clip_text = true
@@ -1214,6 +1238,84 @@ const INDOOR_LESSONS := [
 ]
 
 
+## Sepak takraw's lesson. The job it teaches that no other sport has is the serve: the feet in
+## the circles, judged before the ball has even been kicked.
+const TAKRAW_LESSONS := [
+	{
+		"title": "THE JOB",
+		"body": "You are the referee, on the tall chair beside the net.\n\n"
+			+ "Sepak takraw is played with the feet, the knees, the chest and the head. Three "
+			+ "a side in regu, two in doubles, up to three touches a side, and the attack is a "
+			+ "bicycle kick over a net lower than a badminton net.\n\n"
+			+ "There is no whistle in this sport. You call the score out loud, and the serving "
+			+ "side may not throw the ball until you have.",
+		"keys": [
+			["SPACE", "call the score"],
+			["LEFT CLICK", "in"],
+			["RIGHT CLICK", "out"],
+			["T", "touched the block"],
+			["F", "a fault"],
+			["ESC", "pause"],
+		],
+	},
+	{
+		"title": "THE SERVE",
+		"body": "In regu, look DOWN before you look at the ball.\n\n"
+			+ "The tekong, the server, stands at the back with the standing foot in the "
+			+ "SERVICE CIRCLE. It must stay inside the circle and on the floor until the other "
+			+ "foot kicks the ball.\n\n"
+			+ "The two inside players stand at the net, each in a QUARTER CIRCLE. One of them "
+			+ "throws the ball to the tekong. While it is thrown, neither may lift a foot or "
+			+ "step on their line.\n\n"
+			+ "A foot out of its circle is SERVICE FAULT for the tekong and INSIDE FAULT for "
+			+ "the inside players. The receiving side may stand anywhere.\n\n"
+			+ "In doubles there are no circles: the server throws to himself from behind the "
+			+ "back line and must not touch it, and the partner must keep still with their arms "
+			+ "down.",
+	},
+	{
+		"title": "FAULTS",
+		"body": "Press F, then say who did it.\n\n"
+			+ "ARM — the ball touched an arm or a hand, anywhere from the shoulder down. Their "
+			+ "arms are out for balance on every kick, so look for the ball changing direction.\n"
+			+ "NET — any part of a player touched the net, a post or your chair.\n"
+			+ "CROSSING — a player's body went into the other court, over or under the net. "
+			+ "Following through after a kick is allowed; landing over there is not.\n"
+			+ "FOUR TOUCHES — one side played it more than three times. One player may take "
+			+ "all three.\n\n"
+			+ "TOUCH is for a spike that goes out off a blocker's back or legs: their point "
+			+ "lost, not the attacker's.",
+	},
+	{
+		"title": "THE SCORE",
+		"body": "Every rally is a point. A set is won at 15.\n\n"
+			+ "At 14-14 you announce SETTING UP TO SEVENTEEN, and the first side to 17 wins. "
+			+ "There is no two-point lead in this sport: 17-16 wins a set.\n\n"
+			+ "The serve changes sides after EVERY point, whoever wins it. Best of three sets.\n\n"
+			+ "From the takraw league up, the benches can challenge your line and service "
+			+ "calls on video.",
+	},
+	{
+		"title": "YOUR NAME",
+		"body": "Nothing in this game counts your mistakes for you. What you get while you "
+			+ "referee is the room — how it sounds, and whether it comes out of its seats — "
+			+ "and one number, which is this one.\n\n"
+			+ "REPUTATION is your name, out of a hundred, and it follows you from match to "
+			+ "match and from sport to sport. It is the only thing here that outlives the "
+			+ "match it happened in.\n\n"
+			+ "The bar appears at the bottom of the screen ONLY WHEN IT MOVES, for about three "
+			+ "seconds, and then it is gone. It catches your eye at the moment a call has just "
+			+ "cost you something, which is the only moment worth knowing about. It falls when "
+			+ "you are wrong and creeps back up when you referee cleanly.\n\n"
+			+ "It does not tell you whether anybody BELIEVED a particular call — nothing will "
+			+ "ever tell you that. It tells you what the night has cost you so far.\n\n"
+			+ "A foot you invented out of a circle costs more than a close line call, because "
+			+ "everybody in the hall can look at where the foot was.\n\n"
+			+ "Run it down to nothing and nobody will appoint you again.",
+	},
+]
+
+
 ## Tennis's lesson, and the only one in the game that has to teach a *scoring system*
 ## before it can teach a call — because in this sport what a call costs depends entirely
 ## on what the score was when you made it.
@@ -1436,6 +1538,7 @@ func show_teaching(sport := Career.BADMINTON) -> void:
 		Career.INDOOR: _lessons = INDOOR_LESSONS
 		Career.TENNIS: _lessons = TENNIS_LESSONS
 		Career.TABLE_TENNIS: _lessons = TABLE_TENNIS_LESSONS
+		Career.TAKRAW: _lessons = TAKRAW_LESSONS
 		_: _lessons = BADMINTON_LESSONS
 	_arrive(AT_TEACHING)
 	if _hud != null:
@@ -2566,7 +2669,7 @@ func show_career(career: Career) -> void:
 ## number; these are the four things it is spent on.
 func _add_the_other_ladders(career: Career, into: VBoxContainer) -> void:
 	into.add_child(UiTheme.label(
-		"ONE NAME, FIVE LADDERS", UiTheme.SMALL, UiTheme.ACCENT, UiTheme.heavy()))
+		"ONE NAME, SIX LADDERS", UiTheme.SMALL, UiTheme.ACCENT, UiTheme.heavy()))
 
 	# A grid rather than padded strings: the columns used to be lined up with spaces, which
 	# only ever worked in a font where every letter is the same width.

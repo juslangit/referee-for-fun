@@ -2,7 +2,7 @@ extends Node
 
 ## The career screen with every ladder on it.
 ##
-## One official, one reputation, four separate licences. Until now each sport's screen
+## One official, one reputation, six separate licences. Until now each sport's screen
 ## showed only its own ladder, so the fact that a disaster at the beach is waiting for
 ## you at the badminton hall was something a player had to work out for themselves.
 
@@ -25,6 +25,9 @@ func _ready() -> void:
 	career.sport = Career.INDOOR
 	career.tier = 0
 	career.matches_at_tier = 0
+	career.sport = Career.TAKRAW
+	career.tier = 1
+	career.matches_at_tier = 1
 	# Tennis deliberately untouched, so the screen has to say so without starting one.
 	career.grudge_name = "Wibowo"
 	career.sport = Career.BADMINTON

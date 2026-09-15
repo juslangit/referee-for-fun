@@ -32,6 +32,7 @@ from badminton_clips import BONES, FPS, MOVE  # noqa: E402
 from badminton_clips import CLIPS as BADMINTON_CLIPS  # noqa: E402
 from volleyball_clips import CLIPS as VOLLEYBALL_CLIPS  # noqa: E402
 from tennis_clips import CLIPS as TENNIS_CLIPS  # noqa: E402
+from takraw_clips import CLIPS as TAKRAW_CLIPS  # noqa: E402
 
 # Both sports go into one character.
 #
@@ -39,8 +40,10 @@ from tennis_clips import CLIPS as TENNIS_CLIPS  # noqa: E402
 # per sport would mean two copies of a seven-megabyte mesh to keep in step. The
 # volleyball clips are all prefixed `vb_`, so nothing collides — which matters most for
 # the word "serve", which both sports have and mean completely different things by.
+# Tennis's are `tn_` and sepak takraw's `st_` for the same reason.
 CLIPS = dict(BADMINTON_CLIPS)
-for _name, _clip in list(VOLLEYBALL_CLIPS.items()) + list(TENNIS_CLIPS.items()):
+for _name, _clip in (list(VOLLEYBALL_CLIPS.items()) + list(TENNIS_CLIPS.items())
+                     + list(TAKRAW_CLIPS.items())):
     if _name in CLIPS:
         raise SystemExit(f"clip name {_name} is claimed by both sports")
     CLIPS[_name] = _clip

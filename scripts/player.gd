@@ -304,6 +304,67 @@ const RACKET_UP_SECONDS := 1.1
 var _racket_upside_down := 0.0
 
 
+# --- sepak takraw ----------------------------------------------------------------
+#
+# Played with the feet, the knees, the chest and the head, and never the arms — so in
+# every one of these the arms are out to the sides for balance, and the only clip with
+# hands on the ball is the throw that starts a rally. They carry the st_ prefix, for the
+# same reason the volleyball clips carry vb_.
+
+## When the kicking foot meets the ball in `st_serve`: frame 13 at 24 fps. Keyed in
+## tools/meshy/takraw_clips.py as ST_SERVE_CONTACT_FRAME, and the two must agree.
+const ST_SERVE_CONTACT := 13.0 / 24.0
+
+## When the foot meets the ball in `st_spike`, at the top of the jump: frame 14, keyed
+## as ST_SPIKE_CONTACT_FRAME.
+const ST_SPIKE_CONTACT := 14.0 / 24.0
+
+
+## The tekong's serve: the top of the foot, at chest height, off one planted leg.
+##
+## Facing `toward` and planted for the whole clip, like `serve_the_ball`, and for a
+## better reason than looks: the standing foot leaving the floor before the kick lands is
+## the fault this serve is judged on, and a server sliding towards their home position
+## mid-kick would look exactly like one.
+func takraw_serve(toward: Vector3) -> void:
+	face(toward)
+	_play("st_serve", true)
+	if _animator != null and _animator.has_animation("st_serve"):
+		_planted_left = _animator.get_animation("st_serve").length
+
+
+## An inside player's underarm toss to the tekong, with both hands. The one time in the
+## sport anybody is meant to touch the ball with them.
+func takraw_throw() -> void:
+	_play("st_throw", true)
+
+
+## The first touch: sepak sila, the inside of the foot at knee height.
+func takraw_receive() -> void:
+	_play("st_receive", true)
+
+
+## Up onto the toes and through the ball with the forehead.
+func takraw_header() -> void:
+	_play("st_header", true)
+
+
+## The feeder's set near the net: the same sila, with the foot up at the waist.
+func takraw_set() -> void:
+	_play("st_set", true)
+
+
+## The roll spike: off one leg, over onto the back, and the other foot over the top.
+func takraw_spike() -> void:
+	_play("st_spike", true)
+
+
+## Back to the net and up, arched over the tape with the arms folded in. A blocker who
+## puts a hand up has committed a fault, so nobody here does.
+func takraw_block() -> void:
+	_play("st_block", true)
+
+
 ## Sitting down, which is what players do at a changeover and nothing has ever asked
 ## them to do. The clip has been on the character all along.
 func sit_down() -> void:

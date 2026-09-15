@@ -2,6 +2,8 @@ extends Node
 
 ## Do the volleyball line judges give an official cover?
 ##
+## Asked of sepak takraw's line judges as well, whose rally is the beach rally underneath.
+##
 ## Having them on court is the visible half. The half that matters is the pricing: in
 ## badminton, agreeing with a line judge who has just got one wrong halves what the
 ## mistake costs, and contradicting one costs 1.6 times. Both volleyballs were missing
@@ -14,7 +16,7 @@ extends Node
 func _ready() -> void:
 	print("%-34s %-10s %s" % ["the same wrong call, when...", "costs", "against a bare"])
 	print()
-	for sport in ["beach", "indoor"]:
+	for sport in ["beach", "indoor", "takraw"]:
 		_three_ways(sport)
 	get_tree().quit()
 
@@ -35,16 +37,25 @@ func _three_ways(sport: String) -> void:
 
 ## One visibly wrong line call, priced by a fresh Suspicion so nothing carries over.
 func _cost(sport: String, judge_called: bool, judge_agreed: bool) -> float:
-	var rally: BeachRally = VolleyRally.new() if sport == "indoor" else BeachRally.new()
+	var rally: BeachRally = BeachRally.new()
+	var book = BeachCallBook
+	var end_line := 8.0
+	match sport:
+		"indoor":
+			rally = VolleyRally.new()
+			book = VolleyCallBook
+			end_line = 9.0
+		"takraw":
+			rally = TakrawRally.new()
+			book = TakrawCallBook
+			end_line = TakrawSpec.HALF_LENGTH
 	rally.served_by = Sides.Team.RED
 	rally.struck_by = Sides.Team.RED
 	rally.receiving = Sides.Team.BLUE
 	# A ball 60 cm past the end line, given IN. Plainly wrong, and nothing else about
 	# the rally is unusual.
-	rally.record_landing(Vector3(0.0, 0.0, 9.6 if sport == "indoor" else 8.6),
-		Sides.Team.BLUE)
-	rally.record_call(
-		(VolleyCallBook if sport == "indoor" else BeachCallBook).get_call(&"in"))
+	rally.record_landing(Vector3(0.0, 0.0, end_line + 0.6), Sides.Team.BLUE)
+	rally.record_call(book.get_call(&"in"))
 	rally.line_judge_called = judge_called
 	# The judge is asked about the same ball, so agreeing means saying OUT — which is
 	# what the official then contradicted or echoed.

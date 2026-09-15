@@ -8,7 +8,7 @@ extends Node
 
 func _ready() -> void:
 	print("%-12s %-34s %-34s %s" % ["sport", "a soft contact", "a hard one", "the landing"])
-	for sport in [&"badminton", &"beach", &"indoor", &"tennis", &"table_tennis"]:
+	for sport in [&"badminton", &"beach", &"indoor", &"tennis", &"table_tennis", &"takraw"]:
 		var hall := Sound.new()
 		hall.kit = sport
 		add_child(hall)
@@ -33,6 +33,7 @@ func _ready() -> void:
 		["indoor", "res://scenes/volleyball.tscn"],
 		["tennis", "res://scenes/tennis.tscn"],
 		["table tennis", "res://scenes/table_tennis.tscn"],
+		["takraw", "res://scenes/sepak_takraw.tscn"],
 	]:
 		var arena: Node = load(entry[1]).instantiate()
 		arena.print_truth_while_testing = false

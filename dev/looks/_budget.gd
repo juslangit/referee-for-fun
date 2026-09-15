@@ -17,6 +17,7 @@ const SCENES := {
 	"indoor": ["res://scenes/volleyball.tscn", Career.INDOOR],
 	"tennis": ["res://scenes/tennis.tscn", Career.TENNIS],
 	"table_tennis": ["res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
+	"takraw": ["res://scenes/sepak_takraw.tscn", Career.TAKRAW],
 }
 
 var _faces := {}
@@ -48,6 +49,7 @@ func _count(sport: String, tier: int) -> void:
 	arena.settings.taught_indoor = true
 	arena.settings.taught_tennis = true
 	arena.settings.taught_table_tennis = true
+	arena.settings.taught_takraw = true
 	if sport == "badminton":
 		arena._on_match_requested()
 		if arena.pressure.exists():

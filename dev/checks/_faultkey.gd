@@ -5,9 +5,11 @@ extends Node
 ## This was the stall Luqman hit. Both prompts offered F, neither had wired it, so an
 ## official who wanted to call a fault had nothing that worked — and SPACE did nothing
 ## either, because the game was still waiting for the call that could not be made.
+## Sepak takraw's prompt offers F as well, and its book has a NET call by the same id.
 
 func _ready() -> void:
-	for scene in ["res://scenes/beach.tscn", "res://scenes/volleyball.tscn"]:
+	for scene in ["res://scenes/beach.tscn", "res://scenes/volleyball.tscn",
+			"res://scenes/sepak_takraw.tscn"]:
 		await _try(scene)
 	get_tree().quit()
 
@@ -19,9 +21,12 @@ func _try(scene: String) -> void:
 	await get_tree().physics_frame
 
 	var beach: bool = scene.ends_with("beach.tscn")
+	var takraw: bool = scene.ends_with("sepak_takraw.tscn")
 	arena.career = Career.new()
-	arena.career.sport = Career.BEACH if beach else Career.INDOOR
-	if beach:
+	arena.career.sport = Career.TAKRAW if takraw else (Career.BEACH if beach else Career.INDOOR)
+	if takraw:
+		arena.settings.taught_takraw = true
+	elif beach:
 		arena.settings.taught_beach = true
 	else:
 		arena.settings.taught_indoor = true
@@ -34,7 +39,7 @@ func _try(scene: String) -> void:
 	for f in 4:
 		await get_tree().process_frame
 
-	print("=== %s" % ("beach" if beach else "indoor"))
+	print("=== %s" % ("takraw" if takraw else ("beach" if beach else "indoor")))
 	arena.start_rally()
 	var waited := 0
 	while arena._phase != arena.Phase.AWAITING_CALL and waited < 4000:
@@ -45,7 +50,7 @@ func _try(scene: String) -> void:
 	await get_tree().process_frame
 	print("  F opens the panel: %s" % ("yes" if arena.ui.is_fault_panel_open() else "NO"))
 	print("  it offers: %s" % ", ".join(_offered(arena)))
-	print("  cards offered: %s  (neither sport prices them)" % (
+	print("  cards offered: %s  (none of these sports prices them)" % (
 		"YES" if arena.ui.offers_cards else "no"))
 
 	# Point at somebody, the way the panel does.
