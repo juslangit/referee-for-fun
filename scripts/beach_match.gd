@@ -186,6 +186,24 @@ func line_judge_spots() -> Array:
 	]
 
 
+## Beach volleyball's director. See BeachCutscene.
+func make_cutscene() -> Cutscene:
+	return BeachCutscene.new()
+
+
+## "2 sets to 0   ·   21–15  21–18", the winner's points first in every set.
+func result_words(winner: Sides.Team) -> String:
+	if board == null:
+		return ""
+	var loser := Sides.opponent(winner)
+	var sets: Array[String] = []
+	for points in board.finished_sets:
+		sets.append("%d\u2013%d" % [points[winner], points[loser]])
+	var won := "%d set%s to %d" % [board.games[winner], "" if board.games[winner] == 1 else "s",
+		board.games[loser]]
+	return won + ("   ·   " + "  ".join(sets) if not sets.is_empty() else "")
+
+
 func dress_the_venue(venue: Dictionary) -> void:
 	court.dress(venue["dressing"], venue["crowd"])
 
