@@ -27,7 +27,7 @@ extends Node3D
 
 signal done
 
-var arena: BadmintonMatch
+var arena: OfficiatedMatch
 var skipped := false
 
 ## Who won the walk-on's toss, and so serves first. Kept for the checks, which have to be
