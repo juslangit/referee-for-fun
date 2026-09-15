@@ -778,6 +778,8 @@ func show_card(against: Sides.Team, red: bool) -> void:
 	)
 	ui.react(Crowd.react_to_card(red), 3.4)
 	the_hall_says(Crowd.said_about_card(red))
+	if commentary != null:
+		commentary.on_card()
 
 	if print_truth_while_testing:
 		print("[truth, testing only] %s card on %s for nothing  |  suspicion %.3f lean %+.2f" % [
@@ -1427,6 +1429,8 @@ func can_be_reviewed(r) -> bool:
 
 
 func _on_warning_issued() -> void:
+	if commentary != null:
+		commentary.on_warning()
 	ui.show_banner("THE TOURNAMENT REFEREE HAS BEEN CALLED")
 	ui.react("the tournament referee walks to the side of the court and sits down", 5.0)
 

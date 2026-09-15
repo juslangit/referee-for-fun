@@ -90,6 +90,9 @@ var _phase := Phase.MENU:
 var _reviewing := false
 var _awaiting_since := 0
 
+## The broadcast. Made the first time a match begins; see `Commentary`.
+var commentary: Commentary
+
 ## How many calls this official has made in this match. Only used to decide whether
 ## leaving costs anything: before the first call there is nothing to answer for.
 var calls_made := 0
@@ -246,6 +249,8 @@ func _ready() -> void:
 
 
 func _on_warning() -> void:
+	if commentary != null:
+		commentary.on_warning()
 	ui.show_banner("THE MATCH REFEREE HAS BEEN CALLED")
 	ui.react("the match referee comes over and stands by the post", 5.0)
 
@@ -382,12 +387,29 @@ func begin_match(_unused := Sides.Team.NONE) -> void:
 	worst_calls = WorstCalls.new()
 	camera.set_active(true)
 	_start_watching_reputation()
+	_the_broadcast_starts()
 	go_ready()
+
+
+## Here and not in `_ready`, because badminton's `_ready` does not call up to the spine's
+## and its `begin_match` does. Every sport passes through this.
+func _the_broadcast_starts() -> void:
+	if commentary == null:
+		commentary = Commentary.new()
+		commentary.name = "Commentary"
+		add_child(commentary)
+	commentary.ui = ui
+	var venue_name := ""
+	if career != null:
+		venue_name = String(career.venue()["name"])
+	commentary.open_match(career, sport(), venue_name)
 
 
 func go_ready() -> void:
 	if suspicion.is_removed or board.is_over:
 		return
+	if commentary != null and calls_made > 0:
+		commentary.between_points(suspicion.mood)
 	_phase = Phase.READY
 	ui.set_score(board, serving)
 	hear_the_board()
@@ -465,6 +487,8 @@ func review(asked: Sides.Team) -> bool:
 	sound.react(not overturned)
 	ui.react(Crowd.react_to_review(overturned))
 	the_hall_says(Crowd.said_about_review(overturned))
+	if commentary != null:
+		commentary.on_review(overturned)
 
 	ui.set_review_hint("SPACE   ·   carry on")
 	await _wait_or_skip(REVIEW_VERDICT)
@@ -606,6 +630,11 @@ func close_the_night(headline: String, detail: String, tint: Color, removed: boo
 	_closing = true
 	if sound != null:
 		sound.match_over(removed)
+	# Aisha's verdict goes on the result screen: the HUD is gone by the time anybody reads
+	# a caption, and the last word is worth reading.
+	if commentary != null:
+		commentary.stop()
+		detail += "\n\n" + commentary.last_word(removed, suspicion.mood)
 	var in_the_paper := removed or (career != null and career.is_over)
 	# Everything the paper knows is read now, before anything waits.
 	var story: Dictionary = Newspaper.story(_what_the_papers_know(removed, venue_name)) \
@@ -1022,12 +1051,17 @@ func judge(call: CallType, against: Sides.Team) -> void:
 	# And the room coming round, which outranks both. It is rarer than either of them —
 	# it takes a bad patch and then a clean run to earn — and it is the only approving
 	# thing anybody in this game ever says.
-	if suspicion.the_room_comes_round():
+	var came_round := suspicion.the_room_comes_round()
+	if came_round:
 		reaction = Crowd.react_to_recovery()
 		shout = Crowd.said_about_recovery()
 		_they_acknowledge_you()
 	ui.react(reaction)
 	the_hall_says(shout)
+	# The broadcast is handed exactly what the hall was, and nothing it was not.
+	if commentary != null:
+		commentary.on_call(rally.visibility(), suspicion.mood, was_wrong,
+			rally.seconds_to_call, rally.overrules_line_judge(), came_round)
 	_show_reviews()
 
 	if print_truth_while_testing:
