@@ -194,9 +194,56 @@ CUTSCENES = [
       ("Moved up", "On CONTINUE after a promotion", [
          ("cut_table_tennis_moved_up_02.5", "2.5 s", "From table height …"),
          ("cut_table_tennis_moved_up_06.5", "6.5 s", "… up over the barriers of the new venue.")])]),
+    ("cutscenes-indoor", "Indoor volleyball", "Built 2026-09-15, waiting for Luqman's review",
+     "FIVB Refereeing Guidelines and Instructions (2024), International Playing Protocol, and the Official Volleyball Rules 2025-2028.",
+     [("Rule 7.1", "The 1st referee carries out the toss in front of the scorer's table, with both captains."),
+      ("Protocol", "The teams line up on the end lines; at the whistle they walk forward and shake hands with their opposite number at the net."),
+      ("Protocol", "The referees are presented in the middle of the court by the net; the 1st referee then goes to the stand."),
+      ("After", "The teams come along the sidelines to shake the referees' hands, then along the net with their opponents."),
+      ("Delegate", "Removing a referee would fall to the Game Technical Delegate."),
+      ("Not shown", "The 2nd referee: this game has only the 1st referee in play.")],
+     [("Walk-on", "Before the first service", [
+         ("cut_indoor_walk_on_04.5", "4.5 s", "The toss with both captains, before the warm-up."),
+         ("cut_indoor_walk_on_10.0", "10.0 s", "The teams on the end lines."),
+         ("cut_indoor_walk_on_12.5", "12.5 s", "At the whistle, forward to shake hands under the net."),
+         ("cut_indoor_walk_on_17.0", "17.0 s", "The first referee presented."),
+         ("cut_indoor_walk_on_19.5", "19.5 s", "On the stand: the whistle for the first service.")]),
+      ("Match won", "After the last point", [
+         ("cut_indoor_match_won_01.5", "1.5 s", "RED win, with every set's score."),
+         ("cut_indoor_match_won_06.0", "6.0 s", "The teams come to the referee in front of the stand."),
+         ("cut_indoor_match_won_08.5", "8.5 s", "And along the net with their opponents.")]),
+      ("Taken off", "When the hall has had enough", [
+         ("cut_indoor_taken_off_04.0", "4.0 s", "The Technical Delegate walks to the stand."),
+         ("cut_indoor_taken_off_06.5", "6.5 s", "Down from the stand and pointed off."),
+         ("cut_indoor_taken_off_10.5", "10.5 s", "Walked off court.")]),
+      ("Moved up", "On CONTINUE after a promotion", [
+         ("cut_indoor_moved_up_06.5", "6.5 s", "The new hall, from the floor to above the court.")])]),
+    ("cutscenes-beach", "Beach volleyball", "Built 2026-09-15, waiting for Luqman's review",
+     "FIVB Beach Volleyball Refereeing Guidelines and Instructions (2023), Official Match Protocol.",
+     [("-5 min", "Coin toss in front of the scorer's table."),
+      ("-1 min", "The 1st referee to the referee's chair; each player announced and entering onto the rear of the court."),
+      ("0 min", "After the last entry, the whistle and a handshake under the net."),
+      ("End", "Hands shaken with opponents and referees near the 1st referee's chair, then across the court to the scorer's table."),
+      ("Delegate", "Removing a referee belongs to the FIVB Technical Delegate."),
+      ("Not shown", "The 2nd referee, as indoors.")],
+     [("Walk-on", "Before the first service", [
+         ("cut_beach_walk_on_04.5", "4.5 s", "The coin toss, five minutes before play."),
+         ("cut_beach_walk_on_12.5", "12.5 s", "Each player announced onto the rear of the court."),
+         ("cut_beach_walk_on_14.5", "14.5 s", "The whistle, and hands shaken under the net."),
+         ("cut_beach_walk_on_19.5", "19.5 s", "RED to serve, from the referee's stand.")]),
+      ("Match won", "After the last point", [
+         ("cut_beach_match_won_03.5", "3.5 s", "RED win: 2 sets to 0 and each set's score."),
+         ("cut_beach_match_won_08.5", "8.5 s", "Handshakes by the referee's chair."),
+         ("cut_beach_match_won_11.0", "11.0 s", "Then across the court to the scorer's table.")]),
+      ("Taken off", "When the crowd has had enough", [
+         ("cut_beach_taken_off_04.0", "4.0 s", "The Technical Delegate comes to the stand."),
+         ("cut_beach_taken_off_08.5", "8.5 s", "Pointed off."),
+         ("cut_beach_taken_off_10.5", "10.5 s", "Walked off the sand.")]),
+      ("Moved up", "On CONTINUE after a promotion", [
+         ("cut_beach_moved_up_06.5", "6.5 s", "The new venue, from the sand up over the stands.")])]),
 ]
 
-CUTSCENES_TO_COME = ["Indoor volleyball", "Beach volleyball"]
+CUTSCENES_TO_COME = []
 
 # The knowledge base, in reading order. (id, title, file, fold level) — sections at the fold
 # level fold away, so a 96 KB decision log can still be skimmed by its headings.
@@ -476,7 +523,7 @@ def history():
 PIPELINE = [
     ("Idea", "What is the game about, and what must it never do?", "01-idea.md, asked of Luqman before building"),
     ("Plan", "Scope, phases, risks, and the order things get built in.", "02-planning.md"),
-    ("Research", "How the real sport does it, from its governing body's own documents (BWF and ITF so far).", "07-references.md"),
+    ("Research", "How the real sport does it, from its governing body's own documents: BWF, ITF, ITTF and FIVB.", "07-references.md"),
     ("Build", "GDScript in Godot 4.7.2; characters and clips in Blender; motion from Meshy; props from Sketchfab; sound through sfx.", "scripts/, tools/"),
     ("Check", "Headless scenes that end in PASS or FAIL, including the negative case.", "dev/checks/"),
     ("Look", "Screenshots at exact moments, read back and judged by eye.", "dev/looks/, dev/shots/"),
@@ -573,7 +620,7 @@ def page():
 <section class="chapter" id="cutscenes">
   <p class="kicker">The four moments the chair cannot show</p>
   <h2>Cutscenes</h2>
-  <p class="lede">Walk-on, match won, taken off and moved up, shot like television and skippable with SPACE. Every sport follows its own governing body's real procedure. Still to come: {html.escape(to_come)}.</p>
+  <p class="lede">Walk-on, match won, taken off and moved up, shot like television and skippable with SPACE. Every sport follows its own governing body's real procedure.{(" Still to come: " + html.escape(to_come) + ".") if to_come else ""}</p>
   {"".join(parts)}
 </section>''')
 
