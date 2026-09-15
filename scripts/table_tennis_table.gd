@@ -31,11 +31,15 @@ const EYE_HEIGHT := 1.25
 const CHAIR_LAYER := 4
 
 var stands: Stands
+## The event round the table: see EventDressing.
+var event: EventDressing
 
 var _top_material: StandardMaterial3D
 var _line_material: StandardMaterial3D
 var _net_material: StandardMaterial3D
 var _frame_material: StandardMaterial3D
+var _floor_material: StandardMaterial3D
+var _barrier_material: StandardMaterial3D
 
 var _net_parts: Array[MeshInstance3D] = []
 var _net_rest: Array[Vector3] = []
@@ -72,8 +76,9 @@ func _make_material(colour: Color) -> StandardMaterial3D:
 
 
 func _build_floor() -> void:
+	_floor_material = _make_material(Color(0.36, 0.16, 0.13))
 	_add_box("Floor", Vector3(BARRIER_X * 2.4, 0.02, BARRIER_Z * 2.4),
-		Vector3(0.0, 0.01, 0.0), _make_material(Color(0.36, 0.16, 0.13)))
+		Vector3(0.0, 0.01, 0.0), _floor_material)
 
 
 func _build_table() -> void:
@@ -165,7 +170,8 @@ func _build_net() -> void:
 
 
 func _build_barriers() -> void:
-	var barrier := _make_material(Color(0.10, 0.18, 0.34))
+	_barrier_material = _make_material(Color(0.10, 0.18, 0.34))
+	var barrier := _barrier_material
 	# A dark surround behind the barriers, which every table tennis venue has and no
 	# other venue in this game does. It is in the rules rather than the decor: the ball
 	# is white and 40 mm across, and against a bright wall or a window nobody can follow
@@ -217,6 +223,12 @@ func _build_stands() -> void:
 	stands.seat_spacing = 0.80
 	add_child(stands)
 
+	event = EventDressing.new()
+	event.name = "Event"
+	event.layout = EventLayouts.table_tennis()
+	event.stands = stands
+	add_child(event)
+
 
 func _add_box(name: String, size: Vector3, at: Vector3,
 		material: StandardMaterial3D) -> MeshInstance3D:
@@ -252,6 +264,10 @@ func dress(tier: Venue.Tier, density: float) -> void:
 		return
 	stands.dress(tier)
 	stands.set_density(density)
+	# After the crowd, because the flags in it are held by people who are actually there.
+	event.dress(tier)
+	event.apply_paint("floor", _floor_material)
+	event.apply_paint("barrier", _barrier_material)
 
 
 func cheer() -> void:

@@ -304,6 +304,27 @@ func set_density(density: float) -> void:
 
 ## Where one row of one side sits. The near side is pushed out past the second court,
 ## so the two sides cannot share a number any more.
+## Where `count` of the people actually in the stands are sitting, spread through the crowd,
+## in this node's space: for the flags and banners somebody holds up. Only the people shown at
+## the present density are counted, so a thin crowd never holds a flag over an empty seat.
+func held_up_spots(count: int) -> Array[Transform3D]:
+	var present: Array[Transform3D] = []
+	for group in _crowds.size():
+		var shown: int = _crowds[group].multimesh.visible_instance_count
+		var slice: Array = _crowd_seats[group]
+		for i in mini(shown, slice.size()):
+			present.append(slice[i])
+	var spots: Array[Transform3D] = []
+	if present.is_empty() or count <= 0:
+		return spots
+	var step := maxf(1.0, float(present.size()) / float(count))
+	var i := 0.0
+	while int(i) < present.size() and spots.size() < count:
+		spots.append(present[int(i)])
+		i += step
+	return spots
+
+
 func _row_x(side: float, row: int) -> float:
 	var start := far_row_x if side > 0.0 else near_row_x
 	return side * (start + row_depth * (float(row) + 0.5))

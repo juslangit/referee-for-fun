@@ -204,6 +204,10 @@ func result_words(winner: Sides.Team) -> String:
 	return won + ("   ·   " + "  ".join(sets) if not sets.is_empty() else "")
 
 
+func event_dressing() -> EventDressing:
+	return court.event if court != null else null
+
+
 func dress_the_venue(venue: Dictionary) -> void:
 	court.dress(venue["dressing"], venue["crowd"])
 

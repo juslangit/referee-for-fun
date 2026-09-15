@@ -467,6 +467,23 @@ func _on_set_won(_team: Sides.Team) -> void:
 	show_where_you_stand()
 	_show_reviews()
 	ui.set_score(board, serving)
+	_score_on_the_big_screen()
+
+
+## The event round the court, for the sports that have one. See EventDressing.
+func event_dressing() -> EventDressing:
+	return null
+
+
+## The score on the hall's big screen, which says what the umpire has just decided to the
+## whole building. Tennis shows the games, because a point in tennis is 15, 30, 40 and the
+## screen in a real stadium carries the games; everything else shows the points.
+func _score_on_the_big_screen() -> void:
+	var event := event_dressing()
+	if event == null or board == null:
+		return
+	var tally: Dictionary = board.games if board is TennisScore else board.points
+	event.set_score("%d  -  %d" % [tally[Sides.Team.RED], tally[Sides.Team.BLUE]])
 
 
 ## Out to the chair. Every route into a match ends here.
@@ -504,6 +521,7 @@ func go_ready() -> void:
 		commentary.between_points(suspicion.mood)
 	_phase = Phase.READY
 	ui.set_score(board, serving)
+	_score_on_the_big_screen()
 	hear_the_board()
 	enter_ready()
 

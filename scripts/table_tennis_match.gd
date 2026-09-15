@@ -280,6 +280,10 @@ func result_words(winner: Sides.Team) -> String:
 		Sides.label(winner), board.games[winner], board.games[Sides.opponent(winner)]]
 
 
+func event_dressing() -> EventDressing:
+	return table.event if table != null else null
+
+
 func dress_the_venue(venue: Dictionary) -> void:
 	table.dress(venue["dressing"], venue["crowd"])
 
