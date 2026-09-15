@@ -39,6 +39,9 @@ var games := {Sides.Team.RED: 0, Sides.Team.BLUE: 0}
 var is_over := false
 var winner := Sides.Team.NONE
 
+## Every finished game or set's points, in order, for reading a result out: "25–21, 22–25".
+var finished_sets: Array[Dictionary] = []
+
 
 func _init(quick := false) -> void:
 	if quick:
@@ -60,6 +63,7 @@ func award(team: Sides.Team) -> void:
 		return
 
 	games[team] += 1
+	finished_sets.append(points.duplicate())
 	game_won.emit(team)
 
 	if games[team] >= games_needed:
