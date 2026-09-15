@@ -8,6 +8,11 @@ work goes on. So this is a generator rather than a hand-written page: the projec
 the source of truth, and the page is rebuilt from them.
 
     python3 tools/docs/build_docs.py
+    python3 tools/docs/build_docs.py --artifact <file.html>   # also a copy to publish
+
+The published copy lives at https://claude.ai/artifact/5RFDt8VibddRtUcPvy65o8. Publish the
+--artifact copy to that URL (the Artifact tool's `url`) so the link never changes; that copy
+drops the <html>/<head>/<body> wrapper, which the publisher adds itself.
 
 Reads:
     ~/.claude/knowledge/projects/referee-for-fun/*.md and log/*.md   (override: KNOWLEDGE=...)
@@ -752,9 +757,21 @@ openTarget();
 """
 
 
+def publishable(document):
+    document = re.sub(r"^<!doctype html>\s*<html[^>]*>\s*<head>\s*", "", document, flags=re.I)
+    document = re.sub(r'<meta charset="utf-8">\s*<meta name="viewport"[^>]*>\s*', "", document)
+    return document.replace("</head>\n<body>\n", "", 1).replace("</body>\n</html>\n", "")
+
+
 if __name__ == "__main__":
+    import sys
     OUT.parent.mkdir(exist_ok=True)
-    OUT.write_text(page())
+    document = page()
+    OUT.write_text(document)
+    if "--artifact" in sys.argv:
+        target = pathlib.Path(sys.argv[sys.argv.index("--artifact") + 1])
+        target.write_text(publishable(document))
+        print(f"wrote {target} for publishing")
     size = OUT.stat().st_size / 1024 / 1024
     print(f"wrote {OUT.relative_to(PROJECT)}  ({size:.1f} MB)")
     if missing:
