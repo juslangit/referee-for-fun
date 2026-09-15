@@ -49,6 +49,9 @@ const TIEBREAK_TARGET := 7
 var sets := {Sides.Team.RED: 0, Sides.Team.BLUE: 0}
 var sets_needed := 2
 
+## Every finished set's games, in order, for reading the result out: "6–4, 3–6, 7–5".
+var finished_sets: Array[Dictionary] = []
+
 ## The format this match is played under. Full tennis at the venues that deserve it,
 ## Fast4 at the ones you are still learning on.
 var games_to_win := GAMES_TO_WIN
@@ -92,6 +95,7 @@ func award(team: Sides.Team) -> void:
 		return
 
 	sets[team] += 1
+	finished_sets.append(games.duplicate())
 	games[Sides.Team.RED] = 0
 	games[Sides.Team.BLUE] = 0
 	in_tiebreak = false

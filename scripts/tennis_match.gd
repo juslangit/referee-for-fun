@@ -147,6 +147,23 @@ func fault_book() -> Array:
 	return TennisCallBook.faults()
 
 
+## Tennis's director. See TennisCutscene.
+func make_cutscene() -> Cutscene:
+	return TennisCutscene.new()
+
+
+## Every set's games, the winner's first (ITF G.4h): "6–4   3–6   7–5".
+func result_words(winner: Sides.Team) -> String:
+	var tennis := board as TennisScore
+	if tennis == null:
+		return ""
+	var loser := Sides.opponent(winner)
+	var sets: Array[String] = []
+	for games in tennis.finished_sets:
+		sets.append("%d\u2013%d" % [games[winner], games[loser]])
+	return "   ".join(sets)
+
+
 func score_line() -> String:
 	var tennis := board as TennisScore
 	if tennis == null:
