@@ -93,6 +93,27 @@ READY = lean({
 }, 12)
 
 
+# Standing still with the arms down, which nobody on a badminton court does during a rally
+# and everybody does before and after one. The ready stance is a crouch with a racket up;
+# an umpire walking on in it looks like they are about to receive serve.
+STAND = {
+    "LeftUpLeg": (-2, 0, -2), "LeftLeg": (3, 0, 0),
+    "RightUpLeg": (-2, 0, 2), "RightLeg": (3, 0, 0),
+    "LeftArm": (0, 76, -6), "LeftForeArm": (0, 0, -14),
+    "RightArm": (0, -76, 6), "RightForeArm": (0, 0, 14),
+}
+
+# The line judges' chair pose, which the umpire's high chair borrows at the end of a match.
+SEATED = {
+    MOVE: (0.0, 0.0, -0.44),
+    "Spine02": (6, 0, 0),
+    "LeftUpLeg": (-84, 0, -7), "LeftLeg": (82, 0, 0), "LeftFoot": (-4, 0, 0),
+    "RightUpLeg": (-84, 0, 7), "RightLeg": (82, 0, 0), "RightFoot": (-4, 0, 0),
+    "LeftArm": (0, 74, -16), "LeftForeArm": (0, 0, -54),
+    "RightArm": (0, -72, 18), "RightForeArm": (0, 0, 56),
+}
+
+
 def _with(base, **changes):
     """A pose described as a departure from another one, which is how a shot is
     actually played — everything below the waist stays where it was."""
@@ -331,6 +352,92 @@ CLIPS = {
                             LeftArm=(0, -88, -18), LeftForeArm=(0, 0, 46),
                             neck=(-8, 0, 0)), -20)),
             (34, READY),
+        ],
+    },
+
+    # --- the ceremony, before and after the match -------------------------------
+    # The cutscenes' clips. Officials use all of them; players use the handshake.
+    "stand": {
+        "loop": True,
+        "keys": [
+            (0, STAND),
+            (30, _with(STAND, Spine02=(2, 0, 0), neck=(2, 0, 0))),
+            (60, STAND),
+        ],
+    },
+    # Right hand out at waist height and two pumps. The forearm does the pumping: the
+    # upper arm stays where it is, which is what keeps a handshake from looking like a
+    # wave.
+    "handshake": {
+        "loop": False,
+        "keys": [
+            (0, STAND),
+            (8, _with(STAND, neck=(8, 0, 0),
+                      RightArm=(0, -42, 76), RightForeArm=(0, 0, 22))),
+            (12, _with(STAND, neck=(8, 0, 0),
+                       RightArm=(0, -42, 76), RightForeArm=(0, 0, 38))),
+            (16, _with(STAND, neck=(8, 0, 0),
+                       RightArm=(0, -42, 76), RightForeArm=(0, 0, 18))),
+            (20, _with(STAND, neck=(8, 0, 0),
+                       RightArm=(0, -42, 76), RightForeArm=(0, 0, 36))),
+            (24, _with(STAND, neck=(6, 0, 0),
+                       RightArm=(0, -42, 76), RightForeArm=(0, 0, 22))),
+            (34, STAND),
+        ],
+    },
+    # The same from the umpire's high chair: leaning out and reaching down to a player
+    # stood below, which is how a real umpire shakes hands at the end of a match — from
+    # the chair, before the result is announced (BWF ITTO 5.6.5).
+    "sit_handshake": {
+        "loop": False,
+        "keys": [
+            (0, SEATED),
+            (8, _with(SEATED, Spine02=(18, 0, 0), neck=(16, 0, 0),
+                      RightArm=(0, 2, 104), RightForeArm=(0, 0, 10))),
+            (12, _with(SEATED, Spine02=(18, 0, 0), neck=(16, 0, 0),
+                       RightArm=(0, 2, 104), RightForeArm=(0, 0, 26))),
+            (16, _with(SEATED, Spine02=(18, 0, 0), neck=(16, 0, 0),
+                       RightArm=(0, 2, 104), RightForeArm=(0, 0, 6))),
+            (20, _with(SEATED, Spine02=(18, 0, 0), neck=(16, 0, 0),
+                       RightArm=(0, 2, 104), RightForeArm=(0, 0, 24))),
+            (24, _with(SEATED, Spine02=(16, 0, 0), neck=(14, 0, 0),
+                       RightArm=(0, 2, 104), RightForeArm=(0, 0, 10))),
+            (34, SEATED),
+        ],
+    },
+    # The toss. Coin at the chest, flicked up with the head following it, caught, and held
+    # out for both sides to see. The coin itself is not on the rig — the cutscene flies it
+    # from the hand at the flick (frame 12) and back into it at the catch (frame 28).
+    "coin_toss": {
+        "loop": False,
+        "keys": [
+            (0, STAND),
+            (8, _with(STAND, neck=(12, 0, 0),
+                      RightArm=(0, -62, 40), RightForeArm=(0, 0, 96))),
+            (12, _with(STAND, neck=(-12, 0, 0),
+                       RightArm=(0, -36, 62), RightForeArm=(0, 0, 104))),
+            (22, _with(STAND, neck=(-16, 0, 0),
+                       RightArm=(0, -60, 44), RightForeArm=(0, 0, 86))),
+            (28, _with(STAND, neck=(12, 0, 0),
+                       RightArm=(0, -62, 42), RightForeArm=(0, 0, 94))),
+            (36, _with(STAND, neck=(8, 0, 0),
+                       RightArm=(0, -40, 74), RightForeArm=(0, 0, 40))),
+            (52, _with(STAND, neck=(8, 0, 0),
+                       RightArm=(0, -40, 74), RightForeArm=(0, 0, 38))),
+            (62, STAND),
+        ],
+    },
+    # Arm straight out to the right and held: the tournament referee showing a removed
+    # umpire the way off court.
+    "point": {
+        "loop": False,
+        "keys": [
+            (0, STAND),
+            (10, _with(STAND, neck=(0, 0, 0),
+                       RightArm=(0, -8, 16), RightForeArm=(0, 0, 4))),
+            (44, _with(STAND, neck=(0, 0, 0),
+                       RightArm=(0, -10, 16), RightForeArm=(0, 0, 6))),
+            (56, STAND),
         ],
     },
 }

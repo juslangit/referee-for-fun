@@ -67,6 +67,10 @@ var home := Vector3.ZERO
 var chasing := false
 
 var _destination := Vector3.ZERO
+## Walking rather than running, which only happens in the cutscenes: onto court behind the
+## umpire, to the net to shake hands, to the chair. Kept to the officials' pace so the
+## file of people walking on does not come apart.
+var _walking := false
 var _lunge_left := 0.0
 var _lunge_spot := Vector3.ZERO
 ## How much longer they stay on the spot they are standing on, whatever `_destination`
@@ -341,14 +345,17 @@ func _physics_process(delta: float) -> void:
 
 	var here := Vector2(position.x, position.z)
 	var there := Vector2(aim.x, aim.z)
-	var moved := here.move_toward(there, speed * delta)
+	var moved := here.move_toward(there, (Official.WALK_SPEED if _walking else speed) * delta)
 	position = Vector3(moved.x, 0.0, moved.y)
 
 	var travelled := here.distance_to(moved) / maxf(delta, 0.0001)
 	var running := travelled > MOVING_THRESHOLD
 	_animate(delta, running)
 	if _animator != null:
-		_play("run" if running else ("ready" if chasing else "idle"))
+		if _walking:
+			_play("walk" if running else "idle")
+		else:
+			_play("run" if running else ("ready" if chasing else "idle"))
 
 	# Facing the way they are running. The Meshy characters look down their own +Z, so
 	# the angle is the heading itself — measured off the rig's headfront bone rather
@@ -359,8 +366,48 @@ func _physics_process(delta: float) -> void:
 		rotation.y = atan2(heading.x, heading.y)
 
 
+## Walks somewhere, at an official's pace. See `_walking`.
+func walk_to(point: Vector3) -> void:
+	# Out of whatever they were doing on the spot — the slump at the end of a match loops
+	# and never finishes, and would otherwise hold the walk off for good.
+	_one_shot = false
+	chasing = false
+	_walking = true
+	_planted_left = 0.0
+	_destination = Vector3(point.x, 0.0, point.z)
+
+
+## Turns to look at a point on the floor.
+func face(point: Vector3) -> void:
+	var towards := point - position
+	if Vector2(towards.x, towards.z).length() > 0.001:
+		rotation.y = atan2(towards.x, towards.z)
+
+
+## Stood exactly here, going nowhere, facing across the net. Where a skipped cutscene
+## leaves everybody.
+func place(point: Vector3) -> void:
+	_walking = false
+	_one_shot = false
+	chasing = false
+	position = Vector3(point.x, 0.0, point.z)
+	_destination = position
+	rotation.y = PI if Sides.half_sign(team) > 0.0 else 0.0
+
+
+## A one-shot clip played on the spot: the handshake.
+func gesture(clip: String) -> void:
+	_play(clip, true)
+
+
+## Hands on the knees. The losers at the end of a match.
+func slump() -> void:
+	_play("tired", true)
+
+
 ## Go after the shuttle, to the spot they believe it will land.
 func chase(point: Vector3) -> void:
+	_walking = false
 	chasing = true
 	_planted_left = 0.0
 	_destination = Vector3(point.x, 0.0, point.z)
@@ -386,6 +433,7 @@ func lunge(spot: Vector3, seconds := 0.7) -> void:
 
 
 func go_home() -> void:
+	_walking = false
 	chasing = false
 	_destination = home
 

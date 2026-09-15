@@ -35,6 +35,8 @@ signal quit_requested()
 ## The replay of the worst calls: on to the next one, or past all of them.
 signal replay_next()
 signal replay_skip_all()
+## SKIP during a cutscene, for the mouse. The keys are the cutscene's own.
+signal cutscene_skip()
 
 ## Sizes live in UiTheme so the whole interface grows together. It used to be a list
 ## of numbers here, each one adjusted separately, which is how it ended up too small to
@@ -210,6 +212,7 @@ func _ready() -> void:
 	_build_ending()
 	_build_shuttle_cam()
 	_build_fault_panel()
+	_build_broadcast()
 	# Last, so they sit over everything: the replay comes before the result, and the
 	# paper comes after it.
 	_build_replay()
@@ -2858,6 +2861,12 @@ func show_ending(headline: String, detail: String, tint := Color(0.96, 0.42, 0.3
 	_ending.visible = true
 
 
+
+## Takes the result screen down without going anywhere: the new hall is shown behind it
+## before CONTINUE moves on.
+func hide_ending() -> void:
+	_ending.visible = false
+
 # --- the replay of the worst calls ----------------------------------------------
 #
 # Played over an empty court after the final whistle and before the result. It is part of
@@ -3201,3 +3210,174 @@ func _make_label(text: String, size: int, colour: Color) -> Label:
 	label.add_theme_font_size_override("font_size", size)
 	label.add_theme_color_override("font_color", colour)
 	return label
+
+
+# --- the broadcast, over a cutscene ---------------------------------------------
+#
+# What the walk-on, the handshakes, being taken off and being moved up are dressed in:
+# black bars top and bottom, and a lower third the way television puts a name on screen.
+# The lower third is built from blocks, so the same caption can say a venue's name on its
+# own or put RED and BLUE side by side in their colours — the teams are never named
+# without their colour next to them anywhere else in the game either.
+
+## How much of the screen each letterbox bar takes.
+const LETTERBOX := 0.105
+const BROADCAST_INSET := 48
+const CAPTION_FADE := 0.25
+
+var _broadcast: Control
+var _bar_top: ColorRect
+var _bar_bottom: ColorRect
+var _lower_third: VBoxContainer
+var _lower_kicker: Label
+var _lower_blocks: HBoxContainer
+var _lower_detail: Label
+var _blackout: ColorRect
+var _caption_tween: Tween
+
+
+func _build_broadcast() -> void:
+	_broadcast = Control.new()
+	_broadcast.name = "Broadcast"
+	_broadcast.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_broadcast.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_broadcast.visible = false
+	_root.add_child(_broadcast)
+
+	_bar_top = ColorRect.new()
+	_bar_top.color = Color.BLACK
+	_bar_top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bar_top.anchor_right = 1.0
+	_bar_top.anchor_bottom = LETTERBOX
+	_broadcast.add_child(_bar_top)
+
+	_bar_bottom = ColorRect.new()
+	_bar_bottom.color = Color.BLACK
+	_bar_bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bar_bottom.anchor_top = 1.0 - LETTERBOX
+	_bar_bottom.anchor_right = 1.0
+	_bar_bottom.anchor_bottom = 1.0
+	_broadcast.add_child(_bar_bottom)
+
+	# Bottom left, sitting on the lower bar the way a name strap sits on the picture.
+	_lower_third = VBoxContainer.new()
+	_lower_third.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_lower_third.add_theme_constant_override("separation", 0)
+	_lower_third.anchor_top = 1.0 - LETTERBOX
+	_lower_third.anchor_bottom = 1.0 - LETTERBOX
+	_lower_third.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_lower_third.offset_left = BROADCAST_INSET
+	_lower_third.offset_top = -18
+	_lower_third.offset_bottom = -18
+	_broadcast.add_child(_lower_third)
+
+	var kicker_plate := PanelContainer.new()
+	kicker_plate.add_theme_stylebox_override("panel", UiTheme.block(UiTheme.ACCENT))
+	kicker_plate.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_lower_third.add_child(kicker_plate)
+	_lower_kicker = _make_label("", UiTheme.SMALL, UiTheme.INK)
+	kicker_plate.add_child(_lower_kicker)
+
+	_lower_blocks = HBoxContainer.new()
+	_lower_blocks.add_theme_constant_override("separation", 0)
+	_lower_third.add_child(_lower_blocks)
+
+	var detail_plate := PanelContainer.new()
+	detail_plate.add_theme_stylebox_override("panel", UiTheme.block(UiTheme.CARD))
+	detail_plate.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_lower_third.add_child(detail_plate)
+	_lower_detail = _make_label("", UiTheme.BODY, UiTheme.CHALK)
+	_lower_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	detail_plate.add_child(_lower_detail)
+
+	# Skipping, bottom right in the bar: the keys for the keyboard, a button for the mouse.
+	var skip_row := HBoxContainer.new()
+	skip_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	skip_row.add_theme_constant_override("separation", 22)
+	skip_row.alignment = BoxContainer.ALIGNMENT_END
+	skip_row.anchor_left = 1.0
+	skip_row.anchor_right = 1.0
+	skip_row.anchor_top = 1.0 - LETTERBOX * 0.5
+	skip_row.anchor_bottom = 1.0 - LETTERBOX * 0.5
+	skip_row.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	skip_row.grow_vertical = Control.GROW_DIRECTION_BOTH
+	skip_row.offset_left = -BROADCAST_INSET
+	skip_row.offset_right = -BROADCAST_INSET
+	_broadcast.add_child(skip_row)
+	skip_row.add_child(_make_label("SPACE   skip", UiTheme.SMALL, UiTheme.MUTED))
+	skip_row.add_child(_footer_button("SKIP", func() -> void: cutscene_skip.emit()))
+
+	# Over everything else in the broadcast, for a cut that needs to hide a jump.
+	_blackout = ColorRect.new()
+	_blackout.color = Color(0.0, 0.0, 0.0, 0.0)
+	_blackout.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_blackout.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_broadcast.add_child(_blackout)
+
+
+## Bars on, the match's own screen furniture off.
+func show_broadcast() -> void:
+	hide_close_cam()
+	hide_reputation()
+	hide_reason()
+	hide_bubble()
+	hide_line_judge()
+	clear_messages()
+	set_prompt("")
+	if _hud != null:
+		_hud.visible = false
+	hide_caption()
+	_blackout.color.a = 0.0
+	_broadcast.visible = true
+
+
+func hide_broadcast() -> void:
+	_broadcast.visible = false
+	hide_caption()
+
+
+func is_broadcasting() -> bool:
+	return _broadcast != null and _broadcast.visible
+
+
+## A lower third. `blocks` is a list of [text, colour] pairs laid side by side; a block
+## with no colour is plain white type on the dark card.
+func caption(kicker: String, blocks: Array, detail := "") -> void:
+	_lower_kicker.text = "  %s  " % kicker
+	_lower_kicker.get_parent().visible = not kicker.is_empty()
+	for child in _lower_blocks.get_children():
+		child.queue_free()
+	for pair: Array in blocks:
+		var plate := PanelContainer.new()
+		var coloured := pair.size() > 1 and pair[1] is Color
+		plate.add_theme_stylebox_override("panel",
+			UiTheme.block(pair[1] if coloured else UiTheme.INK))
+		var words := _make_label(pair[0], UiTheme.HUGE if blocks.size() == 1 else UiTheme.TITLE,
+			UiTheme.CHALK)
+		plate.add_child(words)
+		_lower_blocks.add_child(plate)
+	_lower_detail.text = detail
+	_lower_detail.get_parent().visible = not detail.is_empty()
+
+	if _caption_tween != null:
+		_caption_tween.kill()
+	_lower_third.modulate.a = 0.0
+	_lower_third.visible = true
+	_caption_tween = create_tween()
+	_caption_tween.tween_property(_lower_third, "modulate:a", 1.0, CAPTION_FADE)
+
+
+func hide_caption() -> void:
+	if _caption_tween != null:
+		_caption_tween.kill()
+		_caption_tween = null
+	if _lower_third != null:
+		_lower_third.visible = false
+
+
+## To black over `seconds`, or back from it.
+func blackout(dark: bool, seconds: float) -> Tween:
+	var tween := create_tween()
+	tween.tween_property(_blackout, "color:a", 1.0 if dark else 0.0, maxf(seconds, 0.01))
+	return tween
+
