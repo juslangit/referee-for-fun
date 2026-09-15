@@ -140,7 +140,7 @@ func _set_up_clips(model: Node3D) -> void:
 	_play("idle")
 
 
-func _play(clip: String, one_shot := false) -> void:
+func _play(clip: String, one_shot := false, speed := 1.0) -> void:
 	if _animator == null or clip.is_empty():
 		return
 	# A shot in progress is not interrupted by the player wandering back to position.
@@ -153,7 +153,7 @@ func _play(clip: String, one_shot := false) -> void:
 	_clip = clip
 	_one_shot = one_shot
 	_holding_the_crouch = 0.0
-	_animator.play(clip, 0.14)
+	_animator.play(clip, 0.14, speed)
 
 
 func _on_clip_finished(clip_name: StringName) -> void:
@@ -174,9 +174,7 @@ func wind_up(seconds_to_contact: float) -> void:
 	if _animator == null or not _animator.has_animation("smash_windup"):
 		return
 	var length := _animator.get_animation("smash_windup").length
-	_clip = "smash_windup"
-	_one_shot = true
-	_animator.play("smash_windup", 0.1,
+	_play("smash_windup", true,
 		clampf(length / maxf(seconds_to_contact, 0.01), WIND_UP_SLOWEST, WIND_UP_FASTEST))
 
 
