@@ -74,7 +74,7 @@ const FOOTER_BUTTON_WIDTH := 300
 const REASON_WIDTH := 380
 const REASON_INSET := 44
 
-const METER_WIDTH := 520
+const METER_WIDTH := 340
 const METER_HEIGHT := 26
 const METER_SAFE := 0.60
 const METER_SHAKY := 0.30
@@ -93,24 +93,43 @@ var _hud: Control
 ## public-domain Olympic pictograms in assets/ui/ (see ATTRIBUTION.md), so a real picture
 ## always means a sport you can actually walk into. Basketball sat here like that until
 ## 2026-09-11 and was taken out: it needs a referee who walks, not one in a chair.
+##
+## Since 2026-09-15 each tile shows an illustrated athlete rather than the render: the five
+## were drawn together on one OpenArt sheet (dev/ref/ui-redesign/sheet_portraits.png) so
+## they match, and cut apart by tools/ui/prepare_art.gd. `art` is still the render, kept
+## for anything that wants a picture of the game itself.
 const SPORTS := [
 	{"id": &"badminton", "name": "Badminton", "art": "res://assets/ui/card_badminton.png",
-		"tint": Color(0.16, 0.44, 0.30), "ready": true},
+		"portrait": "res://assets/ui/portrait_badminton.png",
+		"band": Color(0.20, 0.55, 0.30), "tint": Color(0.16, 0.44, 0.30), "ready": true},
 	{"id": &"beach", "name": "Beach Volleyball",
 		"art": "res://assets/ui/card_beachvolleyball.png",
-		"tint": Color(0.78, 0.52, 0.20), "ready": true},
+		"portrait": "res://assets/ui/portrait_beachvolleyball.png",
+		"band": Color(0.86, 0.58, 0.24), "tint": Color(0.78, 0.52, 0.20), "ready": true},
 	{"id": &"indoor", "name": "Volleyball", "art": "res://assets/ui/card_volleyball.png",
-		"tint": Color(0.44, 0.24, 0.52), "ready": true},
+		"portrait": "res://assets/ui/portrait_volleyball.png",
+		"band": Color(0.50, 0.30, 0.66), "tint": Color(0.44, 0.24, 0.52), "ready": true},
 	{"id": &"tennis", "name": "Tennis", "art": "res://assets/ui/card_tennis.png",
-		"tint": Color(0.20, 0.38, 0.58), "ready": true},
+		"portrait": "res://assets/ui/portrait_tennis.png",
+		"band": Color(0.22, 0.46, 0.76), "tint": Color(0.20, 0.38, 0.58), "ready": true},
 	{"id": &"table_tennis", "name": "Table Tennis",
 		"art": "res://assets/ui/card_tabletennis.png",
-		"tint": Color(0.60, 0.34, 0.16), "ready": true},
+		"portrait": "res://assets/ui/portrait_tabletennis.png",
+		"band": Color(0.74, 0.34, 0.22), "tint": Color(0.60, 0.34, 0.16), "ready": true},
 ]
 
-## How big one card is. Tall, like the reference — a sport reads better as a portrait of
-## somebody playing it than as a square.
-const CARD := Vector2(232.0, 330.0)
+## How big one card is on the sport screen. Tall — a sport reads better as a portrait of
+## somebody playing it than as a square. On the title screen the tiles stretch to fill
+## the row instead, so the five always span the screen whatever size the window is.
+const CARD := Vector2(270.0, 440.0)
+
+## Which part of a portrait a tile shows: from just above the head down past the hands, so
+## the racket, ball or bat that says which sport it is stays in the picture.
+const PORTRAIT_TOP := 230.0
+const PORTRAIT_TALL := 900.0
+
+## The title screen's logo, drawn on OpenArt and keyed by tools/ui/prepare_art.gd.
+const TITLE_LOGO := "res://assets/ui/title_logo.png"
 
 var _main_menu: Control
 var _main_menu_column: VBoxContainer
@@ -132,12 +151,10 @@ var _briefing_ask: Label
 var _ending: Control
 var _ending_headline: Label
 var _ending_detail: Label
-var _score_points: Label
-var _score_games: Label
-var _score_reviews: Label
-var _serve_red: Label
-var _serve_blue: Label
+var _score_bug: ScoreBug
 var _prompt_label: Label
+var _prompt_keys: HBoxContainer
+var _prompt_plate: PanelContainer
 var _message_label: Label
 var _reaction_label: Label
 var _banner_label: Label
@@ -297,13 +314,58 @@ func _build_sheet(sheet_name: String, shade := Color(0.03, 0.04, 0.06, 0.45)) ->
 	return [sheet, column]
 
 
+## The title screen is a sports game's home screen rather than a card of buttons: the
+## logo and the two corner buttons along the top, your career as the one big tile, and
+## every sport one click away along the bottom. The hall stays lit behind all of it —
+## the old centred card covered the best-looking thing in the game with a grey rectangle.
 func _build_main_menu() -> void:
-	var built := _build_sheet("MainMenu", Color(0.03, 0.04, 0.06, 0.40))
-	_main_menu = built[0]
-	_main_menu_column = built[1]
+	_main_menu = Control.new()
+	_main_menu.name = "MainMenu"
+	_main_menu.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_main_menu.visible = false
+	_main_menu.mouse_filter = Control.MOUSE_FILTER_STOP
+	_root.add_child(_main_menu)
+
+	# Dark along the top and the bottom, where the type and the tiles sit, and clear
+	# through the middle, where the hall is.
+	var shade := TextureRect.new()
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	shade.stretch_mode = TextureRect.STRETCH_SCALE
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var ramp := Gradient.new()
+	ramp.offsets = PackedFloat32Array([0.0, 0.30, 0.55, 1.0])
+	ramp.colors = PackedColorArray([
+		Color(0.02, 0.03, 0.05, 0.78), Color(0.02, 0.03, 0.05, 0.30),
+		Color(0.02, 0.03, 0.05, 0.35), Color(0.02, 0.03, 0.05, 0.86)])
+	var picture := GradientTexture2D.new()
+	picture.gradient = ramp
+	picture.fill_from = Vector2(0.5, 0.0)
+	picture.fill_to = Vector2(0.5, 1.0)
+	shade.texture = picture
+	_main_menu.add_child(shade)
+
+	var frame := MarginContainer.new()
+	frame.set_anchors_preset(Control.PRESET_FULL_RECT)
+	frame.add_theme_constant_override("margin_left", 64)
+	frame.add_theme_constant_override("margin_right", 64)
+	frame.add_theme_constant_override("margin_top", 40)
+	frame.add_theme_constant_override("margin_bottom", 44)
+	_main_menu.add_child(frame)
+
+	_main_menu_column = VBoxContainer.new()
+	_main_menu_column.add_theme_constant_override("separation", 24)
+	frame.add_child(_main_menu_column)
 
 
-## The title screen. Whether there is a career to go back to decides what it offers.
+## The title screen. Whether there is a career to go back to decides what the big tile
+## says.
+##
+## For a while the title screen said nothing about the career at all, on the grounds that
+## it made the front of the game read as a save-game manager. Luqman chose this layout on
+## 2026-09-15: a sports game's home screen, where carrying on is the largest thing on it
+## and starting something else is one click along the bottom — which is the opposite
+## problem solved the other way, by making the sports as easy to reach as the save.
 ##
 ## The score bug goes away with it. It is a broadcast graphic for a match in progress,
 ## and leaving it up over the title read as though a game were already running.
@@ -314,41 +376,210 @@ func show_main_menu(career: Career) -> void:
 	for child in _main_menu_column.get_children():
 		child.queue_free()
 
-	_main_menu_column.add_child(_make_label("REFEREE FOR FUN", TITLE_SIZE + 16, Color(0.96, 0.96, 0.94)))
-	_main_menu_column.add_child(_make_label(
+	# --- the top line: the logo, and the two ways off the screen that are not a match.
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 16)
+	_main_menu_column.add_child(top)
+
+	var title := VBoxContainer.new()
+	title.add_theme_constant_override("separation", 6)
+	top.add_child(title)
+	var logo := TextureRect.new()
+	logo.name = "TitleLogo"
+	logo.texture = load(TITLE_LOGO)
+	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
+	logo.custom_minimum_size = Vector2(640, 100)
+	title.add_child(logo)
+	var tagline := _make_label(
 		"You are the umpire. The game knows the truth. You do not have to tell it.",
-		PROMPT_SIZE + 2, Color(0.62, 0.64, 0.68)
-	))
-	_main_menu_column.add_child(_gap(26))
+		UiTheme.SMALL, UiTheme.MUTED)
+	tagline.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	title.add_child(tagline)
 
-	# Three buttons and nothing else. Whether there is a career to go back to is a
-	# question for after the sport has been chosen, not for the title screen — it used to
-	# be answered here, and the front of the game read as a save-game manager.
-	var underway := career.matches_refereed > 0 and not career.is_over
-	if underway:
-		_main_menu_column.add_child(_make_label(
-			"%s in progress        reputation %d / 100" % [
-				career.venue()["name"], roundi(career.reputation * 100.0)
-			],
-			PROMPT_SIZE, Color(0.58, 0.60, 0.64)
-		))
-		_main_menu_column.add_child(_gap(10))
+	var push := Control.new()
+	push.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(push)
+	for corner in [["SETTINGS", settings_requested], ["QUIT", quit_requested]]:
+		var button := Button.new()
+		button.text = corner[0]
+		button.custom_minimum_size = Vector2(190, UiTheme.BUTTON_HEIGHT)
+		button.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		var fire: Signal = corner[1]
+		button.pressed.connect(func() -> void: fire.emit())
+		top.add_child(button)
 
-	_main_menu_column.add_child(_centred(_make_wide_button(
-		"PLAY", func() -> void: play_requested.emit()
-	)))
-	_main_menu_column.add_child(_gap(6))
-	_main_menu_column.add_child(_centred(_make_wide_button(
-		"HOW TO REFEREE", func() -> void: teaching_requested.emit()
-	)))
-	_main_menu_column.add_child(_gap(6))
-	_main_menu_column.add_child(_centred(_make_wide_button(
-		"SETTINGS", func() -> void: settings_requested.emit()
-	)))
-	_main_menu_column.add_child(_gap(6))
-	_main_menu_column.add_child(_centred(_make_wide_button("QUIT", func() -> void: quit_requested.emit())))
+	# --- the middle: the career, large, and the lessons beside it.
+	var middle := HBoxContainer.new()
+	middle.add_theme_constant_override("separation", 22)
+	_main_menu_column.add_child(middle)
+	middle.add_child(_career_tile(career))
+	middle.add_child(_lesson_tile())
+
+	# --- the bottom: every sport, one click each.
+	var heading := _make_label("REFEREE A SPORT", UiTheme.SMALL, UiTheme.ACCENT)
+	heading.add_theme_font_override("font", UiTheme.heavy())
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_main_menu_column.add_child(heading)
+
+	var row := HBoxContainer.new()
+	row.name = "SportTiles"
+	row.add_theme_constant_override("separation", 18)
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_main_menu_column.add_child(row)
+	for sport in SPORTS:
+		var tile := _sport_card(sport, sport["id"] == career.sport and career.matches_refereed > 0)
+		tile.custom_minimum_size = Vector2(150, 220)
+		tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(tile)
 
 	_main_menu.visible = true
+
+
+## The big tile: carry on with the career, start one, or face the fact that it is over.
+## All three go to the same place — the sport the career is in — and that screen already
+## knows what to offer in each case.
+func _career_tile(career: Career) -> Button:
+	var tile := Button.new()
+	tile.name = "CareerTile"
+	tile.custom_minimum_size = Vector2(0, 208)
+	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tile.size_flags_stretch_ratio = 2.3
+	_dress_tile(tile, UiTheme.ACCENT, 10)
+	tile.pressed.connect(func() -> void:
+		_main_menu.visible = false
+		sport_chosen.emit(career.sport))
+
+	var inside := HBoxContainer.new()
+	inside.set_anchors_preset(Control.PRESET_FULL_RECT)
+	inside.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inside.add_theme_constant_override("separation", 30)
+	tile.add_child(inside)
+
+	var mark := PlayMark.new()
+	mark.custom_minimum_size = Vector2(180, 0)
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inside.add_child(mark)
+
+	var words := VBoxContainer.new()
+	words.alignment = BoxContainer.ALIGNMENT_CENTER
+	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	words.add_theme_constant_override("separation", 6)
+	inside.add_child(words)
+
+	var headline := "CONTINUE CAREER"
+	var detail := "%s  •  %s" % [
+		Career.name_of(career.sport).to_upper(), String(career.venue()["name"]).to_upper()]
+	if career.is_over:
+		headline = "CAREER OVER"
+		detail = "%d MATCHES  •  THROWN OFF %d" % [career.matches_refereed, career.times_removed]
+	elif career.matches_refereed == 0:
+		headline = "START YOUR CAREER"
+
+	var big := UiTheme.label(headline, UiTheme.HUGE - 8, UiTheme.CHALK, UiTheme.display())
+	big.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	big.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	words.add_child(big)
+	var where := UiTheme.label(detail, UiTheme.HEADING, UiTheme.MUTED, UiTheme.heavy())
+	where.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	where.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	words.add_child(where)
+
+	var standing := HBoxContainer.new()
+	standing.add_theme_constant_override("separation", 18)
+	standing.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	words.add_child(standing)
+	var out_of_100 := roundi(career.reputation * 100.0)
+	var number := UiTheme.label("REPUTATION  %d / 100" % out_of_100, UiTheme.SMALL,
+		UiTheme.CHALK, UiTheme.strong())
+	number.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	standing.add_child(number)
+	var bar := ProgressBar.new()
+	bar.min_value = 0.0
+	bar.max_value = 100.0
+	bar.value = out_of_100
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0, 14)
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var track := StyleBoxFlat.new()
+	track.bg_color = UiTheme.INK
+	bar.add_theme_stylebox_override("background", track)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = _meter_colour(career.reputation)
+	bar.add_theme_stylebox_override("fill", fill)
+	standing.add_child(bar)
+	var breathing := Control.new()
+	breathing.custom_minimum_size = Vector2(24, 0)
+	standing.add_child(breathing)
+	return tile
+
+
+## The lessons, as a tile beside the career.
+func _lesson_tile() -> Button:
+	var tile := Button.new()
+	tile.name = "LessonTile"
+	tile.custom_minimum_size = Vector2(0, 208)
+	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tile.size_flags_stretch_ratio = 1.0
+	_dress_tile(tile, UiTheme.ACCENT.darkened(0.35), 10)
+	tile.pressed.connect(func() -> void: teaching_requested.emit())
+
+	var words := VBoxContainer.new()
+	words.set_anchors_preset(Control.PRESET_FULL_RECT)
+	words.offset_left = 40
+	words.offset_right = -24
+	words.alignment = BoxContainer.ALIGNMENT_CENTER
+	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	words.add_theme_constant_override("separation", 8)
+	tile.add_child(words)
+	var big := UiTheme.label("HOW TO REFEREE", UiTheme.TITLE, UiTheme.CHALK, UiTheme.display())
+	big.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	big.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	big.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	words.add_child(big)
+	var small := UiTheme.label("The rules you are judging, and the keys.", UiTheme.SMALL,
+		UiTheme.MUTED)
+	small.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	small.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	small.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	words.add_child(small)
+	return tile
+
+
+## A tile's plate: charcoal with a thick bar down the leading edge, lit gold all round on
+## hover so the pointer always shows which tile it is over.
+func _dress_tile(tile: Button, edge: Color, edge_width: int) -> void:
+	var face := StyleBoxFlat.new()
+	face.bg_color = Color(UiTheme.CARD.r, UiTheme.CARD.g, UiTheme.CARD.b, 0.94)
+	face.border_width_left = edge_width
+	face.border_color = edge
+	face.set_content_margin_all(0)
+	tile.add_theme_stylebox_override("normal", face)
+	var lit := face.duplicate()
+	lit.bg_color = UiTheme.RAISED
+	lit.set_border_width_all(4)
+	lit.border_width_left = edge_width
+	lit.border_color = UiTheme.ACCENT
+	tile.add_theme_stylebox_override("hover", lit)
+	tile.add_theme_stylebox_override("focus", lit)
+	var pressed := lit.duplicate()
+	pressed.bg_color = UiTheme.INK
+	tile.add_theme_stylebox_override("pressed", pressed)
+
+
+## The play triangle on the career tile, drawn rather than typed: no font has one that sits
+## where a broadcast would put it.
+class PlayMark extends Control:
+	func _draw() -> void:
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0.0, 0.0, 0.0, 0.28))
+		var middle := size * 0.5
+		var r := minf(size.x, size.y) * 0.24
+		draw_colored_polygon(PackedVector2Array([
+			middle + Vector2(-r * 0.7, -r), middle + Vector2(r, 0.0),
+			middle + Vector2(-r * 0.7, r)]), Color.WHITE)
 
 
 # --- choosing a sport -----------------------------------------------------------
@@ -442,29 +673,30 @@ func hide_format_menu() -> void:
 		_format_menu.visible = false
 
 
-func _sport_card(sport: Dictionary) -> Button:
+## One sport: its name on a band of the sport's colour across the top, the athlete under
+## it. `yours` marks the sport the career is in, with a gold tag on the band.
+func _sport_card(sport: Dictionary, yours := false) -> Button:
 	var ready: bool = sport["ready"]
 	var card := Button.new()
+	card.name = "Sport_%s" % sport["id"]
 	card.custom_minimum_size = CARD
 	card.disabled = not ready
 	card.tooltip_text = "" if ready else "Not built yet"
 	if ready:
-		card.pressed.connect(func() -> void: sport_chosen.emit(sport["id"]))
+		card.pressed.connect(func() -> void:
+			_main_menu.visible = false
+			sport_chosen.emit(sport["id"]))
 
-	# The card's own colour shows through behind the picture, which is what makes the
-	# row read as a set rather than as five unrelated photographs.
 	var face := StyleBoxFlat.new()
-	var tint: Color = sport["tint"]
-	face.bg_color = tint if ready else tint.darkened(0.55)
+	face.bg_color = Color(0.110, 0.118, 0.141, 0.96)
 	face.set_content_margin_all(0)
-	face.border_width_left = 0
-	face.corner_radius_top_left = 4
-	face.corner_radius_top_right = 4
+	if yours:
+		face.set_border_width_all(4)
+		face.border_color = UiTheme.ACCENT.darkened(0.3)
 	card.add_theme_stylebox_override("normal", face)
 	card.add_theme_stylebox_override("disabled", face)
 	var lit := face.duplicate()
-	lit.bg_color = tint.lightened(0.16)
-	lit.border_width_top = 5
+	lit.set_border_width_all(6)
 	lit.border_color = UiTheme.ACCENT
 	card.add_theme_stylebox_override("hover", lit)
 	card.add_theme_stylebox_override("focus", lit)
@@ -476,42 +708,68 @@ func _sport_card(sport: Dictionary) -> Button:
 	stack.add_theme_constant_override("separation", 0)
 	card.add_child(stack)
 
+	var band := PanelContainer.new()
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var colour: Color = sport["band"]
+	band.add_theme_stylebox_override("panel", UiTheme.block(colour if ready else colour.darkened(0.55)))
+	stack.add_child(band)
+	var name_row := HBoxContainer.new()
+	name_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	name_row.add_theme_constant_override("separation", 10)
+	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	band.add_child(name_row)
+	var caption := UiTheme.label(String(sport["name"]).to_upper(), UiTheme.BODY,
+		Color.WHITE if ready else UiTheme.MUTED, UiTheme.heavy())
+	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	caption.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	caption.clip_text = true
+	caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_row.add_child(caption)
+
 	var picture := TextureRect.new()
-	picture.custom_minimum_size = Vector2(CARD.x, CARD.y - 62.0)
+	picture.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	# The badminton card is a photograph and should fill the space; the pictograms are
-	# silhouettes on nothing and have to keep their shape or they turn into smears.
-	picture.stretch_mode = (
-		TextureRect.STRETCH_KEEP_ASPECT_COVERED if ready
-		else TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	)
-	if ResourceLoader.exists(sport["art"]):
-		picture.texture = load(sport["art"])
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	picture.texture = _portrait(sport)
 	if not ready:
 		picture.modulate = Color(1.0, 1.0, 1.0, 0.34)
 	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.add_child(picture)
 
-	var name_plate := PanelContainer.new()
-	name_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Takes whatever height the picture left, so the plate reaches the bottom edge. Sized
-	# to its text instead, it stopped short and left a stripe of the card's own colour
-	# under the name.
-	name_plate.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	var plate := StyleBoxFlat.new()
-	plate.bg_color = Color(0.05, 0.06, 0.08, 0.92)
-	plate.content_margin_top = 8
-	plate.content_margin_bottom = 8
-	name_plate.add_theme_stylebox_override("panel", plate)
-	stack.add_child(name_plate)
+	if yours:
+		var tag := PanelContainer.new()
+		tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var skin := UiTheme.slant(UiTheme.ACCENT)
+		skin.content_margin_top = 2
+		skin.content_margin_bottom = 2
+		skin.content_margin_left = 14
+		skin.content_margin_right = 14
+		tag.add_theme_stylebox_override("panel", skin)
+		tag.add_child(UiTheme.label("YOUR CAREER", UiTheme.SMALL - 4, UiTheme.INK, UiTheme.heavy()))
+		tag.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+		tag.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		tag.grow_vertical = Control.GROW_DIRECTION_BEGIN
+		tag.offset_right = -12
+		tag.offset_bottom = -12
+		card.add_child(tag)
 
-	var caption := _make_label(
-		sport["name"] if ready else "%s\nCOMING SOON" % sport["name"],
-		UiTheme.SMALL if ready else UiTheme.SMALL - 4,
-		UiTheme.CHALK if ready else UiTheme.MUTED
-	)
-	name_plate.add_child(caption)
+	if not ready:
+		stack.add_child(UiTheme.label("COMING SOON", UiTheme.SMALL, UiTheme.MUTED, UiTheme.heavy()))
 	return card
+
+
+## The part of a sport's portrait a tile shows. Falls back to the render if the portrait
+## is missing, so a checkout without the art still has a picture on every tile.
+func _portrait(sport: Dictionary) -> Texture2D:
+	var path: String = sport.get("portrait", "")
+	if path.is_empty() or not ResourceLoader.exists(path):
+		return load(sport["art"]) if ResourceLoader.exists(sport["art"]) else null
+	var whole: Texture2D = load(path)
+	var crop := AtlasTexture.new()
+	crop.atlas = whole
+	crop.region = Rect2(0.0, PORTRAIT_TOP, whole.get_width(),
+		minf(PORTRAIT_TALL, whole.get_height() - PORTRAIT_TOP))
+	return crop
 
 
 func show_sport_menu() -> void:
@@ -540,6 +798,7 @@ var _review_note: Label
 var _review_view: TextureRect
 var _review_verdict: Label
 var _review_hint: Label
+var _review_bar: PanelContainer
 
 
 func _build_review() -> void:
@@ -547,11 +806,24 @@ func _build_review() -> void:
 	_review = built[0]
 	var column: VBoxContainer = built[1]
 
-	_review_headline = _make_label("", TITLE_SIZE, UiTheme.ACCENT)
-	column.add_child(_review_headline)
+	# Laid out the way the BWF and FIVB review graphics are: a strip saying what this is,
+	# the picture, and the answer in a big white bar at the bottom in heavy black type.
+	var strip := HBoxContainer.new()
+	strip.alignment = BoxContainer.ALIGNMENT_CENTER
+	strip.add_theme_constant_override("separation", 0)
+	column.add_child(strip)
+	var tag := PanelContainer.new()
+	tag.add_theme_stylebox_override("panel", UiTheme.slant(UiTheme.ACCENT))
+	tag.add_child(UiTheme.label("OFFICIAL REVIEW", UiTheme.HEADING, UiTheme.INK, UiTheme.display()))
+	strip.add_child(tag)
+	var who := PanelContainer.new()
+	who.add_theme_stylebox_override("panel", UiTheme.slant(UiTheme.INK))
+	_review_headline = UiTheme.label("", UiTheme.HEADING, UiTheme.CHALK, UiTheme.heavy())
+	who.add_child(_review_headline)
+	strip.add_child(who)
 	_review_note = _make_label("", UiTheme.SMALL, UiTheme.MUTED)
 	column.add_child(_review_note)
-	column.add_child(_gap(16))
+	column.add_child(_gap(8))
 
 	_review_view = TextureRect.new()
 	_review_view.custom_minimum_size = Vector2(400, 400)
@@ -559,9 +831,15 @@ func _build_review() -> void:
 	_review_view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	column.add_child(_centred(_review_view))
 
-	column.add_child(_gap(16))
-	_review_verdict = _make_label("", UiTheme.HEADING, UiTheme.CHALK)
-	column.add_child(_review_verdict)
+	column.add_child(_gap(8))
+	_review_bar = PanelContainer.new()
+	var bar := UiTheme.block(UiTheme.PAPER)
+	bar.content_margin_top = 4
+	bar.content_margin_bottom = 4
+	_review_bar.add_theme_stylebox_override("panel", bar)
+	_review_verdict = UiTheme.label("", UiTheme.HUGE - 8, UiTheme.INK, UiTheme.display())
+	_review_bar.add_child(_review_verdict)
+	column.add_child(_review_bar)
 
 	# Only filled once the answer is up. Before that there is nothing to wave on.
 	_review_hint = _make_label("", UiTheme.SMALL, UiTheme.MUTED)
@@ -572,13 +850,14 @@ func _build_review() -> void:
 ## the challenge and the answer is the whole of the drama, and an umpire who has just
 ## lied should have to sit through it.
 func show_review(team: Sides.Team, reviews_left: int, view: Texture2D) -> void:
-	_review_headline.text = "CHALLENGE  ·  %s" % Sides.label(team)
-	_review_headline.add_theme_color_override("font_color", Sides.colour(team))
+	_review_headline.text = "CHALLENGED BY %s" % Sides.label(team)
+	_review_headline.get_parent().add_theme_stylebox_override("panel", UiTheme.slant(Sides.colour(team)))
 	_review_note.text = "%s has %d review%s left" % [
 		Sides.label(team), reviews_left, "" if reviews_left == 1 else "s"]
 	_review_view.texture = view
-	_review_verdict.text = "reviewing…"
-	_review_verdict.add_theme_color_override("font_color", UiTheme.MUTED)
+	_review_verdict.text = "REVIEWING\u2026"
+	_review_verdict.add_theme_color_override("font_color", UiTheme.MUTED.darkened(0.3))
+	_review_bar.add_theme_stylebox_override("panel", _verdict_bar(UiTheme.PAPER))
 	_review_hint.text = ""
 	_review.visible = true
 
@@ -590,8 +869,22 @@ func set_review_hint(text: String) -> void:
 
 
 func set_review_verdict(text: String, tint: Color) -> void:
-	_review_verdict.text = text
-	_review_verdict.add_theme_color_override("font_color", tint)
+	_review_verdict.text = text.to_upper()
+	# The answer in black on white, with the colour it was given as the bar's edge — the
+	# broadcast puts the verdict on a plain bar so it can be read from the back of a hall.
+	_review_verdict.add_theme_color_override("font_color", UiTheme.INK)
+	var bar := _verdict_bar(UiTheme.PAPER)
+	bar.border_width_left = 14
+	bar.border_width_right = 14
+	bar.border_color = tint
+	_review_bar.add_theme_stylebox_override("panel", bar)
+
+
+func _verdict_bar(fill: Color) -> StyleBoxFlat:
+	var bar := UiTheme.block(fill)
+	bar.content_margin_top = 4
+	bar.content_margin_bottom = 4
+	return bar
 
 
 func hide_review() -> void:
@@ -1222,10 +1515,19 @@ func _draw_lesson() -> void:
 		for pair in lesson["keys"]:
 			var row := HBoxContainer.new()
 			row.add_theme_constant_override("separation", 20)
-			var key := _make_label(pair[0], UiTheme.SMALL, UiTheme.ACCENT)
-			key.custom_minimum_size = Vector2(200, 0)
-			key.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-			row.add_child(key)
+			var key_cell := HBoxContainer.new()
+			key_cell.alignment = BoxContainer.ALIGNMENT_END
+			key_cell.custom_minimum_size = Vector2(200, 0)
+			var cap := PanelContainer.new()
+			var face := UiTheme.block(UiTheme.PAPER)
+			face.content_margin_left = 12
+			face.content_margin_right = 12
+			face.content_margin_top = 0
+			face.content_margin_bottom = 0
+			cap.add_theme_stylebox_override("panel", face)
+			cap.add_child(UiTheme.label(pair[0], UiTheme.SMALL - 2, UiTheme.INK, UiTheme.heavy()))
+			key_cell.add_child(cap)
+			row.add_child(key_cell)
 			var meaning := _make_label(pair[1], UiTheme.SMALL, UiTheme.MUTED)
 			meaning.custom_minimum_size = Vector2(420, 0)
 			meaning.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -1477,10 +1779,10 @@ func _build_reputation_meter() -> PanelContainer:
 	# It grows upwards from its anchor rather than both ways. Growing both ways put
 	# half the panel below the bottom of the screen, so the bar was cut in two and the
 	# whole thing sat on top of the reaction line.
-	_meter.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_meter.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_meter.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_meter.position = Vector2(0, -158)
+	#
+	# Top right since 2026-09-15, under the line judge's chip. At the bottom centre it sat
+	# on top of the line judge's call, and the bottom right belongs to the ball camera.
+	_pin(_meter, Control.PRESET_TOP_RIGHT, HUD_INSET_X, HUD_INSET_Y + 96)
 	_meter.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_meter.modulate = Color(1, 1, 1, 0)
 	_meter.visible = false
@@ -1520,7 +1822,7 @@ func _build_reputation_meter() -> PanelContainer:
 
 	# The number and which way it just went, which is the part that is actually news.
 	_meter_value = _make_label("", UiTheme.HEADING, UiTheme.CHALK)
-	_meter_value.custom_minimum_size = Vector2(150, 0)
+	_meter_value.custom_minimum_size = Vector2(104, 0)
 	_meter_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(_meter_value)
 
@@ -1732,16 +2034,14 @@ var _bubble_showns: Array[float] = []
 ## the room while still belonging to somebody.
 # --- the broadcast ------------------------------------------------------------------
 
-## The commentary caption, bottom left, the way a broadcast puts up a lower third.
+## The commentary caption, bottom left, the way a broadcast puts up a lower third — or top
+## left in tennis and table tennis, whose score bugs take the bottom left (see
+## `_place_for_the_sport`).
 ##
 ## It is the one panel with a red edge and a LIVE tag, because it is the one voice that is
 ## neither the game talking to the umpire (the amber plates) nor somebody in the hall (the
-## white bubbles): it is people on television talking *about* the umpire. In the corner
-## rather than the centre because the centre bottom already stacks the prompt, the hall's
-## line, the meter and the line judge. At 460 wide it clears the reputation meter's left
-## edge at 1920x1080; at 560 it hid the start of REPUTATION (dev/looks/_commentaryshot).
+## white bubbles): it is people on television talking *about* the umpire.
 const COMMENTARY_WIDTH := 460
-const COMMENTARY_LIFT := 24
 
 var _commentary: PanelContainer
 var _commentary_channel: Label
@@ -1753,13 +2053,7 @@ func _build_commentary() -> PanelContainer:
 	_commentary = PanelContainer.new()
 	_commentary.name = "Commentary"
 	_commentary.add_theme_stylebox_override("panel", UiTheme.plate(UiTheme.RED, 0.86))
-	_commentary.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_commentary.grow_horizontal = Control.GROW_DIRECTION_END
-	_commentary.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_commentary.offset_left = REASON_INSET
-	_commentary.offset_right = REASON_INSET
-	_commentary.offset_bottom = -COMMENTARY_LIFT
-	_commentary.offset_top = -COMMENTARY_LIFT
+	_pin(_commentary, Control.PRESET_BOTTOM_LEFT, HUD_INSET_X, BOTTOM_LIFT)
 	_commentary.custom_minimum_size = Vector2(COMMENTARY_WIDTH, 0)
 	_commentary.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_commentary.visible = false
@@ -1804,7 +2098,10 @@ func show_commentary(channel: String, speaker: String, line: String) -> void:
 	# It grows upwards from its bottom edge. Collapsed first, so a one-line caption after a
 	# two-line one does not keep the taller box. Offsets, not `position`: once the HUD has a
 	# size, `position` is measured from its top-left and the caption would leave the screen.
-	_commentary.offset_top = _commentary.offset_bottom
+	if _commentary_at_top:
+		_commentary.offset_bottom = _commentary.offset_top
+	else:
+		_commentary.offset_top = _commentary.offset_bottom
 	_commentary.offset_right = _commentary.offset_left
 	_commentary.visible = true
 
@@ -2052,14 +2349,18 @@ func show_history(career: Career) -> void:
 		PROMPT_SIZE, UiTheme.MUTED))
 	_history_column.add_child(_gap(14))
 
-	var heading := _make_label(
-		"%-18s %-24s %-9s %8s %7s" % ["sport", "venue", "format", "cost", "left"],
-		PROMPT_SIZE - 3, UiTheme.MUTED)
-	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_history_column.add_child(heading)
-
+	var table := GridContainer.new()
+	table.columns = 6
+	table.add_theme_constant_override("h_separation", 30)
+	table.add_theme_constant_override("v_separation", 6)
+	_history_column.add_child(_centred(table))
+	for heading in ["SPORT", "VENUE", "FORMAT", "COST", "LEFT", ""]:
+		var label := UiTheme.label(heading, UiTheme.SMALL, UiTheme.ACCENT, UiTheme.heavy())
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		table.add_child(label)
 	for row in career.history:
-		_history_column.add_child(_history_row(row))
+		for cell in _history_row(row):
+			table.add_child(cell)
 
 	_history_column.add_child(_gap(18))
 	_history_column.add_child(_menu_footer(AT_HISTORY))
@@ -2068,22 +2369,21 @@ func show_history(career: Career) -> void:
 
 ## One match. The cost is what it did to your name, which is the only number here that
 ## is about you rather than about the match.
-func _history_row(row: Dictionary) -> Label:
+func _history_row(row: Dictionary) -> Array[Label]:
 	var change := float(row.get("change", 0.0))
 	var removed := bool(row.get("removed", false))
 	var format := "—"
 	if bool(row.get("asked", false)):
 		format = "doubles" if bool(row.get("doubles", true)) else "singles"
 
-	var text := "%-18s %-24s %-9s %+8.2f %7d" % [
+	var cells := [
 		Career.name_of(StringName(row.get("sport", ""))),
 		String(row.get("venue", "")),
 		format,
-		change,
-		roundi(float(row.get("reputation", 0.0)) * 100.0),
+		"%+.2f" % change,
+		str(roundi(float(row.get("reputation", 0.0)) * 100.0)),
+		"thrown off" if removed else "",
 	]
-	if removed:
-		text += "   thrown off"
 
 	var tint := Color(0.74, 0.77, 0.82)
 	if removed:
@@ -2092,9 +2392,12 @@ func _history_row(row: Dictionary) -> Label:
 		tint = Color(0.62, 0.82, 0.66)
 	elif change < -0.05:
 		tint = Color(0.92, 0.72, 0.50)
-	var label := _make_label(text, PROMPT_SIZE - 3, tint)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	return label
+	var labels: Array[Label] = []
+	for cell in cells:
+		var label := UiTheme.label(cell, UiTheme.SMALL + 2, tint)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		labels.append(label)
+	return labels
 
 
 func hide_history() -> void:
@@ -2114,16 +2417,20 @@ func _build_career_panel() -> void:
 
 	var backdrop := ColorRect.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	backdrop.color = Color(0.05, 0.06, 0.08, 0.95)
+	backdrop.color = Color(0.03, 0.04, 0.06, 0.62)
 	_career_panel.add_child(backdrop)
 
+	var card := PanelContainer.new()
+	card.set_anchors_preset(Control.PRESET_CENTER)
+	card.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	card.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_career_panel.add_child(card)
+
 	_career_column = VBoxContainer.new()
-	_career_column.set_anchors_preset(Control.PRESET_CENTER)
-	_career_column.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_career_column.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_career_column.alignment = BoxContainer.ALIGNMENT_CENTER
 	_career_column.add_theme_constant_override("separation", 7)
-	_career_panel.add_child(_career_column)
+	_career_column.custom_minimum_size = Vector2(1000, 0)
+	card.add_child(_career_column)
 
 
 ## Draws the ladder, with where you are on it and what that is worth.
@@ -2149,33 +2456,42 @@ func show_career(career: Career) -> void:
 		return
 
 	_career_column.add_child(_make_label("YOUR CAREER", TITLE_SIZE - 4, Color(0.95, 0.95, 0.93)))
-	_career_column.add_child(_gap(8))
+	_career_column.add_child(_gap(4))
 
+	# Two columns: this sport's ladder on the left, all five on the right. Stacked, the
+	# screen came to more than a thousand pixels and ran off both ends of a laptop.
+	var halves := HBoxContainer.new()
+	halves.add_theme_constant_override("separation", 48)
+	halves.alignment = BoxContainer.ALIGNMENT_CENTER
+	_career_column.add_child(halves)
+	var left := VBoxContainer.new()
+	left.add_theme_constant_override("separation", 6)
+	halves.add_child(left)
+	var right := VBoxContainer.new()
+	right.add_theme_constant_override("separation", 6)
+	right.alignment = BoxContainer.ALIGNMENT_CENTER
+	halves.add_child(right)
+
+	# The ladder as a broadcast bracket: one plate a rung, the rung you are on lit gold,
+	# the ones behind you ticked off, the ones ahead dim.
+	left.add_child(UiTheme.label(Career.name_of(career.sport).to_upper(), UiTheme.SMALL,
+		UiTheme.ACCENT, UiTheme.heavy()))
 	var rungs := career.ladder()
 	for i in rungs.size():
 		var rung: Dictionary = rungs[i]
-		var text := "%s" % rung["name"]
-		var tint := Color(0.36, 0.38, 0.42)
-		if i < career.tier:
-			text = "%s        cleared" % rung["name"]
-			tint = Color(0.55, 0.62, 0.55)
-		elif i == career.tier:
-			text = "▸  %s" % rung["name"]
-			tint = Color(0.98, 0.94, 0.72)
-		_career_column.add_child(_make_label(text, PROMPT_SIZE + 3, tint))
+		left.add_child(_rung_plate(String(rung["name"]),
+			&"cleared" if i < career.tier else (&"here" if i == career.tier else &"ahead")))
 
-	_career_column.add_child(_gap(10))
+	_career_column.add_child(_gap(6))
 	_career_column.add_child(_make_label(
 		str(career.venue()["blurb"]), PROMPT_SIZE, Color(0.70, 0.72, 0.76)
 	))
-	_career_column.add_child(_make_label(
-		"Reputation %d / 100          %s" % [
+	_career_column.add_child(UiTheme.label(
+		"REPUTATION  %d / 100     \u2022     %s" % [
 			roundi(career.reputation * 100.0),
-			Career.format_of(career.sport, career.venue()["quick"]),
+			Career.format_of(career.sport, career.venue()["quick"]).to_upper(),
 		],
-		PROMPT_SIZE + 2,
-		Color(0.88, 0.90, 0.93)
-	))
+		UiTheme.HEADING, UiTheme.CHALK, UiTheme.heavy()))
 
 	# Anybody out there who has not forgotten you. This is the only place a grudge
 	# shows up before you are standing in front of it, and it is here rather than on
@@ -2188,35 +2504,56 @@ func show_career(career: Career) -> void:
 			PROMPT_SIZE, Color(0.90, 0.62, 0.44)
 		))
 
-	_add_the_other_ladders(career)
+	_add_the_other_ladders(career, right)
 
-	_career_column.add_child(_gap(16))
+	_career_column.add_child(_gap(12))
+	var actions := HBoxContainer.new()
+	actions.alignment = BoxContainer.ALIGNMENT_CENTER
+	actions.add_theme_constant_override("separation", 16)
+	_career_column.add_child(actions)
 	# The button only reports the choice; the match decides what happens to the
 	# screen. Hiding it in here means the flow only works when a human clicks.
-	_career_column.add_child(_make_wide_button("REFEREE THIS MATCH", func() -> void:
+	var go := _make_wide_button("REFEREE THIS MATCH", func() -> void:
 		match_requested.emit()
-	))
+	)
+	go.custom_minimum_size.x = 380
+	go.add_theme_color_override("font_color", UiTheme.INK)
+	go.add_theme_color_override("font_hover_color", UiTheme.INK)
+	go.add_theme_color_override("font_focus_color", UiTheme.INK)
+	var gold := UiTheme.slant(UiTheme.ACCENT)
+	gold.content_margin_top = 14
+	gold.content_margin_bottom = 14
+	go.add_theme_stylebox_override("normal", gold)
+	var lit := UiTheme.slant(UiTheme.ACCENT.lightened(0.25))
+	lit.content_margin_top = 14
+	lit.content_margin_bottom = 14
+	go.add_theme_stylebox_override("hover", lit)
+	go.add_theme_stylebox_override("focus", lit)
+	go.add_theme_stylebox_override("pressed", lit)
+	actions.add_child(go)
 	# And a way back to the rules of whichever sport this is.
 	#
 	# The lesson used to be shown once, on the way into a first match, and then be
 	# unreachable — the title screen's HOW TO REFEREE only ever had badminton's. That is
 	# worst for indoor volleyball, whose lesson is the only one in the game explaining
 	# something the player has to carry in their head rather than look at.
-	_career_column.add_child(_gap(6))
-	_career_column.add_child(_make_wide_button("HOW TO REFEREE", func() -> void:
+	var lessons := _make_wide_button("HOW TO REFEREE", func() -> void:
 		teaching_requested.emit()
-	))
+	)
+	lessons.custom_minimum_size.x = 300
+	actions.add_child(lessons)
 	# And what the reputation at the top of this screen is actually made of.
 	if not career.history.is_empty():
-		_career_column.add_child(_gap(6))
-		_career_column.add_child(_make_wide_button("EVERY MATCH SO FAR", func() -> void:
+		var history := _make_wide_button("EVERY MATCH SO FAR", func() -> void:
 			history_requested.emit()
-		))
+		)
+		history.custom_minimum_size.x = 320
+		actions.add_child(history)
 
 	# The screen had no way off it at all until now: no BACK, no MAIN MENU, and the only
 	# exits were forward into a match or sideways into the lesson and the history. A
 	# player who opened it to look at the ladder had to referee a match to leave.
-	_career_column.add_child(_gap(16))
+	_career_column.add_child(_gap(8))
 	_career_column.add_child(_menu_footer(AT_CAREER))
 
 
@@ -2227,36 +2564,59 @@ func show_career(career: Career) -> void:
 ## that a disaster at the beach is waiting for you at the badminton hall was something
 ## the player had to work out. The reputation at the top of this screen is the shared
 ## number; these are the four things it is spent on.
-func _add_the_other_ladders(career: Career) -> void:
-	_career_column.add_child(_gap(14))
-	_career_column.add_child(_make_label(
-		"ONE NAME, FIVE LADDERS", PROMPT_SIZE, UiTheme.MUTED))
-	_career_column.add_child(_gap(4))
+func _add_the_other_ladders(career: Career, into: VBoxContainer) -> void:
+	into.add_child(UiTheme.label(
+		"ONE NAME, FIVE LADDERS", UiTheme.SMALL, UiTheme.ACCENT, UiTheme.heavy()))
 
+	# A grid rather than padded strings: the columns used to be lined up with spaces, which
+	# only ever worked in a font where every letter is the same width.
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 34)
+	grid.add_theme_constant_override("v_separation", 4)
+	into.add_child(grid)
 	for which in Career.IN_ORDER:
 		var standing := career.standing_in(which)
 		var rungs := Career.ladder_for(which)
 		var here := int(standing["tier"])
-		var line := ""
 		var tint := Color(0.50, 0.53, 0.58)
-		if not standing["started"]:
-			line = "%-20s not started yet" % Career.name_of(which)
-		else:
+		var rung_name := "not started yet"
+		var played_text := ""
+		if standing["started"]:
 			var played := int(standing["matches_at_tier"])
-			line = "%-20s %-26s %s" % [
-				Career.name_of(which),
-				String(rungs[clampi(here, 0, rungs.size() - 1)]["name"]),
-				"%d at this rung" % played if played > 0 else "just arrived",
-			]
+			rung_name = String(rungs[clampi(here, 0, rungs.size() - 1)]["name"])
+			played_text = "%d at this rung" % played if played > 0 else "just arrived"
 			tint = Color(0.74, 0.77, 0.82)
 		if which == career.sport:
-			line = "▸ " + line
-			tint = Color(0.98, 0.94, 0.72)
-		else:
-			line = "   " + line
-		var label := _make_label(line, PROMPT_SIZE - 2, tint)
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		_career_column.add_child(label)
+			tint = UiTheme.ACCENT
+		for cell in [Career.name_of(which).to_upper(), rung_name, played_text]:
+			var label := UiTheme.label(cell, UiTheme.SMALL + 2, tint,
+				UiTheme.heavy() if cell == Career.name_of(which).to_upper() else null)
+			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			grid.add_child(label)
+
+
+## One rung of the ladder. `state` is cleared, here or ahead.
+func _rung_plate(rung_name: String, state: StringName) -> Control:
+	var plate := PanelContainer.new()
+	var fill := Color(UiTheme.RAISED.r, UiTheme.RAISED.g, UiTheme.RAISED.b, 0.7)
+	var ink := UiTheme.MUTED.darkened(0.25)
+	var mark := ""
+	match state:
+		&"here":
+			fill = UiTheme.ACCENT
+			ink = UiTheme.INK
+			mark = "\u25b6  "
+		&"cleared":
+			ink = Color(0.62, 0.78, 0.64)
+			mark = "\u2713  "
+	var skin := UiTheme.slant(fill, UiTheme.LEAN * 0.6)
+	skin.content_margin_top = 0
+	skin.content_margin_bottom = 0
+	plate.add_theme_stylebox_override("panel", skin)
+	plate.custom_minimum_size = Vector2(520, 0)
+	plate.add_child(UiTheme.label(mark + rung_name.to_upper(), UiTheme.BODY, ink, UiTheme.heavy()))
+	return _centred(plate)
 
 
 ## Whether the career ladder is the screen currently showing.
@@ -2338,6 +2698,10 @@ func _arrive(where: StringName) -> void:
 	if where == AT_MAIN:
 		_trail = [AT_MAIN]
 		return
+	# The title screen is a full screen of its own now rather than a card in the middle,
+	# so a screen opened over it has to take it down or it shows through.
+	if _main_menu != null:
+		_main_menu.visible = false
 	if _trail.is_empty():
 		_trail = [AT_MAIN]
 	# Arriving somewhere already behind you is a step back to it, not a new step, which
@@ -2453,7 +2817,15 @@ func _build_briefing() -> void:
 	column.custom_minimum_size = Vector2(720, 0)
 	card.add_child(column)
 
+	var tag := PanelContainer.new()
+	tag.add_theme_stylebox_override("panel", UiTheme.slant(UiTheme.ACCENT))
+	tag.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	tag.add_child(UiTheme.label("BEFORE THE MATCH", UiTheme.SMALL, UiTheme.INK, UiTheme.heavy()))
+	column.add_child(tag)
 	_briefing_headline = _make_label("", TITLE_SIZE, Color(0.96, 0.94, 0.88))
+	_briefing_headline.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_briefing_headline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_briefing_headline.custom_minimum_size = Vector2(720, 0)
 	column.add_child(_briefing_headline)
 
 	# The body is the only long prose in the game, so it wraps and is left-aligned.
@@ -2517,20 +2889,32 @@ func _build_hud() -> void:
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(hud)
 
-	# The score and the prompt sit on plates. White text over a lit green court is
-	# legible about half the time, which for the one line telling you the score is
-	# half the time too little.
-	hud.add_child(_build_scorebug())
+	# Where everything sits, since the broadcast redesign of 2026-09-15:
+	#
+	#   the score bug        where that sport's television puts it (ScoreBug.corner)
+	#   the line judge       top right, a chip, the way a broadcast flags a call
+	#   the reputation meter top right, under the line judge
+	#   the commentary       bottom left, or top left when the bug has the bottom left
+	#   the prompt           bottom centre, as key caps
+	#   the hall's line      above the prompt
+	#   the ball camera      bottom right, where it always was
+	#
+	# Every corner holds one thing. Before this the line judge, the meter, the hall's line
+	# and the prompt were stacked up the middle of the bottom edge and the meter sat on
+	# top of the line judge's call.
+	_score_bug = ScoreBug.new()
+	hud.add_child(_score_bug)
 
 	_message_label = _make_label("", MESSAGE_SIZE, Color(0.98, 0.94, 0.72))
 	_message_label.set_anchors_preset(Control.PRESET_CENTER)
 	_message_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_message_label.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_message_label.position = Vector2(0, -70)
+	_message_label.add_theme_constant_override("outline_size", 14)
+	_message_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	hud.add_child(_message_label)
 
-	_prompt_label = _make_label("", PROMPT_SIZE, Color(0.88, 0.90, 0.93))
-	hud.add_child(_plate_for(_prompt_label, Control.PRESET_CENTER_BOTTOM, Vector2(0, -34)))
+	hud.add_child(_build_prompt())
 
 	# What the hall is doing. For a long time this was the *only* feedback the player
 	# ever got about how much trouble they were in. The reputation meter below now says
@@ -2539,7 +2923,10 @@ func _build_hud() -> void:
 	_reaction_label = _make_label("", REACTION_SIZE, Color(0.86, 0.80, 0.66))
 	_reaction_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_reaction_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_reaction_label.position = Vector2(0, -110)
+	_reaction_label.offset_top = -REACTION_LIFT
+	_reaction_label.offset_bottom = -REACTION_LIFT
+	_reaction_label.add_theme_constant_override("outline_size", 10)
+	_reaction_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	hud.add_child(_reaction_label)
 
 	# What the line judge said, in words, near the middle of the screen.
@@ -2549,10 +2936,21 @@ func _build_hud() -> void:
 	# sit at the corners, fourteen metres from the chair and usually outside an eighty
 	# degree view — so their call was going up where nobody could see it, which read as
 	# them having nothing to say.
-	_judge_label = _make_label("", REACTION_SIZE + 4, Color(0.86, 0.88, 0.94))
-	hud.add_child(_plate_for(_judge_label, Control.PRESET_CENTER_BOTTOM,
-		Vector2(0, -216), 0.72))
-	_judge_plate = _judge_label.get_parent() as PanelContainer
+	#
+	# Top right since 2026-09-15, as a chip: LINE JUDGE in grey and the call itself in its
+	# colour, which is how a broadcast flags a line call rather than a sentence along the
+	# bottom.
+	_judge_label = UiTheme.label("", UiTheme.HEADING + 4, UiTheme.CHALK, UiTheme.heavy())
+	_judge_plate = PanelContainer.new()
+	_judge_plate.name = "LineJudge"
+	_judge_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var judge_row := HBoxContainer.new()
+	judge_row.add_theme_constant_override("separation", 14)
+	_judge_plate.add_child(judge_row)
+	judge_row.add_child(UiTheme.label("LINE JUDGE", UiTheme.HEADING, UiTheme.MUTED, UiTheme.heavy()))
+	judge_row.add_child(_judge_label)
+	_pin(_judge_plate, Control.PRESET_TOP_RIGHT, HUD_INSET_X, HUD_INSET_Y)
+	hud.add_child(_judge_plate)
 	_judge_plate.visible = false
 
 	_banner_label = _make_label("", BANNER_SIZE, Color(0.96, 0.42, 0.36))
@@ -2565,110 +2963,178 @@ func _build_hud() -> void:
 	hud.add_child(_build_reason_note())
 	hud.add_child(_build_bubbles())
 	hud.add_child(_build_commentary())
+	_place_for_the_sport()
 
 
-## The score bug at the top of the screen, the way a broadcast does it: a block of each
-## team's colour with their name in it, the points between them in the largest type on
-## screen, and a lit dot over whoever is serving.
+## How far in from the edges of the screen the HUD's corner pieces sit.
+const HUD_INSET_X := 44
+const HUD_INSET_Y := 28
+
+## How far up the bottom-edge pieces sit: above the prompt, which has the very bottom.
+const BOTTOM_LIFT := 96
+const REACTION_LIFT := 150
+const REACTION_LIFT_OVER_STRIP := 290
+
+## Which sport the HUD is dressed for. Set by the match when it builds its interface;
+## badminton's by default, because the badminton hall builds this before any sport has
+## been chosen.
+var score_sport: StringName = Career.BADMINTON:
+	set(value):
+		score_sport = value
+		if _score_bug != null:
+			_score_bug.use_sport(value)
+			_place_for_the_sport()
+
+
+## Anchors a HUD piece to a corner and lets it grow into the screen from there.
 ##
-## Who is serving matters more here than in most sports and was previously a bullet
-## character in a run of text. In badminton the server decides which service court the
-## rally starts from, so an umpire who has lost track of it cannot judge a service
-## fault at all.
-func _build_scorebug() -> PanelContainer:
-	var bug := PanelContainer.new()
-	bug.name = "ScoreBug"
-	bug.add_theme_stylebox_override("panel", UiTheme.plate(UiTheme.ACCENT, 0.86))
-	bug.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	bug.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	bug.position = Vector2(0, 22)
-	bug.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 18)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	bug.add_child(row)
-
-	_serve_red = _serve_dot()
-	row.add_child(_serve_red)
-	row.add_child(_team_block("RED", UiTheme.RED))
-
-	_score_points = _make_label("0  -  0", UiTheme.HUGE, UiTheme.CHALK)
-	row.add_child(_score_points)
-
-	row.add_child(_team_block("BLUE", UiTheme.BLUE))
-	_serve_blue = _serve_dot()
-	row.add_child(_serve_blue)
-
-	_score_games = _make_label("", UiTheme.SMALL, UiTheme.MUTED)
-	_score_games.custom_minimum_size = Vector2(140, 0)
-	row.add_child(_score_games)
-
-	# How many reviews each side still holds. Shown because it is the whole of the
-	# threat: an umpire who cannot see that RED has two challenges left does not know
-	# whether the next close call is worth lying about.
-	_score_reviews = _make_label("", UiTheme.SMALL, UiTheme.MUTED)
-	_score_reviews.custom_minimum_size = Vector2(210, 0)
-	row.add_child(_score_reviews)
-	return bug
+## Offsets rather than `position`, which is only right while the HUD still has no size.
+func _pin(piece: Control, preset: int, x: int, y: int) -> void:
+	piece.set_anchors_preset(preset)
+	var right := preset in [Control.PRESET_TOP_RIGHT, Control.PRESET_BOTTOM_RIGHT, Control.PRESET_CENTER_RIGHT]
+	var bottom := preset in [Control.PRESET_BOTTOM_LEFT, Control.PRESET_BOTTOM_RIGHT, Control.PRESET_CENTER_BOTTOM]
+	var centre := preset in [Control.PRESET_CENTER_TOP, Control.PRESET_CENTER_BOTTOM]
+	piece.grow_horizontal = (Control.GROW_DIRECTION_BOTH if centre
+		else Control.GROW_DIRECTION_BEGIN if right else Control.GROW_DIRECTION_END)
+	piece.grow_vertical = Control.GROW_DIRECTION_BEGIN if bottom else Control.GROW_DIRECTION_END
+	var dx := 0 if centre else (-x if right else x)
+	var dy := -y if bottom else y
+	piece.offset_left = dx
+	piece.offset_right = dx
+	piece.offset_top = dy
+	piece.offset_bottom = dy
 
 
-func _team_block(name: String, colour: Color) -> PanelContainer:
-	var block := PanelContainer.new()
-	block.add_theme_stylebox_override("panel", UiTheme.block(colour))
-	var label := _make_label(name, UiTheme.HEADING, Color.WHITE)
-	block.add_child(label)
-	return block
+## Puts the score bug where this sport's television has it, and moves the commentary to
+## whichever left-hand corner the bug has left free.
+func _place_for_the_sport() -> void:
+	if _score_bug == null:
+		return
+	var corner: int = _score_bug.corner()
+	if corner == Control.PRESET_TOP_LEFT:
+		_pin(_score_bug, corner, HUD_INSET_X, HUD_INSET_Y)
+	else:
+		_pin(_score_bug, corner, HUD_INSET_X, BOTTOM_LIFT)
+	_commentary_at_top = corner == Control.PRESET_BOTTOM_LEFT
+	# The hall's line sits over the middle of the bottom edge, which is where both
+	# volleyballs keep their score. Over a strip it goes above the whole of it.
+	if _reaction_label != null:
+		var lift := REACTION_LIFT_OVER_STRIP if corner == Control.PRESET_CENTER_BOTTOM else REACTION_LIFT
+		_reaction_label.offset_top = -lift
+		_reaction_label.offset_bottom = -lift
+	if _commentary != null:
+		if _commentary_at_top:
+			_pin(_commentary, Control.PRESET_TOP_LEFT, HUD_INSET_X, HUD_INSET_Y)
+		else:
+			_pin(_commentary, Control.PRESET_BOTTOM_LEFT, HUD_INSET_X, BOTTOM_LIFT)
 
 
-func _serve_dot() -> Label:
-	var dot := _make_label("", UiTheme.HEADING, UiTheme.ACCENT)
-	dot.custom_minimum_size = Vector2(26, 0)
-	return dot
+var _commentary_at_top := false
 
 
+## The prompt: what the keys do right now, as key caps along the bottom of the screen.
+##
+## It used to be one line of text with the gaps doing the work — "LEFT CLICK  in    RIGHT
+## CLICK  out" — which the match still sends, unchanged. It is split back into its pairs
+## here: two spaces between a key and what it does, three or more between pairs. Anything
+## that is not a pair ("watch it") is shown as it came.
+func _build_prompt() -> PanelContainer:
+	_prompt_plate = PanelContainer.new()
+	_prompt_plate.name = "Prompt"
+	var skin := UiTheme.block(Color(UiTheme.INK.r, UiTheme.INK.g, UiTheme.INK.b, 0.86))
+	skin.content_margin_left = 18
+	skin.content_margin_right = 18
+	skin.content_margin_top = 8
+	skin.content_margin_bottom = 8
+	skin.border_width_top = 3
+	skin.border_color = UiTheme.ACCENT
+	_prompt_plate.add_theme_stylebox_override("panel", skin)
+	_prompt_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_prompt_keys = HBoxContainer.new()
+	_prompt_keys.add_theme_constant_override("separation", 26)
+	_prompt_plate.add_child(_prompt_keys)
+	# Kept for anything that reads the prompt as a sentence.
+	_prompt_label = Label.new()
+	_prompt_label.visible = false
+	_prompt_plate.add_child(_prompt_label)
+	_pin(_prompt_plate, Control.PRESET_CENTER_BOTTOM, 0, 18)
+	_prompt_plate.visible = false
+	return _prompt_plate
+
+
+## The score, in whichever sport's broadcast layout this HUD is dressed for. See ScoreBug.
 func set_score(board: Scoreboard, serving: Sides.Team) -> void:
-	# Tennis counts in a language of its own, and a bug reading "2 - 1" in a sport whose
-	# whole texture is "thirty-fifteen" would throw away the reason it is here. It is
-	# also the one score in the game read from the server's point of view: forty-fifteen
-	# and fifteen-forty are the same two numbers and opposite situations.
-	var tennis := board as TennisScore
-	if tennis != null:
-		_score_points.text = tennis.called_score(serving)
-	else:
-		_score_points.text = "%d  -  %d" % [
-			board.points[Sides.Team.RED], board.points[Sides.Team.BLUE]
-		]
-	_serve_red.text = "\u25cf" if serving == Sides.Team.RED else ""
-	_serve_blue.text = "\u25cf" if serving == Sides.Team.BLUE else ""
-	if tennis != null:
-		_score_games.text = "GAMES  %d - %d      SETS  %d - %d" % [
-			tennis.games[Sides.Team.RED], tennis.games[Sides.Team.BLUE],
-			tennis.sets[Sides.Team.RED], tennis.sets[Sides.Team.BLUE],
-		]
-	else:
-		_score_games.text = "" if board.games_needed <= 1 else "GAMES  %d - %d" % [
-			board.games[Sides.Team.RED], board.games[Sides.Team.BLUE]
-		]
+	_score_bug.show_score(board, serving)
 
 
 ## The reviews each side has left, or nothing at all at the venues without Hawk-Eye —
 ## where the absence is itself information, because it means nobody can check you.
 func set_reviews(red: int, blue: int, enabled: bool) -> void:
-	if not enabled:
-		_score_reviews.text = ""
-		return
-	_score_reviews.text = "REVIEWS  %s   %s" % [_review_dots(red), _review_dots(blue)]
-
-
-## Filled for a review still held, hollow for one spent. Read at a glance and in the same
-## order as the score bug itself: red on the left, blue on the right.
-func _review_dots(left: int) -> String:
-	return "\u25cf".repeat(left) + "\u25cb".repeat(maxi(0, Challenge.PER_GAME - left))
+	_score_bug.show_reviews(red, blue, enabled)
 
 
 func set_prompt(text: String) -> void:
 	_prompt_label.text = text
+	for child in _prompt_keys.get_children():
+		_prompt_keys.remove_child(child)
+		child.queue_free()
+	_prompt_plate.visible = not text.strip_edges().is_empty()
+
+	var pairs := RegEx.create_from_string("\\s{3,}")
+	for part in pairs.sub(text.strip_edges(), "\t", true).split("\t", false):
+		var split := part.find("  ")
+		var key := part.substr(0, split).strip_edges() if split > 0 else ""
+		var does := part.substr(split).strip_edges() if split > 0 else part.strip_edges()
+		if key != key.to_upper():
+			key = ""
+			does = part.strip_edges()
+		var pair := HBoxContainer.new()
+		pair.add_theme_constant_override("separation", 10)
+		if not key.is_empty():
+			var cap := PanelContainer.new()
+			var face := UiTheme.block(UiTheme.PAPER)
+			face.content_margin_left = 12
+			face.content_margin_right = 12
+			face.content_margin_top = 0
+			face.content_margin_bottom = 0
+			face.border_width_bottom = 4
+			face.border_color = _prompt_edge(does)
+			cap.add_theme_stylebox_override("panel", face)
+			cap.add_child(UiTheme.label(key, UiTheme.SMALL, UiTheme.INK, UiTheme.heavy()))
+			pair.add_child(cap)
+		pair.add_child(UiTheme.label(does.to_upper() if not key.is_empty() else does,
+			UiTheme.BODY, UiTheme.CHALK, UiTheme.strong()))
+		_prompt_keys.add_child(pair)
+
+
+## Key caps with what they do, for the screens that have keys but no prompt bar.
+func _key_hints(pairs: Array) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 20)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for pair in pairs:
+		var cap := PanelContainer.new()
+		var face := UiTheme.block(UiTheme.PAPER)
+		face.content_margin_left = 10
+		face.content_margin_right = 10
+		face.content_margin_top = 0
+		face.content_margin_bottom = 0
+		cap.add_theme_stylebox_override("panel", face)
+		cap.add_child(UiTheme.label(pair[0], UiTheme.SMALL - 2, UiTheme.INK, UiTheme.heavy()))
+		row.add_child(cap)
+		row.add_child(UiTheme.label(String(pair[1]).to_upper(), UiTheme.SMALL, UiTheme.MUTED, UiTheme.strong()))
+	return row
+
+
+## The line under a key cap: green for the calls that let play stand, red for the calls
+## that stop it, and grey for everything else.
+func _prompt_edge(does: String) -> Color:
+	var word := does.strip_edges().to_lower()
+	if word in ["in", "good"]:
+		return UiTheme.GOOD
+	if word in ["out", "fault"]:
+		return UiTheme.BAD
+	return UiTheme.PALE
 
 
 ## Shows what the umpire announced. Deliberately says nothing about whether it was
@@ -2694,11 +3160,12 @@ func react(line: String, seconds := 2.6) -> void:
 func show_line_judge(says_in: bool, seconds := 2.4) -> void:
 	if _judge_label == null:
 		return
-	_judge_label.text = "LINE JUDGE   ·   %s" % ("IN" if says_in else "OUT")
-	_judge_label.add_theme_color_override("font_color",
-		Color(0.72, 0.86, 0.74) if says_in else Color(0.96, 0.62, 0.52))
-	_judge_plate.add_theme_stylebox_override("panel", UiTheme.plate(
-		Color(0.55, 0.85, 0.60) if says_in else Color(0.96, 0.42, 0.36), 0.72))
+	_judge_label.text = "IN" if says_in else "OUT"
+	_judge_label.add_theme_color_override("font_color", UiTheme.GOOD if says_in else UiTheme.BAD)
+	var chip := UiTheme.plate(UiTheme.GOOD if says_in else UiTheme.BAD, 0.88)
+	chip.border_width_left = 8
+	chip.skew = Vector2(UiTheme.LEAN, 0.0)
+	_judge_plate.add_theme_stylebox_override("panel", chip)
 	_judge_plate.visible = true
 	_judge_timer = seconds
 
@@ -2731,16 +3198,18 @@ func _build_fault_panel() -> void:
 
 	var backdrop := ColorRect.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	backdrop.color = Color(0.04, 0.05, 0.07, 0.82)
+	backdrop.color = Color(0.04, 0.05, 0.07, 0.62)
 	_fault_panel.add_child(backdrop)
 
+	var card := PanelContainer.new()
+	card.set_anchors_preset(Control.PRESET_CENTER)
+	card.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	card.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_fault_panel.add_child(card)
 	_fault_rows = VBoxContainer.new()
-	_fault_rows.set_anchors_preset(Control.PRESET_CENTER)
-	_fault_rows.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_fault_rows.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_fault_rows.alignment = BoxContainer.ALIGNMENT_CENTER
 	_fault_rows.add_theme_constant_override("separation", 10)
-	_fault_panel.add_child(_fault_rows)
+	card.add_child(_fault_rows)
 
 
 ## Builds the list fresh each time, because between rallies there is no rally to
@@ -2800,7 +3269,18 @@ func _make_accusation_row(label: String, id: StringName, tint: Color) -> HBoxCon
 		var button := Button.new()
 		button.text = Sides.label(team)
 		button.custom_minimum_size = Vector2(170, 58)
-		button.add_theme_color_override("font_color", Sides.colour(team))
+		button.add_theme_color_override("font_color", Color.WHITE)
+		button.add_theme_color_override("font_hover_color", Color.WHITE)
+		var face := UiTheme.slant(Sides.colour(team).darkened(0.25))
+		face.content_margin_top = 6
+		face.content_margin_bottom = 6
+		button.add_theme_stylebox_override("normal", face)
+		var lit := UiTheme.slant(Sides.colour(team))
+		lit.content_margin_top = 6
+		lit.content_margin_bottom = 6
+		button.add_theme_stylebox_override("hover", lit)
+		button.add_theme_stylebox_override("focus", lit)
+		button.add_theme_stylebox_override("pressed", lit)
 		button.pressed.connect(func() -> void: punishment_chosen.emit(id, team))
 		row.add_child(button)
 
@@ -2891,15 +3371,23 @@ func _build_ending() -> void:
 	backdrop.color = Color(0.06, 0.03, 0.04, 0.96)
 	_ending.add_child(backdrop)
 
+	var card := PanelContainer.new()
+	card.set_anchors_preset(Control.PRESET_CENTER)
+	card.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	card.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_ending.add_child(card)
 	var column := VBoxContainer.new()
-	column.set_anchors_preset(Control.PRESET_CENTER)
-	column.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	column.grow_vertical = Control.GROW_DIRECTION_BOTH
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_theme_constant_override("separation", 22)
-	_ending.add_child(column)
+	column.custom_minimum_size = Vector2(900, 0)
+	card.add_child(column)
 
-	_ending_headline = _make_label("", TITLE_SIZE, Color(0.96, 0.42, 0.36))
+	var tag := PanelContainer.new()
+	tag.add_theme_stylebox_override("panel", UiTheme.slant(UiTheme.ACCENT))
+	tag.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	tag.add_child(UiTheme.label("FULL TIME", UiTheme.HEADING, UiTheme.INK, UiTheme.display()))
+	column.add_child(tag)
+	_ending_headline = UiTheme.label("", UiTheme.HUGE, Color(0.96, 0.42, 0.36), UiTheme.display())
 	column.add_child(_ending_headline)
 
 	_ending_detail = _make_label("", PROMPT_SIZE + 2, Color(0.80, 0.80, 0.82))
@@ -2994,8 +3482,10 @@ func _build_replay() -> void:
 	var badge_stack := VBoxContainer.new()
 	badge_stack.add_theme_constant_override("separation", 2)
 	badge.add_child(badge_stack)
-	var what := _make_label("REPLAY   ·   BALL TRACKING", UiTheme.SMALL, UiTheme.ACCENT)
-	what.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	var what := PanelContainer.new()
+	what.add_theme_stylebox_override("panel", UiTheme.slant(UiTheme.ACCENT))
+	what.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	what.add_child(UiTheme.label("REPLAY  \u2022  BALL TRACKING", UiTheme.SMALL, UiTheme.INK, UiTheme.heavy()))
 	badge_stack.add_child(what)
 	_replay_title = _make_label("", UiTheme.TITLE, UiTheme.CHALK)
 	_replay_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -3019,7 +3509,7 @@ func _build_replay() -> void:
 	var close_stack := VBoxContainer.new()
 	close_stack.add_theme_constant_override("separation", 6)
 	_replay_close.add_child(close_stack)
-	close_stack.add_child(_make_label("WHERE IT CAME DOWN", UiTheme.SMALL, UiTheme.ACCENT))
+	close_stack.add_child(UiTheme.label("WHERE IT CAME DOWN", UiTheme.SMALL, UiTheme.ACCENT, UiTheme.heavy()))
 	_replay_view = TextureRect.new()
 	_replay_view.custom_minimum_size = Vector2(REPLAY_VIEW, REPLAY_VIEW)
 	_replay_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -3046,8 +3536,7 @@ func _build_replay() -> void:
 	lines.add_child(_replay_said)
 	_replay_truth = _make_label("", UiTheme.HEADING, UiTheme.ACCENT)
 	lines.add_child(_replay_truth)
-	lines.add_child(_make_label("SPACE   next        ESC   skip them all",
-		UiTheme.SMALL, UiTheme.MUTED))
+	lines.add_child(_centred(_key_hints([["SPACE", "next"], ["ESC", "skip them all"]])))
 
 	# A way past them for the mouse as well, bottom right, out of the caption's way.
 	var skip := _footer_button("SKIP REPLAYS", func() -> void: replay_skip_all.emit())
@@ -3272,13 +3761,13 @@ static func _serif(bold := false) -> SystemFont:
 	return font
 
 
-## The headline type: condensed and heavy, the way a tabloid shouts.
-static func _heavy() -> SystemFont:
-	var font := SystemFont.new()
-	font.font_names = PackedStringArray(
-		["Impact", "Haettenschweiler", "Arial Black", "Helvetica Neue", "Arial", "sans-serif"])
-	font.font_weight = 900
-	return font
+## The headline type: condensed and heavy, the way a tabloid shouts. Since the broadcast
+## redesign it is the game's own condensed face rather than whatever Impact the machine
+## has — the paper stays a paper, set like a sports back page, and the story itself keeps
+## its serif.
+static func _heavy() -> Font:
+	return UiTheme.heavy()
+
 
 
 ## Wraps a label in a dark plate and anchors the pair where it belongs.
@@ -3294,14 +3783,16 @@ func _plate_for(label: Label, preset: int, offset: Vector2, alpha := 0.80) -> Pa
 	return plate
 
 
+## The typeface follows the size, so no call site has to choose one: a title is in the
+## slanted display cut, a heading in the heavy condensed one, and anything smaller is a
+## sentence and gets the face built for reading.
 func _make_label(text: String, size: int, colour: Color) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", size)
-	label.add_theme_color_override("font_color", colour)
-	return label
+	var font: Font = null
+	if size >= UiTheme.TITLE - 6:
+		font = UiTheme.display()
+	elif size >= UiTheme.HEADING:
+		font = UiTheme.heavy()
+	return UiTheme.label(text, size, colour, font)
 
 
 # --- the broadcast, over a cutscene ---------------------------------------------
@@ -3364,10 +3855,10 @@ func _build_broadcast() -> void:
 	_broadcast.add_child(_lower_third)
 
 	var kicker_plate := PanelContainer.new()
-	kicker_plate.add_theme_stylebox_override("panel", UiTheme.block(UiTheme.ACCENT))
+	kicker_plate.add_theme_stylebox_override("panel", UiTheme.slant(UiTheme.ACCENT))
 	kicker_plate.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_lower_third.add_child(kicker_plate)
-	_lower_kicker = _make_label("", UiTheme.SMALL, UiTheme.INK)
+	_lower_kicker = UiTheme.label("", UiTheme.SMALL, UiTheme.INK, UiTheme.heavy())
 	kicker_plate.add_child(_lower_kicker)
 
 	_lower_blocks = HBoxContainer.new()
@@ -3396,7 +3887,7 @@ func _build_broadcast() -> void:
 	skip_row.offset_left = -BROADCAST_INSET
 	skip_row.offset_right = -BROADCAST_INSET
 	_broadcast.add_child(skip_row)
-	skip_row.add_child(_make_label("SPACE   skip", UiTheme.SMALL, UiTheme.MUTED))
+	skip_row.add_child(_key_hints([["SPACE", "skip"]]))
 	skip_row.add_child(_footer_button("SKIP", func() -> void: cutscene_skip.emit()))
 
 	# Over everything else in the broadcast, for a cut that needs to hide a jump.
