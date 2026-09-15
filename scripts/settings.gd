@@ -64,6 +64,17 @@ static func load_or_default() -> Settings:
 	var settings := Settings.new()
 	var file := ConfigFile.new()
 	if file.load(path()) != OK:
+		# A check with no settings of its own is somebody who has been taught every sport.
+		# That is what the player's file said when every check was written, and the checks
+		# still assume it: with the lessons unseen, beach opened on its lesson, and
+		# `_everysound` pressed the lesson's BACK, left the scene and hung. A check about
+		# the lesson turns it off itself (`dev/looks/_teach`).
+		if is_a_dev_run():
+			settings.taught = true
+			settings.taught_beach = true
+			settings.taught_indoor = true
+			settings.taught_tennis = true
+			settings.taught_table_tennis = true
 		return settings
 	settings.master = file.get_value("audio", "master", settings.master)
 	settings.crowd = file.get_value("audio", "crowd", settings.crowd)
