@@ -152,6 +152,24 @@ func line_judge_spots() -> Array:
 	]
 
 
+## Indoor volleyball's director. See VolleyCutscene.
+func make_cutscene() -> Cutscene:
+	return VolleyCutscene.new()
+
+
+## "3 sets to 1   ·   25–21  22–25  25–19  25–23", the winner's points first in every set.
+func result_words(winner: Sides.Team) -> String:
+	if board == null:
+		return ""
+	var loser := Sides.opponent(winner)
+	var sets: Array[String] = []
+	for points in board.finished_sets:
+		sets.append("%d\u2013%d" % [points[winner], points[loser]])
+	var won := "%d set%s to %d" % [board.games[winner], "" if board.games[winner] == 1 else "s",
+		board.games[loser]]
+	return won + ("   ·   " + "  ".join(sets) if not sets.is_empty() else "")
+
+
 func dress_the_venue(venue: Dictionary) -> void:
 	court.dress(venue["dressing"], venue["crowd"])
 

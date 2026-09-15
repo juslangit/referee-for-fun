@@ -267,6 +267,19 @@ func build_the_venue() -> void:
 	_build_hall()
 
 
+## Table tennis's director. See TableTennisCutscene.
+func make_cutscene() -> Cutscene:
+	return TableTennisCutscene.new()
+
+
+## "RED wins 3 games to 1", the way the umpire says it (ITTF HMO, post-match announcement).
+func result_words(winner: Sides.Team) -> String:
+	if board == null:
+		return ""
+	return "%s wins %d games to %d" % [
+		Sides.label(winner), board.games[winner], board.games[Sides.opponent(winner)]]
+
+
 func dress_the_venue(venue: Dictionary) -> void:
 	table.dress(venue["dressing"], venue["crowd"])
 

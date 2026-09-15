@@ -222,14 +222,18 @@ func _on_air(name: String, scene: String, sport_name: StringName) -> void:
 		_problems.append("%s: the caption is not on the HUD" % name)
 	else:
 		# Headless windows are 64 px square, so "on screen" cannot be asked here; that is
-		# what dev/looks/_commentaryshot is for. What can be asked is that the caption hangs
-		# off the bottom-left corner of the HUD, whatever size the HUD turns out to be.
+		# what dev/looks/_hudshot is for. What can be asked is which corner of the HUD the
+		# caption hangs from, whatever size the HUD turns out to be. Since the broadcast
+		# interface (2026-09-15) that is the bottom left, above the prompt — or the top left
+		# in the two sports whose score bug has the bottom left.
 		var hud: Rect2 = arena.ui._hud.get_global_rect()
 		var box: Rect2 = caption.get_global_rect()
-		var bottom_ok := is_equal_approx(box.end.y, hud.end.y - RefereeUI.COMMENTARY_LIFT)
-		var left_ok := is_equal_approx(box.position.x, hud.position.x + RefereeUI.REASON_INSET)
-		if not (bottom_ok and left_ok):
-			_problems.append("%s: the caption is not hung from the bottom-left corner: %s in %s" % [name, box, hud])
+		var left_ok := is_equal_approx(box.position.x, hud.position.x + RefereeUI.HUD_INSET_X)
+		var bug_below: bool = arena.ui._score_bug.corner() == Control.PRESET_BOTTOM_LEFT
+		var height_ok := (is_equal_approx(box.position.y, hud.position.y + RefereeUI.HUD_INSET_Y)
+			if bug_below else is_equal_approx(box.end.y, hud.end.y - RefereeUI.BOTTOM_LIFT))
+		if not (height_ok and left_ok):
+			_problems.append("%s: the caption is not in the corner the score bug left free: %s in %s" % [name, box, hud])
 	var official: String = Commentary.official_for(sport_name)
 	# Two lines of an exchange: wait for the second and see it is the other speaker.
 	var first_speaker := showing.get_slice(":", 0)

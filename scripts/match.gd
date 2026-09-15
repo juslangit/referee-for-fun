@@ -212,18 +212,6 @@ var _teaching_returns_to_career := false
 
 var _all_line_judges: Array[LineJudge] = []
 
-## Whether the walk-on, the handshakes, being taken off and being moved up are played.
-##
-## Off for every check and look under res://dev/ unless it turns them on. Those scenes drive
-## matches down the same routes the player takes, and two dozen of them waiting through
-## twenty seconds of ceremony each — or timing out because a match had not started when
-## they expected it to — is not what any of them is there to test. See Cutscene.
-var cutscenes := not Settings.is_a_dev_run()
-var cutscene: Cutscene
-
-## Whether the match just finished moved the umpire up a rung, so CONTINUE can show them
-## the new hall first.
-var _promoted := false
 
 var _shots_this_rally := 0
 
@@ -559,15 +547,6 @@ func _umpire_view() -> void:
 	camera.current = true
 
 
-func _on_continue_requested() -> void:
-	if _promoted and cutscenes:
-		_promoted = false
-		ui.hide_ending()
-		cutscene = _make_cutscene()
-		await cutscene.moved_up(career.venue())
-	get_tree().reload_current_scene()
-
-
 func _on_career_screen_requested() -> void:
 	ui.hide_history()
 	_menu_view()
@@ -638,37 +617,6 @@ func _set_up_the_match(quick: bool) -> void:
 func _on_briefing_acknowledged() -> void:
 	ui.hide_briefing()
 	_walk_on_then_begin()
-
-
-## The walk-on and the toss, then the first serve. Whoever won the toss serves.
-##
-## Only on the player's routes into a match. `begin_match()` itself stays immediate, because
-## every check starts matches by calling it directly.
-func _walk_on_then_begin() -> void:
-	if cutscenes:
-		cutscene = _make_cutscene()
-		serving = await cutscene.walk_on(String(career.venue()["name"]), playing_doubles())
-		_free_cutscene()
-		# Wherever the scene left them, or wherever skipping it did.
-		for player in players:
-			player.visible = true
-			player.place(player.home)
-		ui.show_hud(true)
-	begin_match()
-
-
-func _make_cutscene() -> Cutscene:
-	var scene := Cutscene.new()
-	scene.name = "Cutscene"
-	scene.arena = self
-	add_child(scene)
-	return scene
-
-
-func _free_cutscene() -> void:
-	if cutscene != null:
-		cutscene.queue_free()
-		cutscene = null
 
 
 ## Out to the chair. Every route into a match ends here.
@@ -1542,26 +1490,14 @@ func _finish_match(headline: String, tint: Color, removed: bool) -> void:
 	close_the_night(headline, detail, tint, removed, venue_name)
 
 
-## The handshakes after a match that was finished, or the walk off the court after one that
-## was not. Walking out from the pause menu has no scene: nobody came to get you.
-func _the_end_on_camera(removed: bool, venue_name: String) -> void:
-	if removed and not suspicion.is_removed:
-		return
-	# The call that ended it is still being announced — the point, the room, the shout. Let
-	# that land before the picture changes, and let it finish first so none of it is
-	# printed over the broadcast.
-	await get_tree().create_timer(1.1).timeout
-	cutscene = _make_cutscene()
-	if suspicion.is_removed:
-		await cutscene.taken_off(venue_name)
-	else:
-		await cutscene.match_won(board.winner, _result_words(board.winner), playing_doubles())
-	_free_cutscene()
+## Badminton's director. See Cutscene.
+func make_cutscene() -> Cutscene:
+	return Cutscene.new()
 
 
 ## "games 2–1  ·  last game 21–18", winner first, the way a result is read out. A one-game
 ## match is just its score.
-func _result_words(winner: Sides.Team) -> String:
+func result_words(winner: Sides.Team) -> String:
 	var loser := Sides.opponent(winner)
 	var last := "%d\u2013%d" % [board.points[winner], board.points[loser]]
 	if board.games_needed <= 1:

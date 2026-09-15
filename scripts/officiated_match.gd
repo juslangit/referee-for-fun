@@ -93,6 +93,22 @@ var _awaiting_since := 0
 ## The broadcast. Made the first time a match begins; see `Commentary`.
 var commentary: Commentary
 
+## Whether the walk-on, the handshakes, being taken off and being moved up are played.
+##
+## Off for every check and look under res://dev/ unless it turns them on. Those scenes drive
+## matches down the same routes the player takes, and two dozen of them waiting through
+## twenty seconds of ceremony each — or timing out because a match had not started when
+## they expected it to — is not what any of them is there to test. See Cutscene.
+##
+## Here rather than in badminton since 2026-09-15, when every sport got its own scenes. A
+## sport whose `make_cutscene()` answers null simply has none.
+var cutscenes := not Settings.is_a_dev_run()
+var cutscene: Cutscene
+
+## Whether the match just finished moved the umpire up a rung, so CONTINUE can show them
+## the new hall first.
+var _promoted := false
+
 ## How many calls this official has made in this match. Only used to decide whether
 ## leaving costs anything: before the first call there is nothing to answer for.
 var calls_made := 0
@@ -214,6 +230,7 @@ func _ready() -> void:
 	ui.name = "UI"
 	add_child(ui)
 	ui.show_hud(false)
+	ui.score_sport = sport()
 	ui.fault_book = fault_book()
 	ui.offers_cards = false
 	ui.punishment_chosen.connect(_on_fault_chosen)
@@ -285,8 +302,8 @@ func _connect_menus() -> void:
 	ui.match_requested.connect(_on_match_requested)
 	ui.briefing_acknowledged.connect(func() -> void:
 		ui.hide_briefing()
-		begin_match())
-	ui.continue_requested.connect(func() -> void: get_tree().reload_current_scene())
+		_walk_on_then_begin())
+	ui.continue_requested.connect(_on_continue_requested)
 	ui.career_screen_requested.connect(func() -> void:
 		ui.hide_history()
 		ui.show_career(career))
@@ -363,7 +380,82 @@ func _on_match_requested() -> void:
 	if pressure.exists():
 		ui.show_briefing(pressure)
 	else:
-		begin_match()
+		_walk_on_then_begin()
+
+
+# --- the cutscenes --------------------------------------------------------------
+
+## This sport's director, or null for a sport with no cutscenes.
+func make_cutscene() -> Cutscene:
+	return null
+
+
+## The result as the umpire reads it out, winner first. Each sport words its own.
+func result_words(_winner: Sides.Team) -> String:
+	return ""
+
+
+## The walk-on and the toss, then the first serve. Whoever won the toss serves.
+##
+## Only on the player's routes into a match. `begin_match()` itself stays immediate, because
+## every check starts matches by calling it directly.
+func _walk_on_then_begin() -> void:
+	if cutscenes:
+		cutscene = _make_cutscene()
+	if cutscene != null:
+		serving = await cutscene.walk_on(String(career.venue()["name"]), playing_doubles())
+		_free_cutscene()
+		# Wherever the scene left them, or wherever skipping it did.
+		for player in players:
+			player.visible = true
+			player.place(player.home)
+		ui.show_hud(true)
+	begin_match()
+
+
+func _make_cutscene() -> Cutscene:
+	var scene := make_cutscene()
+	if scene == null:
+		return null
+	scene.name = "Cutscene"
+	scene.arena = self
+	add_child(scene)
+	return scene
+
+
+func _free_cutscene() -> void:
+	if cutscene != null:
+		cutscene.queue_free()
+		cutscene = null
+
+
+func _on_continue_requested() -> void:
+	if _promoted and cutscenes:
+		_promoted = false
+		cutscene = _make_cutscene()
+		if cutscene != null:
+			ui.hide_ending()
+			await cutscene.moved_up(career.venue())
+	get_tree().reload_current_scene()
+
+
+## The handshakes after a match that was finished, or the walk off the court after one that
+## was not. Walking out from the pause menu has no scene: nobody came to get you.
+func _the_end_on_camera(removed: bool, venue_name: String) -> void:
+	if removed and not suspicion.is_removed:
+		return
+	if make_cutscene() == null:
+		return
+	# The call that ended it is still being announced — the point, the room, the shout. Let
+	# that land before the picture changes, and let it finish first so none of it is
+	# printed over the broadcast.
+	await get_tree().create_timer(1.1).timeout
+	cutscene = _make_cutscene()
+	if suspicion.is_removed:
+		await cutscene.taken_off(venue_name)
+	else:
+		await cutscene.match_won(board.winner, result_words(board.winner), playing_doubles())
+	_free_cutscene()
 
 
 ## A new set hands both sides their challenges back. Sports with more to reset override
@@ -602,12 +694,18 @@ func finish(headline: String, tint: Color, removed: bool) -> void:
 
 	# Read before the career is told, which is where a promotion moves it to a new rung.
 	var venue_name := String(career.venue()["name"])
+	var tier_before := career.tier
 	var note := career.finish_match(suspicion.level, removed, pressures)
+	_promoted = career.tier > tier_before
 	career.remember_grudge(
 		String(Pressure.NAMES.pick_random()),
 		suspicion.wrong_calls, suspicion.stolen_rallies, suspicion.lean)
 	career.save()
 	detail += "\n\n%s\n\nReputation  %d / 100" % [note, roundi(career.reputation * 100.0)]
+	# The career is saved before anything is shown, so a player who quits in the middle of
+	# being walked off has still been walked off.
+	if cutscenes and is_inside_tree():
+		await _the_end_on_camera(removed, venue_name)
 	close_the_night(headline, detail, tint, removed, venue_name)
 
 
