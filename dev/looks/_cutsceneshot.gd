@@ -24,6 +24,7 @@ var _clock := 0.0
 
 const SCENES := {
 	"tennis": ["res://scenes/tennis.tscn", Career.TENNIS],
+	"table_tennis": ["res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
 }
 
 ## A little longer for the sports whose scenes cover more ground.
@@ -132,8 +133,10 @@ func _another_sport(sport: String, which: String) -> void:
 				tennis.games[Sides.Team.RED] = 5
 				tennis.games[Sides.Team.BLUE] = 3
 				tennis.points[Sides.Team.RED] = 3
-			for i in 4:
-				arena.board.award(Sides.Team.RED)
+			var awarded := 0
+			while not arena.board.is_over and awarded < 400:
+				arena.board.award(Sides.Team.BLUE if awarded % 7 == 3 else Sides.Team.RED)
+				awarded += 1
 		"taken_off":
 			arena.begin_match()
 			arena.cutscenes = true
@@ -156,7 +159,11 @@ func _another_sport(sport: String, which: String) -> void:
 			arena.cutscene = arena._make_cutscene()
 			arena.cutscene.moved_up(arena.career.venue())
 
-	for moment: float in LONGER[which]:
+	# AT=0.5,1,2 photographs those moments instead, for finding where a scene really is.
+	var moments: Array = LONGER[which]
+	if OS.has_environment("AT"):
+		moments = Array(OS.get_environment("AT").split(",")).map(func(v: String) -> float: return v.to_float())
+	for moment: float in moments:
 		while _clock < moment:
 			await get_tree().process_frame
 			_clock += get_process_delta_time()
