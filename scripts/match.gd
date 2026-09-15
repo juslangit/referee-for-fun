@@ -214,6 +214,18 @@ var _all_line_judges: Array[LineJudge] = []
 
 var _shots_this_rally := 0
 
+## Which shot of the rally a smash wind-up has already been started for, so it is started
+## once per shot rather than on every frame the shuttle is still coming.
+var _wound_up_on_shot := -1
+
+## How far ahead the game looks for a smash about to happen. A little longer than the
+## wind-up clip (0.32 s), which is then played slightly slower so it ends on the strike.
+const WIND_UP_LEAD := 0.40
+
+## The contact height above which a stroke is played as a smash. `_return_shot` decides it
+## the same way; the two must agree or a wind-up leads into a forehand.
+const OVERHEAD_HEIGHT := 1.95
+
 ## Which service court this serve is coming from, decided when the players line up
 ## rather than when the whistle goes — the umpire has to be able to look at the court
 ## and disagree with it before anything is served.
@@ -827,6 +839,7 @@ func _set_up_the_serve() -> void:
 
 func start_rally() -> void:
 	_shots_this_rally = 0
+	_wound_up_on_shot = -1
 	_rally_seconds = 0.0
 	for judge in line_judges:
 		judge.silence()
@@ -898,6 +911,8 @@ func _physics_process(_delta: float) -> void:
 			_return_shot(player)
 			return
 
+	_see_a_smash_coming(receiving)
+
 	# A rally that has somehow gone on far too long is brought to an end rather than
 	# left to hang. Nothing should reach this, but a match that cannot finish is a
 	# far worse failure than a rally that ends oddly.
@@ -939,6 +954,41 @@ func _watch_for_net_crossing() -> void:
 		rally.went_over_the_net = false
 
 
+## Starts a player's crouch before a smash they are about to play.
+##
+## The strike itself is decided exactly as before, by `can_strike` on the frame it becomes
+## true. This only looks ahead: the shuttle's flight is stepped forward with its own drag,
+## at the engine's own step (see ShotSolver for why), and if within WIND_UP_LEAD it comes
+## within reach of where a chasing player will be by then (`position_in`) — above
+## OVERHEAD_HEIGHT on their side of the net, the wind-up starts. Without it the smash began
+## on the frame of the strike and the jump had no crouch in front of it.
+func _see_a_smash_coming(receiving: Sides.Team) -> void:
+	if _wound_up_on_shot == _shots_this_rally:
+		return
+	var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
+	var drag := gravity / (Shuttle.TERMINAL_VELOCITY * Shuttle.TERMINAL_VELOCITY)
+	var step := 1.0 / float(Engine.physics_ticks_per_second)
+	var at := _shuttle.global_position
+	var moving := _shuttle.linear_velocity
+	var ahead := 0.0
+	while ahead < WIND_UP_LEAD:
+		moving += (Vector3.DOWN * gravity - drag * moving.length() * moving) * step
+		at += moving * step
+		ahead += step
+		if at.y <= OVERHEAD_HEIGHT:
+			return
+		if at.y > Player.HIGHEST_STRIKE or at.z * Sides.half_sign(receiving) <= 0.0:
+			continue
+		for player in players:
+			if player.team != receiving or not player.chasing:
+				continue
+			if player.position_in(ahead).distance_to(Vector3(at.x, 0.0, at.z)) > player.reach:
+				continue
+			_wound_up_on_shot = _shots_this_rally
+			player.wind_up(ahead)
+			return
+
+
 func _return_shot(player: Player) -> void:
 	# Rallies cannot run forever. Past the cap the legs go and the shuttle drops.
 	if _shots_this_rally >= RALLY_SHOT_CAP:
@@ -950,7 +1000,7 @@ func _return_shot(player: Player) -> void:
 	player.stand_off()
 	# Overhead if the shuttle is up around head height, which is what decides whether
 	# the animation plays a smash or a groundstroke.
-	var overhead := _shuttle.global_position.y > 1.95
+	var overhead := _shuttle.global_position.y > OVERHEAD_HEIGHT
 	player.swing(overhead)
 	sound.strike(_shuttle.global_position, overhead)
 

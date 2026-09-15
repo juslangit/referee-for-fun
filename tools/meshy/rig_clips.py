@@ -102,6 +102,13 @@ def load_character(name):
 # hand-keyed smash took, so nothing in the game had to be retimed.
 SMASH_FRAMES = (17.6, 40.8)
 
+# The crouch and push-off the smash above starts just after, as a clip of its own. Frames
+# 1-9 of Meshy's clip are only the arm lifting; from 10 the hips drop 8 cm, and the feet
+# leave the floor at about 17 (measured 2026-09-15). The game plays it when it can see a
+# smash coming, timed to end on the strike, and the smash then carries on from the pose
+# it left. A smash nobody saw coming still starts at 17.6, as before.
+SMASH_WINDUP_FRAMES = (10.0, 17.6)
+
 # Which of the Hips' location channels carry the journey rather than the body's own
 # rise and fall. On Meshy's rig the Hips bone's Y axis is the world's up: in the smash,
 # channel 0 is 0.8 m of drift to the side, 1 is the 0.65 m jump and 2 is forwards and
@@ -264,6 +271,8 @@ def forge(name):
     steal_animation(name, "_running", "run", rig)
     meshy_smash = steal_animation(name, "_smash", "smash", rig, frames=SMASH_FRAMES,
                                   drop=HIPS_SIDEWAYS_AND_FORWARDS)
+    steal_animation(name, "_smash", "smash_windup", rig, frames=SMASH_WINDUP_FRAMES,
+                    drop=HIPS_SIDEWAYS_AND_FORWARDS)
 
     rig.animation_data_create()
     for clip_name, clip in CLIPS.items():

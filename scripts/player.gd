@@ -152,12 +152,52 @@ func _play(clip: String, one_shot := false) -> void:
 		return
 	_clip = clip
 	_one_shot = one_shot
+	_holding_the_crouch = 0.0
 	_animator.play(clip, 0.14)
 
 
-func _on_clip_finished(_clip_name: StringName) -> void:
+func _on_clip_finished(clip_name: StringName) -> void:
+	# A crouch that finishes a moment before the strike holds its last pose rather than
+	# standing up into `ready` and dropping straight back down into the smash.
+	if clip_name == &"smash_windup":
+		_holding_the_crouch = WIND_UP_HOLD
+		return
 	_one_shot = false
 	_clip = ""
+
+
+## The crouch and push-off before a smash, stretched or squeezed to end in
+## `seconds_to_contact`, where `swing(true)` picks up from the pose it leaves. Nothing
+## happens on a character without the clip, and a strike that comes sooner simply cuts it
+## short.
+func wind_up(seconds_to_contact: float) -> void:
+	if _animator == null or not _animator.has_animation("smash_windup"):
+		return
+	var length := _animator.get_animation("smash_windup").length
+	_clip = "smash_windup"
+	_one_shot = true
+	_animator.play("smash_windup", 0.1,
+		clampf(length / maxf(seconds_to_contact, 0.01), WIND_UP_SLOWEST, WIND_UP_FASTEST))
+
+
+## How long a finished wind-up may hold its pose waiting for the strike, in seconds.
+const WIND_UP_HOLD := 0.3
+var _holding_the_crouch := 0.0
+
+
+## Where they will be in `seconds`, running at the spot they are already running to.
+## Used to see a smash coming; ignores a lunge, which is never the shot being waited for.
+func position_in(seconds: float) -> Vector3:
+	var running_for := maxf(0.0, seconds - maxf(0.0, _planted_left))
+	var here := Vector2(position.x, position.z)
+	var there := here.move_toward(Vector2(_destination.x, _destination.z), speed * running_for)
+	return Vector3(there.x, 0.0, there.y)
+
+
+## How far the wind-up may be slowed down or sped up to meet the strike before it stops
+## looking like the same movement.
+const WIND_UP_SLOWEST := 0.6
+const WIND_UP_FASTEST := 1.6
 
 
 ## Takes a swing. `overhead` picks a smash over a groundstroke, so the shot on screen
@@ -331,6 +371,11 @@ func _animate(delta: float, running: bool) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _holding_the_crouch > 0.0:
+		_holding_the_crouch -= delta
+		if _holding_the_crouch <= 0.0 and _clip == "smash_windup":
+			_one_shot = false
+			_clip = ""
 	var aim := _destination
 	if _lunge_left > 0.0:
 		_lunge_left -= delta
