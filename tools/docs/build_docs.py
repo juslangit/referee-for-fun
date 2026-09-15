@@ -52,6 +52,22 @@ IMAGE_QUALITY = 62
 # screenshot says it is old.
 
 GALLERIES = [
+    ("screens-interface", "The broadcast interface", "Every screen restyled on 2026-09-15 from real sports television, starting from two OpenArt concept mockups. Each sport's score bug copies that sport's own broadcast.", [
+        ("dev/ref/ui-redesign/mockup_main_menu.png", "OpenArt mockup: the title screen as a sports-game home screen."),
+        ("dev/ref/ui-redesign/mockup_hud_badminton.png", "OpenArt mockup: the badminton HUD modelled on BWF television. Its Q/E keys were wrong and not copied."),
+        ("dev/ref/ui-redesign/sheet_portraits.png", "The five athletes, drawn together on one OpenArt sheet so they match, then cut into tiles."),
+        ("_shot_menu_career", "The home screen as built: the career tile, the lessons, and every sport one click away."),
+        ("hud_badminton", "Badminton, as BWF shows it: top left, the finished game in pale cells, the shuttle on the server, MATCH POINT."),
+        ("hud_beach", "Beach volleyball, as the Beach Pro Tour shows it: one mirrored strip at the bottom centre."),
+        ("hud_indoor", "Indoor volleyball, as the Nations League shows it: sets, points, the set number, SET POINT."),
+        ("hud_tennis", "Tennis, as the tours show it: bottom left, the finished set, games lit, points 40-30."),
+        ("hud_table_tennis", "Table tennis, as WTT shows it: games won in colour, points beside them, GAME POINT."),
+        ("screen_review_answer", "The review card: OFFICIAL REVIEW over a big verdict bar, like the BWF and FIVB graphics."),
+        ("screen_career", "The career: the ladder as broadcast plates, and all five sports in a grid."),
+        ("screen_faults", "The fault panel, with the sides in their colours."),
+        ("screen_settings", "Settings, with the sliders and switch drawn in the theme."),
+        ("screen_ending", "FULL TIME."),
+    ]),
     ("screens-badminton", "Badminton", "The first sport, and the one every system was built on.", [
         ("sports", "Choosing a sport. Each card is a picture rendered from the game itself."),
         ("_shot_menu_main", "The title screen, over the hall."),
