@@ -82,6 +82,11 @@ var _phase := Phase.MENU:
 			recorder.name = "FlightRecorder"
 			recorder.arena = self
 			add_child(recorder)
+		# The slow-down on the landing, here for the same reason as the two above.
+		if value == Phase.AWAITING_CALL and was == Phase.IN_PLAY:
+			_slow_the_landing()
+		elif value != Phase.AWAITING_CALL:
+			_back_to_full_speed()
 var _reviewing := false
 var _awaiting_since := 0
 
@@ -689,6 +694,52 @@ func _reckoning() -> String:
 	return "\n".join(lines)
 
 
+# --- the slow-down on a landing ------------------------------------------------
+
+## Every landing that ends a rally is watched for a moment at a third of the speed, then
+## eases back. **Every one**, never only the close ones: slowing down only when the ball
+## came down near a line would tell the umpire it was close, and the game never tells the
+## umpire anything about the ball. Luqman chose this on 2026-09-15.
+##
+## The truth is untouched. The landing point is recorded before the phase changes, and the
+## time an umpire takes to call is measured on the wall clock (`_awaiting_since`), so a
+## slow-down never makes anybody look hesitant. A call made while it is still slow ends it.
+const SLOWMO_SPEED := 0.3
+## Real seconds held at SLOWMO_SPEED, then real seconds taken to ease back to full speed.
+const SLOWMO_HOLD := 0.35
+const SLOWMO_EASE := 0.3
+
+var _slowmo: Tween
+
+
+func _slow_the_landing() -> void:
+	if not is_inside_tree():
+		return
+	_back_to_full_speed()
+	Engine.time_scale = SLOWMO_SPEED
+	_slowmo = create_tween()
+	# The tween runs on the wall clock, or it would itself be slowed by what it controls.
+	_slowmo.set_ignore_time_scale(true)
+	_slowmo.tween_interval(SLOWMO_HOLD)
+	_slowmo.tween_property(Engine, "time_scale", 1.0, SLOWMO_EASE) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+
+
+func _back_to_full_speed() -> void:
+	if _slowmo != null:
+		_slowmo.kill()
+		_slowmo = null
+	Engine.time_scale = 1.0
+
+
+func _notification(what: int) -> void:
+	# time_scale belongs to the whole engine, not to this match. A match freed while it
+	# was slow — back to the title screen, the end of a check — must not leave the next
+	# thing running at a third of the speed.
+	if what == NOTIFICATION_EXIT_TREE:
+		_back_to_full_speed()
+
+
 # --- pausing --------------------------------------------------------------------
 
 ## Escape stops the match dead and gives the mouse back, because a menu you cannot
@@ -700,6 +751,8 @@ func pause_the_match() -> void:
 	if ui.is_settings_open():
 		close_the_settings()
 		return
+	# The menu's own animations would crawl at a third of the speed.
+	_back_to_full_speed()
 	camera.set_active(false)
 	# The free exit is offered only while nothing has happened. See show_pause_menu.
 	ui.show_pause_menu(calls_made == 0)
