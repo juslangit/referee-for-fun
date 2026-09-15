@@ -230,6 +230,7 @@ func _ready() -> void:
 	ui.name = "UI"
 	add_child(ui)
 	ui.show_hud(false)
+	ui.score_sport = sport()
 	ui.fault_book = fault_book()
 	ui.offers_cards = false
 	ui.punishment_chosen.connect(_on_fault_chosen)
