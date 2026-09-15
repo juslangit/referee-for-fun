@@ -11,7 +11,7 @@ extends Node
 ##   TIER    which rung of the ladder (default 2 — below the rungs with reviews)
 ##   PAGE    front for a career that ends here, anything else for the inside page
 
-const SAVE := "user://career.json"
+var SAVE := Career.save_path()
 
 const SCENES := {
 	"badminton": ["res://scenes/match.tscn", Career.BADMINTON],

@@ -13,6 +13,11 @@ extends Node
 ## rally at a time. `_fairplay` is still worth keeping for its two contrasting umpires,
 ## but it needs its own repair before it is trusted again.
 
+## How far a charge may drift from the number it should be before it counts as a different
+## charge. Suspicion is a float; this is a rounding allowance, not a tolerance for cheating.
+const SLACK := 0.0001
+
+
 func _ready() -> void:
 	var hall: Node = load("res://scenes/match.tscn").instantiate()
 	hall.print_truth_while_testing = false
@@ -42,6 +47,15 @@ func _ready() -> void:
 		"#", "strokes", "landed", "incident", "verdict", "suspicion", "court"])
 	var was := 0.0
 	var courts_caught := 0
+	# An honest umpire is still charged for overruling a line judge who got it wrong
+	# (OVERRULE_ON_ITS_OWN, see the note printed at the end), and that charge fades over
+	# the following calls. So "an honest umpire ENDS on 0.000" was luck: a match that
+	# happened to finish straight after an overrule ended on 0.019 or 0.039. What an
+	# honest umpire must never pay is anything *else*, and what they end on can never be
+	# more than their overrules put there.
+	var overrule_charges := 0.0
+	var unexplained_charges := 0.0
+	var unexplained_rows := 0
 	for r in _rallies_wanted(20):
 		# Before the whistle, because that is when a service court error is there to be
 		# seen: the four of them are standing in their boxes for as long as the umpire
@@ -88,10 +102,21 @@ func _ready() -> void:
 		var court := "-"
 		if rally.service_court_error != Sides.Team.NONE:
 			court = "error, called" if caught_this_one else "ERROR, MISSED"
+		var rise: float = hall.suspicion.level - was
+		var overruled_rightly: bool = (rally.verdict() == Rally.Verdict.CORRECT
+			and rally.overrules_line_judge())
+		var note := ""
+		if rise > SLACK:
+			if overruled_rightly:
+				overrule_charges += rise
+				note = "   <-- charged: a correct overrule"
+			else:
+				unexplained_charges += rise
+				unexplained_rows += 1
+				note = "   <-- CHARGED, and not for an overrule"
 		print("%4d %8d %10s %-22s %-9s %9.4f %s%s" % [
 			r, hall._shots_this_rally, "IN" if rally.was_in else "OUT", kind, verdict,
-			hall.suspicion.level, court,
-			"   <-- CHARGED" if hall.suspicion.level > was + 0.0001 else ""])
+			hall.suspicion.level, court, note])
 		was = hall.suspicion.level
 		if hall.board.is_over or hall._phase == hall.Phase.REMOVED:
 			break
@@ -104,12 +129,38 @@ func _ready() -> void:
 	print("service court errors caught before the whistle: %d" % courts_caught)
 	print("score: %d - %d   (a match that never scores is a match nobody is judging)" % [
 		hall.board.points[Sides.Team.RED], hall.board.points[Sides.Team.BLUE]])
-	print("suspicion: %.3f   (an honest umpire must END on 0.000)" % hall.suspicion.level)
+	print("suspicion: %.3f at the end, of which correct overrules put in %.3f over the match"
+		% [hall.suspicion.level, overrule_charges])
+	print("charged for anything else: %.4f on %d rallies   (MUST BE 0)"
+		% [unexplained_charges, unexplained_rows])
 	print("")
 	print("  Mid-match spikes of 0.0195 are NOT a bug and are not worth chasing again:")
 	print("  that is OVERRULE_ON_ITS_OWN (0.03) times this venue's scrutiny (0.65), the")
 	print("  small cost of contradicting a line judge in public even when you turn out")
 	print("  to be right — the hall cannot see that you were right. They recover.")
+
+	var problems: Array[String] = []
+	if played == 0:
+		problems.append("no rally was played")
+	if never_landed > 0:
+		problems.append("%d calls recorded nothing" % never_landed)
+	if wrong > 0:
+		problems.append("the honest umpire was scored WRONG %d times" % wrong)
+	if unexplained_rows > 0:
+		problems.append("an honest umpire was charged %.4f for something other than a correct overrule"
+			% unexplained_charges)
+	if hall.suspicion.level > overrule_charges + SLACK:
+		problems.append("ended on %.4f, more than every overrule together could leave (%.4f)"
+			% [hall.suspicion.level, overrule_charges])
+	if played >= 6 and hall.board.points[Sides.Team.RED] + hall.board.points[Sides.Team.BLUE] == 0:
+		problems.append("%d rallies and nobody scored" % played)
+	print("")
+	if problems.is_empty():
+		print("PASS")
+	else:
+		print("FAIL")
+		for problem in problems:
+			print("  - " + problem)
 	get_tree().quit()
 
 

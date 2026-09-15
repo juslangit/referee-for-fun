@@ -22,7 +22,7 @@ extends Node
 ## The career save is put back afterwards. Every harness that finishes a match writes it,
 ## and this one finishes six.
 
-const SAVE := "user://career.json"
+var SAVE := Career.save_path()
 
 ## How many blatant lies each sport is fed. Four, so that one sport keeps fewer than
 ## it saw and the cap is exercised, without so many that the hall throws the umpire out

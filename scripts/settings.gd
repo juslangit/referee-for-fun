@@ -10,6 +10,26 @@ extends RefCounted
 
 const PATH := "user://settings.cfg"
 
+## Where a check or a look keeps its settings instead. Harnesses mark lessons as seen and
+## change volumes, and until 2026-09-15 they did it to the player's own file.
+const DEV_PATH := "user://dev_settings.cfg"
+
+
+static func path() -> String:
+	return DEV_PATH if is_a_dev_run() else PATH
+
+
+## True when Godot was launched straight into a scene under res://dev/ — a check or a
+## look, never the game. Those scenes play whole matches, and every match saves, so
+## anything they write goes to a separate file rather than over the player's career
+## and settings. The game itself, from the editor or from a build, is never launched
+## with a dev scene on its command line.
+static func is_a_dev_run() -> bool:
+	for arg in OS.get_cmdline_args():
+		if arg.begins_with("res://dev/"):
+			return true
+	return false
+
 ## The audio buses the mixer is split into. Godot ships with only a Master, so these are
 ## made at startup if they are not already there. Three is enough: the crowd is a bed
 ## that some people will want quieter without losing the whistle, and everything else is
@@ -43,7 +63,7 @@ var taught_table_tennis := false
 static func load_or_default() -> Settings:
 	var settings := Settings.new()
 	var file := ConfigFile.new()
-	if file.load(PATH) != OK:
+	if file.load(path()) != OK:
 		return settings
 	settings.master = file.get_value("audio", "master", settings.master)
 	settings.crowd = file.get_value("audio", "crowd", settings.crowd)
@@ -73,7 +93,7 @@ func save() -> void:
 	file.set_value("player", "taught_indoor", taught_indoor)
 	file.set_value("player", "taught_table_tennis", taught_table_tennis)
 	file.set_value("player", "taught_tennis", taught_tennis)
-	file.save(PATH)
+	file.save(path())
 
 
 ## Makes the world match these settings. Safe to call as often as you like.

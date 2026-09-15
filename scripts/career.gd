@@ -17,6 +17,12 @@ extends RefCounted
 ## the top**, which is the whole reason to climb.
 
 const SAVE_PATH := "user://career.json"
+## A check's career, kept apart from the player's. See `Settings.is_a_dev_run`.
+const DEV_SAVE_PATH := "user://dev_career.json"
+
+
+static func save_path() -> String:
+	return DEV_SAVE_PATH if Settings.is_a_dev_run() else SAVE_PATH
 
 ## Every match repairs a little and costs a little, and the two are always both
 ## applied. That is deliberate, and it is the whole shape of a career.
@@ -738,9 +744,9 @@ func remember_grudge(name: String, wrong_calls: int, stolen: int, lean: float) -
 # --- saving --------------------------------------------------------------------
 
 func save() -> void:
-	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var file := FileAccess.open(save_path(), FileAccess.WRITE)
 	if file == null:
-		push_warning("Could not write the career to %s" % SAVE_PATH)
+		push_warning("Could not write the career to %s" % save_path())
 		return
 	file.store_string(JSON.stringify({
 		"version": 2,
@@ -759,10 +765,10 @@ func save() -> void:
 
 static func load_or_start() -> Career:
 	var career := Career.new()
-	if not FileAccess.file_exists(SAVE_PATH):
+	if not FileAccess.file_exists(save_path()):
 		return career
 
-	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	var file := FileAccess.open(save_path(), FileAccess.READ)
 	if file == null:
 		return career
 
@@ -808,6 +814,6 @@ static func load_or_start() -> Career:
 
 ## Wipes the save and starts again. Used when a career has ended.
 static func start_again() -> Career:
-	if FileAccess.file_exists(SAVE_PATH):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
+	if FileAccess.file_exists(save_path()):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path()))
 	return Career.new()
