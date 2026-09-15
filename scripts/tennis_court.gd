@@ -24,6 +24,8 @@ const CHAIR_LAYER := 4
 const NET_PANELS := 24
 
 var stands: Stands
+## The event round the court: see EventDressing.
+var event: EventDressing
 
 var _net_parts: Array[MeshInstance3D] = []
 var _net_rest: Array[Vector3] = []
@@ -34,6 +36,7 @@ var _surface_material: StandardMaterial3D
 var _line_material: StandardMaterial3D
 var _net_material: StandardMaterial3D
 var _post_material: StandardMaterial3D
+var _surround_material: StandardMaterial3D
 
 
 func _ready() -> void:
@@ -62,9 +65,9 @@ func _make_material(colour: Color) -> StandardMaterial3D:
 func _build_surface() -> void:
 	var length := (TennisSpec.HALF_LENGTH + TennisSpec.RUN_BACK) * 2.0
 	var width := (TennisSpec.HALF_WIDTH_DOUBLES + TennisSpec.SIDE_ROOM) * 2.0
+	_surround_material = _make_material(Color(0.14, 0.32, 0.30))
 	_add_box("Surround", Vector3(width, SURFACE_THICKNESS, length),
-		Vector3(0.0, SURFACE_THICKNESS * 0.5, 0.0),
-		_make_material(Color(0.14, 0.32, 0.30)))
+		Vector3(0.0, SURFACE_THICKNESS * 0.5, 0.0), _surround_material)
 
 	# The court itself, in the blue a hard court is painted, against the green of the
 	# run-back. Real courts use exactly this contrast so that everybody can see where
@@ -201,12 +204,22 @@ func _build_stands() -> void:
 	stands.seat_spacing = 0.82
 	add_child(stands)
 
+	event = EventDressing.new()
+	event.name = "Event"
+	event.layout = EventLayouts.tennis()
+	event.stands = stands
+	add_child(event)
+
 
 func dress(tier: Venue.Tier, density: float) -> void:
 	if stands == null:
 		return
 	stands.dress(tier)
 	stands.set_density(density)
+	# After the crowd, because the flags in it are held by people who are actually there.
+	event.dress(tier)
+	event.apply_paint("surround", _surround_material)
+	event.apply_paint("court", _surface_material)
 
 
 func cheer() -> void:

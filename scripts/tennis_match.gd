@@ -85,6 +85,8 @@ const SERVE_IS_LOOSE := 0.42
 const LOOSE_IS_OUT := 0.55
 
 var court: TennisCourt
+var _sun: DirectionalLight3D
+var _sky_environment: Environment
 var rally: TennisRally
 
 var _beat := Beat.SERVE
@@ -258,8 +260,38 @@ func build_the_venue() -> void:
 	_build_sky()
 
 
+func event_dressing() -> EventDressing:
+	return court.event if court != null else null
+
+
 func dress_the_venue(venue: Dictionary) -> void:
 	court.dress(venue["dressing"], venue["crowd"])
+	_light_for_the_venue()
+
+
+## The club courts are outdoors under the sun; the top of the ladder is an indoor stadium.
+## Same two lights either way — the sun becomes the roof lamps, steeper and whiter, and the
+## sky goes dark behind the walls — so going indoors costs nothing to draw.
+func _light_for_the_venue() -> void:
+	if _sky_environment == null or court.event == null:
+		return
+	var indoors := court.event.indoors()
+	if indoors:
+		_sky_environment.background_mode = Environment.BG_COLOR
+		_sky_environment.background_color = Color(0.03, 0.035, 0.05)
+		_sky_environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		_sky_environment.ambient_light_color = Color(0.62, 0.66, 0.74)
+		_sky_environment.ambient_light_energy = 0.8
+		_sun.rotation = Vector3(deg_to_rad(-78.0), deg_to_rad(-20.0), 0.0)
+		_sun.light_color = Color(0.98, 0.98, 1.0)
+		_sun.light_energy = 1.3
+	else:
+		_sky_environment.background_mode = Environment.BG_SKY
+		_sky_environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+		_sky_environment.ambient_light_energy = 0.7
+		_sun.rotation = Vector3(deg_to_rad(-58.0), deg_to_rad(-26.0), 0.0)
+		_sun.light_color = Color(1, 1, 1)
+		_sun.light_energy = 1.15
 
 
 func make_the_board(venue: Dictionary) -> Scoreboard:
@@ -305,6 +337,7 @@ func _build_camera() -> void:
 
 func _build_sky() -> void:
 	var sun := DirectionalLight3D.new()
+	_sun = sun
 	sun.name = "Sun"
 	sun.rotation = Vector3(deg_to_rad(-58.0), deg_to_rad(-26.0), 0.0)
 	sun.light_energy = 1.15
@@ -326,6 +359,7 @@ func _build_sky() -> void:
 	env.ambient_light_energy = 0.7
 	world.environment = env
 	add_child(world)
+	_sky_environment = env
 
 
 ## Where a singles player stands when the ball is not in their half: on the middle of
