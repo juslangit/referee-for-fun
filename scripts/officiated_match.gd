@@ -82,8 +82,16 @@ var _phase := Phase.MENU:
 			recorder.name = "FlightRecorder"
 			recorder.arena = self
 			add_child(recorder)
+		# The slow-down on the landing, here for the same reason as the two above.
+		if value == Phase.AWAITING_CALL and was == Phase.IN_PLAY:
+			_slow_the_landing()
+		elif value != Phase.AWAITING_CALL:
+			_back_to_full_speed()
 var _reviewing := false
 var _awaiting_since := 0
+
+## The broadcast. Made the first time a match begins; see `Commentary`.
+var commentary: Commentary
 
 ## How many calls this official has made in this match. Only used to decide whether
 ## leaving costs anything: before the first call there is nothing to answer for.
@@ -241,6 +249,8 @@ func _ready() -> void:
 
 
 func _on_warning() -> void:
+	if commentary != null:
+		commentary.on_warning()
 	ui.show_banner("THE MATCH REFEREE HAS BEEN CALLED")
 	ui.react("the match referee comes over and stands by the post", 5.0)
 
@@ -377,12 +387,29 @@ func begin_match(_unused := Sides.Team.NONE) -> void:
 	worst_calls = WorstCalls.new()
 	camera.set_active(true)
 	_start_watching_reputation()
+	_the_broadcast_starts()
 	go_ready()
+
+
+## Here and not in `_ready`, because badminton's `_ready` does not call up to the spine's
+## and its `begin_match` does. Every sport passes through this.
+func _the_broadcast_starts() -> void:
+	if commentary == null:
+		commentary = Commentary.new()
+		commentary.name = "Commentary"
+		add_child(commentary)
+	commentary.ui = ui
+	var venue_name := ""
+	if career != null:
+		venue_name = String(career.venue()["name"])
+	commentary.open_match(career, sport(), venue_name)
 
 
 func go_ready() -> void:
 	if suspicion.is_removed or board.is_over:
 		return
+	if commentary != null and calls_made > 0:
+		commentary.between_points(suspicion.mood)
 	_phase = Phase.READY
 	ui.set_score(board, serving)
 	hear_the_board()
@@ -460,6 +487,8 @@ func review(asked: Sides.Team) -> bool:
 	sound.react(not overturned)
 	ui.react(Crowd.react_to_review(overturned))
 	the_hall_says(Crowd.said_about_review(overturned))
+	if commentary != null:
+		commentary.on_review(overturned)
 
 	ui.set_review_hint("SPACE   ·   carry on")
 	await _wait_or_skip(REVIEW_VERDICT)
@@ -601,6 +630,11 @@ func close_the_night(headline: String, detail: String, tint: Color, removed: boo
 	_closing = true
 	if sound != null:
 		sound.match_over(removed)
+	# Aisha's verdict goes on the result screen: the HUD is gone by the time anybody reads
+	# a caption, and the last word is worth reading.
+	if commentary != null:
+		commentary.stop()
+		detail += "\n\n" + commentary.last_word(removed, suspicion.mood)
 	var in_the_paper := removed or (career != null and career.is_over)
 	# Everything the paper knows is read now, before anything waits.
 	var story: Dictionary = Newspaper.story(_what_the_papers_know(removed, venue_name)) \
@@ -689,6 +723,52 @@ func _reckoning() -> String:
 	return "\n".join(lines)
 
 
+# --- the slow-down on a landing ------------------------------------------------
+
+## Every landing that ends a rally is watched for a moment at a third of the speed, then
+## eases back. **Every one**, never only the close ones: slowing down only when the ball
+## came down near a line would tell the umpire it was close, and the game never tells the
+## umpire anything about the ball. Luqman chose this on 2026-09-15.
+##
+## The truth is untouched. The landing point is recorded before the phase changes, and the
+## time an umpire takes to call is measured on the wall clock (`_awaiting_since`), so a
+## slow-down never makes anybody look hesitant. A call made while it is still slow ends it.
+const SLOWMO_SPEED := 0.3
+## Real seconds held at SLOWMO_SPEED, then real seconds taken to ease back to full speed.
+const SLOWMO_HOLD := 0.35
+const SLOWMO_EASE := 0.3
+
+var _slowmo: Tween
+
+
+func _slow_the_landing() -> void:
+	if not is_inside_tree():
+		return
+	_back_to_full_speed()
+	Engine.time_scale = SLOWMO_SPEED
+	_slowmo = create_tween()
+	# The tween runs on the wall clock, or it would itself be slowed by what it controls.
+	_slowmo.set_ignore_time_scale(true)
+	_slowmo.tween_interval(SLOWMO_HOLD)
+	_slowmo.tween_property(Engine, "time_scale", 1.0, SLOWMO_EASE) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+
+
+func _back_to_full_speed() -> void:
+	if _slowmo != null:
+		_slowmo.kill()
+		_slowmo = null
+	Engine.time_scale = 1.0
+
+
+func _notification(what: int) -> void:
+	# time_scale belongs to the whole engine, not to this match. A match freed while it
+	# was slow — back to the title screen, the end of a check — must not leave the next
+	# thing running at a third of the speed.
+	if what == NOTIFICATION_EXIT_TREE:
+		_back_to_full_speed()
+
+
 # --- pausing --------------------------------------------------------------------
 
 ## Escape stops the match dead and gives the mouse back, because a menu you cannot
@@ -700,6 +780,8 @@ func pause_the_match() -> void:
 	if ui.is_settings_open():
 		close_the_settings()
 		return
+	# The menu's own animations would crawl at a third of the speed.
+	_back_to_full_speed()
 	camera.set_active(false)
 	# The free exit is offered only while nothing has happened. See show_pause_menu.
 	ui.show_pause_menu(calls_made == 0)
@@ -969,12 +1051,17 @@ func judge(call: CallType, against: Sides.Team) -> void:
 	# And the room coming round, which outranks both. It is rarer than either of them —
 	# it takes a bad patch and then a clean run to earn — and it is the only approving
 	# thing anybody in this game ever says.
-	if suspicion.the_room_comes_round():
+	var came_round := suspicion.the_room_comes_round()
+	if came_round:
 		reaction = Crowd.react_to_recovery()
 		shout = Crowd.said_about_recovery()
 		_they_acknowledge_you()
 	ui.react(reaction)
 	the_hall_says(shout)
+	# The broadcast is handed exactly what the hall was, and nothing it was not.
+	if commentary != null:
+		commentary.on_call(rally.visibility(), suspicion.mood, was_wrong,
+			rally.seconds_to_call, rally.overrules_line_judge(), came_round)
 	_show_reviews()
 
 	if print_truth_while_testing:

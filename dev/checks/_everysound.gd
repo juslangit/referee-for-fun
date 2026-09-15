@@ -16,7 +16,7 @@ extends Node
 ## `RALLIES=12` for more or fewer points a sport. Puts the career save back afterwards,
 ## because ending a match writes it.
 
-const SAVE := "user://career.json"
+var SAVE := Career.save_path()
 
 const SPORTS := [
 	["badminton", "res://scenes/match.tscn", Career.BADMINTON],

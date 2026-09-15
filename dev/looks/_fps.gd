@@ -22,7 +22,7 @@ const SCENES := [
 	["table_tennis", "res://scenes/table_tennis.tscn", Career.TABLE_TENNIS, [0, 4]],
 ]
 
-const SAVE := "user://career.json"
+var SAVE := Career.save_path()
 
 var _seconds := 6.0
 var _rid: RID

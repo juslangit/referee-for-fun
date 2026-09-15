@@ -1727,6 +1727,97 @@ var _bubble_showns: Array[float] = []
 ## from the chair — so text drawn in the world arrives four pixels high and edge-on. A
 ## panel that merely *follows* the head keeps a size a person can read from any seat in
 ## the room while still belonging to somebody.
+# --- the broadcast ------------------------------------------------------------------
+
+## The commentary caption, bottom left, the way a broadcast puts up a lower third.
+##
+## It is the one panel with a red edge and a LIVE tag, because it is the one voice that is
+## neither the game talking to the umpire (the amber plates) nor somebody in the hall (the
+## white bubbles): it is people on television talking *about* the umpire. In the corner
+## rather than the centre because the centre bottom already stacks the prompt, the hall's
+## line, the meter and the line judge. At 460 wide it clears the reputation meter's left
+## edge at 1920x1080; at 560 it hid the start of REPUTATION (dev/looks/_commentaryshot).
+const COMMENTARY_WIDTH := 460
+const COMMENTARY_LIFT := 24
+
+var _commentary: PanelContainer
+var _commentary_channel: Label
+var _commentary_speaker: Label
+var _commentary_line: Label
+
+
+func _build_commentary() -> PanelContainer:
+	_commentary = PanelContainer.new()
+	_commentary.name = "Commentary"
+	_commentary.add_theme_stylebox_override("panel", UiTheme.plate(UiTheme.RED, 0.86))
+	_commentary.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_commentary.grow_horizontal = Control.GROW_DIRECTION_END
+	_commentary.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_commentary.offset_left = REASON_INSET
+	_commentary.offset_right = REASON_INSET
+	_commentary.offset_bottom = -COMMENTARY_LIFT
+	_commentary.offset_top = -COMMENTARY_LIFT
+	_commentary.custom_minimum_size = Vector2(COMMENTARY_WIDTH, 0)
+	_commentary.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_commentary.visible = false
+
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 6)
+	_commentary.add_child(column)
+
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 12)
+	column.add_child(top)
+	var live := PanelContainer.new()
+	var tag := UiTheme.block(UiTheme.RED)
+	tag.content_margin_left = 10
+	tag.content_margin_right = 10
+	tag.content_margin_top = 2
+	tag.content_margin_bottom = 2
+	live.add_theme_stylebox_override("panel", tag)
+	live.add_child(_make_label("\u25cf LIVE", UiTheme.SMALL, Color.WHITE))
+	top.add_child(live)
+	_commentary_channel = _make_label("", UiTheme.SMALL, UiTheme.MUTED)
+	top.add_child(_commentary_channel)
+
+	_commentary_speaker = _make_label("", UiTheme.SMALL, UiTheme.ACCENT)
+	_commentary_speaker.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	column.add_child(_commentary_speaker)
+
+	_commentary_line = _make_label("", UiTheme.BODY, UiTheme.CHALK)
+	_commentary_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_commentary_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_commentary_line.custom_minimum_size = Vector2(COMMENTARY_WIDTH, 0)
+	column.add_child(_commentary_line)
+	return _commentary
+
+
+func show_commentary(channel: String, speaker: String, line: String) -> void:
+	if _commentary == null:
+		return
+	_commentary_channel.text = channel
+	_commentary_speaker.text = speaker
+	_commentary_line.text = line
+	# It grows upwards from its bottom edge. Collapsed first, so a one-line caption after a
+	# two-line one does not keep the taller box. Offsets, not `position`: once the HUD has a
+	# size, `position` is measured from its top-left and the caption would leave the screen.
+	_commentary.offset_top = _commentary.offset_bottom
+	_commentary.offset_right = _commentary.offset_left
+	_commentary.visible = true
+
+
+func hide_commentary() -> void:
+	if _commentary != null:
+		_commentary.visible = false
+
+
+## What the broadcast currently has up, for the checks. Empty when nothing is.
+func commentary_showing() -> String:
+	if _commentary == null or not _commentary.visible:
+		return ""
+	return "%s: %s" % [_commentary_speaker.text, _commentary_line.text]
+
+
 func _build_bubbles() -> Control:
 	var holder := Control.new()
 	holder.name = "CrowdBubbles"
@@ -2470,6 +2561,7 @@ func _build_hud() -> void:
 	hud.add_child(_build_reputation_meter())
 	hud.add_child(_build_reason_note())
 	hud.add_child(_build_bubbles())
+	hud.add_child(_build_commentary())
 
 
 ## The score bug at the top of the screen, the way a broadcast does it: a block of each
