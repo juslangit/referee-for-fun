@@ -81,7 +81,8 @@ GALLERIES = [
         ("tennis_above", "The court from above: stands along both sidelines, line judges at opposite corners."),
         ("commentary_tennis", "The commentators' caption in tennis."),
     ]),
-    ("screens-table-tennis", "Table tennis", "No line judges, and that is the point. No in-play screenshot has been taken yet.", [
+    ("screens-table-tennis", "Table tennis", "No line judges, and that is the point. The umpire sits level with the table.", [
+        ("cut_table_tennis_walk_on_22.0", "The match under way, from the umpire's low chair beside the net."),
         ("table_tennis_replay_flight", "Worst-call replay: the flight over the table."),
         ("table_tennis_replay_close", "The close-up: the serve clipped the net and was good, so it was a let."),
         ("table_tennis_ending", "Taken off, at a national ranking event."),
@@ -166,9 +167,36 @@ CUTSCENES = [
       ("Moved up", "On CONTINUE after a promotion", [
          ("cut_tennis_moved_up_02.5", "2.5 s", "From court level beside the net …"),
          ("cut_tennis_moved_up_06.5", "6.5 s", "… up over the new court.")])]),
+    ("cutscenes-table-tennis", "Table tennis", "Built 2026-09-15, waiting for Luqman's review",
+     "ITTF Handbook for Match Officials, 16th edition (2019).",
+     [("Entry", "The umpire team enters by the corner nearest the umpire's chair; at feature matches the players walk in with them."),
+      ("App. A 6-7", "Rackets checked, then a coin or disc tossed in front of both players for service and ends."),
+      ("p.45", "The umpire sits in the chair for the practice period."),
+      ("Start", "\"Time\", \"… versus …\", \"First game\", point to the server, \"… to serve\", \"Love all\"."),
+      ("Post-match", "\"Game and match to …\", \"… wins 3 games to 1\"; the umpire leads the way out."),
+      ("Not shown", "The assistant umpire: this game has no second official in table tennis.")],
+     [("Walk-on", "Before the first serve", [
+         ("cut_table_tennis_walk_on_04.5", "4.5 s", "The umpire comes in through the corner by the chair."),
+         ("cut_table_tennis_walk_on_07.0", "7.0 s", "The players follow."),
+         ("cut_table_tennis_walk_on_10.0", "10.0 s", "Rackets checked beside the net."),
+         ("cut_table_tennis_walk_on_14.5", "14.5 s", "The toss, in front of both players."),
+         ("cut_table_tennis_walk_on_17.0", "17.0 s", "Two minutes' practice, the umpire in the chair."),
+         ("cut_table_tennis_walk_on_19.5", "19.5 s", "\"Time. RED versus BLUE. First game, RED to serve, love all.\"")]),
+      ("Match won", "After the last point", [
+         ("cut_table_tennis_match_won_02.5", "2.5 s", "Game and match to RED: RED wins 3 games to 0."),
+         ("cut_table_tennis_match_won_04.8", "4.8 s", "To the side of the table at the net."),
+         ("cut_table_tennis_match_won_06.2", "6.2 s", "The players shake hands."),
+         ("cut_table_tennis_match_won_08.0", "8.0 s", "And the umpire, up from the chair, shakes both.")]),
+      ("Taken off", "When the hall has had enough", [
+         ("cut_table_tennis_taken_off_02.5", "2.5 s", "The referee comes to the table."),
+         ("cut_table_tennis_taken_off_04.5", "4.5 s", "Beside the umpire's chair."),
+         ("cut_table_tennis_taken_off_06.5", "6.5 s", "Down from the chair and pointed to the corner.")]),
+      ("Moved up", "On CONTINUE after a promotion", [
+         ("cut_table_tennis_moved_up_02.5", "2.5 s", "From table height …"),
+         ("cut_table_tennis_moved_up_06.5", "6.5 s", "… up over the barriers of the new venue.")])]),
 ]
 
-CUTSCENES_TO_COME = ["Table tennis", "Indoor volleyball", "Beach volleyball"]
+CUTSCENES_TO_COME = ["Indoor volleyball", "Beach volleyball"]
 
 # The knowledge base, in reading order. (id, title, file, fold level) — sections at the fold
 # level fold away, so a 96 KB decision log can still be skimmed by its headings.
