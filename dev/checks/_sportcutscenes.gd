@@ -10,11 +10,11 @@ extends Node
 
 const WITH_SCENES := {
 	"tennis": ["res://scenes/tennis.tscn", Career.TENNIS],
+	"table tennis": ["res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
 }
 const WITHOUT := {
 	"beach": ["res://scenes/beach.tscn", Career.BEACH],
 	"indoor": ["res://scenes/volleyball.tscn", Career.INDOOR],
-	"table tennis": ["res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
 }
 
 var _failures: Array[String] = []
@@ -150,8 +150,11 @@ func _match_won(sport: String) -> void:
 	_expect(await _until(func() -> bool:
 		return arena.players.all(func(p: Player) -> bool: return absf(p.position.z) < 0.8), 12.0),
 		"%s: the players meet at the net" % sport)
+	# Beside the chair, which is past the net post in tennis and beside the table in table
+	# tennis: nearer the umpire's side than the middle of the court, either way.
+	var chair_side := 5.5 if sport == "tennis" else 1.0
 	_expect(await _until(func() -> bool:
-		return arena.players.all(func(p: Player) -> bool: return p.position.x > 5.5), 15.0),
+		return arena.players.all(func(p: Player) -> bool: return p.position.x > chair_side), 15.0),
 		"%s: and then go to the umpire" % sport)
 	_expect(await _until(func() -> bool: return arena.ui._ending.visible, 40.0),
 		"%s: the result follows it" % sport)
