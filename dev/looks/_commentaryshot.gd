@@ -6,7 +6,7 @@ extends Node
 ##
 ##     godot --path . res://dev/looks/_commentaryshot.tscn --resolution 1920x1080
 ##
-## SPORT=tennis (or beach, indoor, table_tennis) for another hall.
+## SPORT=tennis (or beach, indoor, table_tennis, takraw) for another hall.
 
 func _ready() -> void:
 	var scenes := {
@@ -15,6 +15,7 @@ func _ready() -> void:
 		"indoor": ["res://scenes/volleyball.tscn", Career.INDOOR],
 		"tennis": ["res://scenes/tennis.tscn", Career.TENNIS],
 		"table_tennis": ["res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
+		"takraw": ["res://scenes/sepak_takraw.tscn", Career.TAKRAW],
 	}
 	var which := OS.get_environment("SPORT") if OS.has_environment("SPORT") else "badminton"
 	var arena: Node = load(scenes[which][0]).instantiate()
@@ -23,7 +24,8 @@ func _ready() -> void:
 	await get_tree().physics_frame
 	arena.career = Career.new()
 	arena.career.sport = scenes[which][1]
-	for flag in ["taught", "taught_beach", "taught_indoor", "taught_tennis", "taught_table_tennis"]:
+	for flag in ["taught", "taught_beach", "taught_indoor", "taught_tennis", "taught_table_tennis",
+			"taught_takraw"]:
 		arena.settings.set(flag, true)
 	arena.ui.match_requested.emit()
 	await get_tree().process_frame

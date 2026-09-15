@@ -5,13 +5,15 @@ extends Node
 ## Every harness so far stops after a fixed number of rallies, so the end of a match —
 ## the ending screen, the career fold-in, the promotion — has never been reached in the
 ## two volleyballs at all. A crash there would be the worst bug in the game: it would
-## take the match with it.
+## take the match with it. Sepak takraw is asked too, because its sets end at 17 once
+## they reach 14-14, which no other board in the game does.
 ##
 ## Also reports how many rallies each sport's shortest match needs, because that is how
 ## long the player is actually being asked to sit there.
 
 func _ready() -> void:
-	for scene in ["res://scenes/beach.tscn", "res://scenes/volleyball.tscn"]:
+	for scene in ["res://scenes/beach.tscn", "res://scenes/volleyball.tscn",
+			"res://scenes/sepak_takraw.tscn"]:
 		await _play_to_the_end(scene)
 	get_tree().quit()
 
@@ -23,11 +25,14 @@ func _play_to_the_end(scene: String) -> void:
 	await get_tree().physics_frame
 
 	var beach: bool = scene.ends_with("beach.tscn")
+	var takraw: bool = scene.ends_with("sepak_takraw.tscn")
 	arena.career = Career.new()
-	arena.career.sport = Career.BEACH if beach else Career.INDOOR
+	arena.career.sport = Career.TAKRAW if takraw else (Career.BEACH if beach else Career.INDOOR)
 	if OS.has_environment("TIER"):
 		arena.career.tier = int(OS.get_environment("TIER"))
-	if beach:
+	if takraw:
+		arena.settings.taught_takraw = true
+	elif beach:
 		arena.settings.taught_beach = true
 	else:
 		arena.settings.taught_indoor = true
@@ -42,7 +47,7 @@ func _play_to_the_end(scene: String) -> void:
 	for f in 3:
 		await get_tree().process_frame
 
-	print("=== %s, %s" % ["beach" if beach else "indoor", venue["name"]])
+	print("=== %s, %s" % ["takraw" if takraw else ("beach" if beach else "indoor"), venue["name"]])
 	print("   sets to %d, decider to %d, first to %d sets" % [
 		arena.board.target, arena.board.decider_target, arena.board.games_needed])
 

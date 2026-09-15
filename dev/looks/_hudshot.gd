@@ -8,7 +8,7 @@ extends Node
 ##
 ##     SPORT=tennis godot --path . res://dev/looks/_hudshot.tscn
 ##
-## SPORT is badminton (default), beach, indoor, tennis or table_tennis.
+## SPORT is badminton (default), beach, indoor, tennis, table_tennis or takraw.
 
 const SCENES := {
 	"badminton": ["res://scenes/match.tscn", Career.BADMINTON],
@@ -16,6 +16,7 @@ const SCENES := {
 	"indoor": ["res://scenes/volleyball.tscn", Career.INDOOR],
 	"tennis": ["res://scenes/tennis.tscn", Career.TENNIS],
 	"table_tennis": ["res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
+	"takraw": ["res://scenes/sepak_takraw.tscn", Career.TAKRAW],
 }
 
 ## Points to hand out, in order, as [red, blue] runs: enough for one finished game or set
@@ -25,6 +26,7 @@ const RUNS := {
 	"beach": [[21, 17], [20, 18]],
 	"indoor": [[25, 21], [24, 22]],
 	"table_tennis": [[11, 8], [10, 9]],
+	"takraw": [[15, 12], [14, 13]],
 }
 
 const PROMPTS := {
@@ -33,6 +35,7 @@ const PROMPTS := {
 	"indoor": "LEFT CLICK  in    RIGHT CLICK  out    T  touch    F  fault or rotation",
 	"tennis": "LEFT CLICK  in    RIGHT CLICK  out    F  a fault",
 	"table_tennis": "LEFT CLICK  in    RIGHT CLICK  out    F  a fault",
+	"takraw": "LEFT CLICK  in    RIGHT CLICK  out    T  touch    F  fault",
 }
 
 
@@ -46,7 +49,8 @@ func _ready() -> void:
 	arena.career.sport = SCENES[which][1]
 	# The top rung: full-length matches, and Hawk-Eye, so there are reviews to show.
 	arena.career.tier = Career.ladder_for(arena.career.sport).size() - 1
-	for flag in ["taught", "taught_beach", "taught_indoor", "taught_tennis", "taught_table_tennis"]:
+	for flag in ["taught", "taught_beach", "taught_indoor", "taught_tennis", "taught_table_tennis",
+			"taught_takraw"]:
 		arena.settings.set(flag, true)
 	arena.ui.match_requested.emit()
 	await get_tree().process_frame

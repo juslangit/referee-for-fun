@@ -20,6 +20,7 @@ const SCENES := [
 	["indoor", "res://scenes/volleyball.tscn", Career.INDOOR, [0, 4]],
 	["tennis", "res://scenes/tennis.tscn", Career.TENNIS, [0, 4]],
 	["table_tennis", "res://scenes/table_tennis.tscn", Career.TABLE_TENNIS, [0, 4]],
+	["takraw", "res://scenes/sepak_takraw.tscn", Career.TAKRAW, [0, 4]],
 ]
 
 var SAVE := Career.save_path()

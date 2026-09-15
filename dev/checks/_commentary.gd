@@ -28,6 +28,7 @@ func _ready() -> void:
 		["indoor", "res://scenes/volleyball.tscn", Career.INDOOR],
 		["tennis", "res://scenes/tennis.tscn", Career.TENNIS],
 		["table tennis", "res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
+		["takraw", "res://scenes/sepak_takraw.tscn", Career.TAKRAW],
 	]:
 		await _on_air(entry[0], entry[1], entry[2])
 	print("PASS" if _problems.is_empty() else "FAIL:\n   " + "\n   ".join(_problems))
@@ -74,7 +75,8 @@ func _read_the_lines() -> void:
 	# Every placeholder filled, in every sport, with a career that has a past.
 	var box := Commentary.new()
 	add_child(box)
-	for sport_name in [Career.BADMINTON, Career.BEACH, Career.INDOOR, Career.TENNIS, Career.TABLE_TENNIS]:
+	for sport_name in [Career.BADMINTON, Career.BEACH, Career.INDOOR, Career.TENNIS, Career.TABLE_TENNIS,
+			Career.TAKRAW]:
 		var career := _career_with_a_past(sport_name, false, 0.9)
 		box.open_match(career, sport_name, "State open")
 		var all := {}
@@ -200,7 +202,8 @@ func _on_air(name: String, scene: String, sport_name: StringName) -> void:
 	add_child(arena)
 	await get_tree().physics_frame
 	arena.career = _career_with_a_past(sport_name, true, 0.6)
-	for flag in ["taught", "taught_beach", "taught_indoor", "taught_tennis", "taught_table_tennis"]:
+	for flag in ["taught", "taught_beach", "taught_indoor", "taught_tennis", "taught_table_tennis",
+			"taught_takraw"]:
 		arena.settings.set(flag, true)
 	arena.ui.match_requested.emit()
 	await get_tree().process_frame

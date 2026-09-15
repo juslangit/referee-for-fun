@@ -15,8 +15,8 @@ extends Node
 ##     playing surface *is* the ground, which hid the error until table tennis.
 ##
 ## Every one of them was invisible: no crash, no wrong number, just a feature that was
-## not there. There are five sports and one spine, and until now nothing looked for the
-## next one. This reads the source of all six files and reports two things.
+## not there. There are six sports and one spine, and until now nothing looked for the
+## next one. This reads the source of all seven files and reports two things.
 
 const SPINE := "res://scripts/officiated_match.gd"
 const SPORTS := {
@@ -25,6 +25,7 @@ const SPORTS := {
 	"indoor volleyball": "res://scripts/volley_match.gd",
 	"tennis": "res://scripts/tennis_match.gd",
 	"table tennis": "res://scripts/table_tennis_match.gd",
+	"sepak takraw": "res://scripts/takraw_match.gd",
 }
 
 ## Hooks a sport is free to leave alone, with the reason. A stub nobody overrides is
@@ -74,6 +75,7 @@ const OPTIONAL := {
 	"enter_ready": "the prompt line, which some sports set elsewhere",
 	"score_line": "only sports that call a game something else need it",
 	"net_clearance": "most sports are happy with the default daylight",
+	"event_dressing": "badminton puts the score on its own Venue's screens (match.gd set_score)",
 }
 
 
@@ -138,8 +140,8 @@ func _replaced_without_super(spine: Dictionary) -> int:
 			if mine[fn]["calls_super"]:
 				continue
 			# A one-line `return <value>` is a default, and overriding a default is the
-			# whole point of having one — `net_height` is answered by five sports with
-			# five numbers and none of them wants the spine's. Only a substantial
+			# whole point of having one — `net_height` is answered by six sports with
+			# six numbers and none of them wants the spine's. Only a substantial
 			# implementation being replaced is worth reporting, because only that has
 			# room for a line somebody will add later and expect every sport to run.
 			if spine[fn]["lines"] <= SUBSTANTIAL:

@@ -450,6 +450,12 @@ func _go_to_sport(id: StringName) -> void:
 		get_tree().change_scene_to_file("res://scenes/table_tennis.tscn")
 		return
 
+	if id == &"takraw":
+		career.sport = Career.TAKRAW
+		career.save()
+		get_tree().change_scene_to_file("res://scenes/sepak_takraw.tscn")
+		return
+
 	if id != &"badminton":
 		return
 	career.sport = Career.BADMINTON

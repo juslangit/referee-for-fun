@@ -20,7 +20,7 @@ extends Node
 ## and nothing the paper can print guesses at the umpire's pronouns or uses a trademark.
 ##
 ## The career save is put back afterwards. Every harness that finishes a match writes it,
-## and this one finishes six.
+## and this one finishes seven.
 
 var SAVE := Career.save_path()
 
@@ -47,6 +47,7 @@ func _ready() -> void:
 		["indoor", "res://scenes/volleyball.tscn", Career.INDOOR, 0.80, "finished"],
 		["tennis", "res://scenes/tennis.tscn", Career.TENNIS, 0.05, "taken off"],
 		["table tennis", "res://scenes/table_tennis.tscn", Career.TABLE_TENNIS, 0.80, "finished"],
+		["takraw", "res://scenes/sepak_takraw.tscn", Career.TAKRAW, 0.80, "finished"],
 	]:
 		await _check(entry[0], entry[1], entry[2], entry[3], entry[4])
 
@@ -269,6 +270,7 @@ func _open(scene: String, sport: StringName, reputation: float) -> OfficiatedMat
 	arena.settings.taught_indoor = true
 	arena.settings.taught_tennis = true
 	arena.settings.taught_table_tennis = true
+	arena.settings.taught_takraw = true
 	if sport == Career.BADMINTON:
 		arena._on_match_requested()
 		if arena.pressure.exists():

@@ -17,6 +17,7 @@ func _ready() -> void:
 		["indoor", "res://scenes/volleyball.tscn", Career.INDOOR],
 		["tennis", "res://scenes/tennis.tscn", Career.TENNIS],
 		["table tennis", "res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
+		["takraw", "res://scenes/sepak_takraw.tscn", Career.TAKRAW],
 	]:
 		await _check(entry[0], entry[1], entry[2])
 	print("PASS" if _problems.is_empty() else "FAIL:\n   " + "\n   ".join(_problems))
@@ -40,6 +41,7 @@ func _check(name: String, scene: String, sport: StringName) -> void:
 	arena.settings.taught_indoor = true
 	arena.settings.taught_tennis = true
 	arena.settings.taught_table_tennis = true
+	arena.settings.taught_takraw = true
 	arena.ui.match_requested.emit()
 	await get_tree().process_frame
 	if arena.pressure.exists():
@@ -92,11 +94,12 @@ func _a_point_to_red(arena: Node) -> void:
 	# probably. A rolled positional fault decides the point before the landing does, and
 	# a forged IN over one of those comes out CORRECT — which it did, and reported the
 	# whole feature as dead in indoor on one run and alive on the next.
-	for field in ["foot_fault", "handling_fault", "was_touched"]:
+	for field in ["foot_fault", "handling_fault", "was_touched", "inside_fault"]:
 		if field in rally:
 			rally.set(field, false)
 	for field in ["net_toucher", "centre_line_crosser", "rotation_fault_by",
-			"wrong_server_by", "libero_fault_by", "back_row_attack_by"]:
+			"wrong_server_by", "libero_fault_by", "back_row_attack_by", "arm_toucher",
+			"four_toucher"]:
 		if field in rally:
 			rally.set(field, Sides.Team.NONE)
 	# Tennis has neither of these, and `in` on a RefCounted answers true for a method as
@@ -141,6 +144,8 @@ func _in_call(arena: Node) -> CallType:
 		return VolleyCallBook.get_call(&"in")
 	if arena.sport() == Career.TABLE_TENNIS:
 		return TableTennisCallBook.get_call(&"in")
+	if arena.sport() == Career.TAKRAW:
+		return TakrawCallBook.get_call(&"in")
 	return BeachCallBook.get_call(&"in")
 
 

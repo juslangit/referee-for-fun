@@ -1,6 +1,7 @@
 extends Node
 
-## The new screen: one a side or two, for the two sports that have both.
+## The new screen: one a side or two, for the three sports that have both. Sepak takraw's
+## is three a side or two, and its first button says REGU.
 
 func _ready() -> void:
 	var hall: Node = load("res://scenes/match.tscn").instantiate()
@@ -9,7 +10,7 @@ func _ready() -> void:
 	await get_tree().physics_frame
 	hall.ui._main_menu.visible = false
 
-	for sport in [Career.BADMINTON, Career.TENNIS]:
+	for sport in [Career.BADMINTON, Career.TENNIS, Career.TAKRAW]:
 		hall.ui.show_format_menu(sport)
 		await _shot("res://dev/shots/format_%s.png" % sport)
 		hall.ui.hide_format_menu()
@@ -19,7 +20,7 @@ func _ready() -> void:
 	for which in Career.IN_ORDER:
 		print("   %-20s asks: %s" % [
 			Career.name_of(which), Career.has_both_formats(which)])
-	print("saved 2")
+	print("saved 3")
 	get_tree().quit()
 
 

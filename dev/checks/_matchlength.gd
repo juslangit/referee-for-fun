@@ -14,6 +14,7 @@ func _ready() -> void:
 		["indoor", "res://scenes/volleyball.tscn", Career.INDOOR],
 		["tennis", "res://scenes/tennis.tscn", Career.TENNIS],
 		["table tennis", "res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
+		["takraw", "res://scenes/sepak_takraw.tscn", Career.TAKRAW],
 	]:
 		await _measure(entry[0], entry[1], entry[2])
 	get_tree().quit()
@@ -31,6 +32,7 @@ func _measure(name: String, scene: String, sport: StringName) -> void:
 	arena.settings.taught_indoor = true
 	arena.settings.taught_tennis = true
 	arena.settings.taught_table_tennis = true
+	arena.settings.taught_takraw = true
 	arena.ui.match_requested.emit()
 	await get_tree().process_frame
 	if arena.pressure.exists():
@@ -98,6 +100,29 @@ func _call_it_honestly(arena: Node, name: String) -> void:
 			arena.make_call(&"in" if rally.serve_was_good else &"out")
 		else:
 			arena.make_call(&"in" if rally.was_in else &"out")
+		return
+
+	# Sepak takraw's honest referee, in the order _takrawplay calls it: the serve's feet
+	# first, because they happen first, then the body faults, the touch and the line.
+	if name == "takraw":
+		if rally.foot_fault:
+			arena.make_call(&"service_fault", rally.served_by)
+		elif rally.inside_fault:
+			arena.make_call(&"inside_fault", rally.served_by)
+		elif arena.net_toucher != Sides.Team.NONE:
+			arena.make_call(&"net_touch", arena.net_toucher)
+		elif arena.centre_line_crosser != Sides.Team.NONE:
+			arena.make_call(&"crossing", arena.centre_line_crosser)
+		elif rally.arm_toucher != Sides.Team.NONE:
+			arena.make_call(&"arm", rally.arm_toucher)
+		elif rally.four_toucher != Sides.Team.NONE:
+			arena.make_call(&"four_touches", rally.four_toucher)
+		elif rally.was_in:
+			arena.make_call(&"in")
+		elif rally.was_touched:
+			arena.make_call(&"touch")
+		else:
+			arena.make_call(&"out")
 		return
 
 	if not rally.inside_the_antennae:
