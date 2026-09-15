@@ -76,6 +76,12 @@ func _in_a_real_match() -> void:
 
 		var rally = hall.rally
 		hall._awaiting_since = Time.get_ticks_msec()
+		# Same for a nod: the clip runs 1.6 s, and after a short rally that ended in slow
+		# motion the last call's nod is still playing. Only a nod that starts after this
+		# call is this call's.
+		var already_nodding := {}
+		for player in hall.players:
+			already_nodding[player] = player.playing_clip() == "nod"
 		# A line stays up for 2.6 s and a short rally is shorter than that, so the last
 		# call's line can still be on screen. Read, it counted one coming round twice.
 		hall.ui._reaction_label.text = ""
@@ -103,8 +109,10 @@ func _in_a_real_match() -> void:
 			if hall.ui._reaction_label != null and not hall.ui._reaction_label.text.is_empty():
 				said = hall.ui._reaction_label.text
 			for player in hall.players:
-				if player.playing_clip() == "nod":
+				var now_nodding: bool = player.playing_clip() == "nod"
+				if now_nodding and not already_nodding[player]:
 					nodding = true
+				already_nodding[player] = now_nodding
 		if said in Crowd.APPROVAL:
 			approved += 1
 		if nodding:
