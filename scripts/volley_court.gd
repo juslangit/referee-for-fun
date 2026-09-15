@@ -25,7 +25,14 @@ const STAND_LAYER := 4
 
 const HALL_HEIGHT := 11.0
 
+## How far out the side walls are. Past the back row of the stands, which start just beyond
+## the free zone and climb six rows: the walls used to stand where the floor ends, which put
+## them through the second row of seats and hid everybody behind it.
+const HALL_HALF_WIDTH := VolleySpec.HALF_WIDTH + VolleySpec.FREE_ZONE + 1.0 + 6.0 * 0.90 + 0.7
+
 var stands: Stands
+## The event round the court: see EventDressing.
+var event: EventDressing
 
 var _net_parts: Array[MeshInstance3D] = []
 var _net_rest: Array[Vector3] = []
@@ -175,7 +182,11 @@ func _build_referee_stand() -> void:
 ## Four walls and a ceiling, so the hall is a room rather than a floor in the void.
 func _build_hall() -> void:
 	var length := (VolleySpec.HALF_LENGTH + FLOOR_MARGIN) * 2.0
-	var width := (VolleySpec.HALF_WIDTH + FLOOR_MARGIN) * 2.0
+	var width := HALL_HALF_WIDTH * 2.0
+
+	# Plain concrete under the stands, between the sports floor and the walls.
+	_add_box("HallFloor", Vector3(width, FLOOR_THICKNESS, length),
+		Vector3(0.0, -0.006, 0.0), _make_material(Color(0.30, 0.30, 0.32)))
 
 	for dir in [1.0, -1.0]:
 		_add_box("EndWall", Vector3(width, HALL_HEIGHT, 0.3),
@@ -200,12 +211,23 @@ func _build_stands() -> void:
 	stands.seat_spacing = 0.80
 	add_child(stands)
 
+	event = EventDressing.new()
+	event.name = "Event"
+	event.layout = EventLayouts.indoor()
+	event.stands = stands
+	add_child(event)
+
 
 func dress(tier: Venue.Tier, density: float) -> void:
 	if stands == null:
 		return
 	stands.dress(tier)
 	stands.set_density(density)
+	# After the crowd, because the flags in it are held by people who are actually there.
+	event.dress(tier)
+	event.apply_paint("free_zone", _floor_material)
+	event.apply_paint("posts", _post_material)
+	event.apply_paint("hall", _hall_material)
 
 
 func cheer() -> void:

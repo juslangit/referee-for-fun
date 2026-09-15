@@ -100,13 +100,7 @@ const TRUSS_LENGTH := 11.0
 const BOARD_HEIGHT := 0.52
 const BOARD_BASE := 0.62
 
-## The sponsor boards. Invented names — a real one on a hoarding is somebody's
-## trademark, and this is not the place to borrow one.
-const BOARD_NAMES := [
-	"KESTREL", "NORTHGATE", "AXIS SPORT", "MERIDIAN", "HALCYON",
-	"BLUEPORT", "STRATA", "OAKLINE", "VERTEX", "CLEARWATER",
-	"IRONWOOD", "SUMMIT",
-]
+## The printed boards' colours. The logos on them are EventDressing's sponsors.
 const BOARD_COLOURS := [
 	Color(0.10, 0.22, 0.46), Color(0.55, 0.11, 0.13), Color(0.10, 0.32, 0.24),
 	Color(0.42, 0.28, 0.06), Color(0.20, 0.20, 0.24),
@@ -371,16 +365,21 @@ func _add_board(parent: Node3D, index: int, where: Vector3, turn: float, length:
 	board.material_override = paint
 	parent.add_child(board)
 
-	# The name is a Label3D rather than a painted texture, because a texture with words
-	# in it has to be drawn, saved, imported and kept in step with the language the game
-	# is written in. A label is text, and text can simply be read.
-	var writing := Label3D.new()
-	writing.text = BOARD_NAMES[index % BOARD_NAMES.size()]
-	writing.font_size = 110
-	writing.pixel_size = 0.0026
-	writing.outline_size = 0
-	writing.modulate = Color(0.97, 0.97, 0.94)
+	# The sponsor's logo, from the event art (see EventDressing). It used to be a Label3D
+	# with an invented name in plain type, which read as a placeholder: a real board is a
+	# logo. At the top of the ladder the boards are LED and glow; below it they are printed
+	# and take the hall's light.
+	var sponsor := "res://assets/events/sponsor_%s.png" % EventDressing.SPONSORS[index % EventDressing.SPONSORS.size()]
+	var writing := Sprite3D.new()
+	writing.texture = load(sponsor)
+	var slope := sqrt(pow(BOARD_BASE * 0.5, 2.0) + pow(BOARD_HEIGHT, 2.0))
+	writing.pixel_size = minf(length * 0.72 / float(writing.texture.get_width()),
+		slope * 0.78 / float(writing.texture.get_height()))
+	writing.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	writing.shaded = tier != Tier.ARENA
 	writing.double_sided = false
+	if tier == Tier.ARENA:
+		paint.albedo_color = Color(0.02, 0.02, 0.03)
 	# Laid on the sloping face and lifted a hair clear of it so the two do not fight.
 	#
 	# Two rotations, and both are needed. The quarter turn swings the text off the end of
@@ -618,8 +617,16 @@ func _build_video_wall() -> void:
 	_video_score.pixel_size = 0.0090
 	_video_score.outline_size = 0
 	_video_score.modulate = Color(1.0, 0.80, 0.26)
-	_video_score.position = Vector3(0.0, 4.9, 0.22)
+	_video_score.position = Vector3(1.6, 4.9, 0.22)
 	wall.add_child(_video_score)
+
+	var logo := Sprite3D.new()
+	logo.texture = load("res://assets/events/logo_badminton.png")
+	logo.pixel_size = minf(3.6 / float(logo.texture.get_width()), 3.0 / float(logo.texture.get_height()))
+	logo.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	logo.shaded = false
+	logo.position = Vector3(-2.7, 4.6, 0.22)
+	wall.add_child(logo)
 
 	var caption := Label3D.new()
 	caption.text = "MEN'S DOUBLES"
@@ -627,7 +634,7 @@ func _build_video_wall() -> void:
 	caption.pixel_size = 0.0060
 	caption.outline_size = 0
 	caption.modulate = Color(0.70, 0.80, 0.95)
-	caption.position = Vector3(0.0, 3.5, 0.22)
+	caption.position = Vector3(1.6, 3.5, 0.22)
 	wall.add_child(caption)
 
 

@@ -79,6 +79,8 @@ var stands: Stands
 
 ## Everything else in the hall: truss, lamps, boards, scoreboard, kit and flashes.
 var venue: Venue
+## The event round the hall: see EventDressing.
+var event: EventDressing
 
 var _net_parts: Array[MeshInstance3D] = []
 var _net_rest: Array[Vector3] = []
@@ -188,6 +190,14 @@ func _build_stands() -> void:
 	add_child(venue)
 	venue.dress(Venue.Tier.REGIONAL)
 
+	# What the Venue does not already have: the broadcast, the photographers, the flags.
+	event = EventDressing.new()
+	event.name = "Event"
+	event.layout = EventLayouts.badminton()
+	event.stands = stands
+	add_child(event)
+	event.dress(Venue.Tier.REGIONAL)
+
 
 ## Dresses the hall for one rung of the career ladder. Everything that changes with
 ## the venue goes through here, so there is one place to look for what a promotion
@@ -197,6 +207,8 @@ func dress(tier: Venue.Tier) -> void:
 		venue.dress(tier)
 	if stands != null:
 		stands.dress(tier)
+	if event != null:
+		event.dress(tier)
 	_paint_hall(tier)
 
 

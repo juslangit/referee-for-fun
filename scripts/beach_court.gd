@@ -53,6 +53,8 @@ const STAND_LAYER := 4
 ## beach court with nobody watching it is not a stylistic gap — it is the feedback
 ## channel missing.
 var stands: Stands
+## The event round the court: see EventDressing.
+var event: EventDressing
 
 ## Where the seating begins. The free zone is in play right out to five metres, so the
 ## front row has to sit beyond it or the crowd is standing in the court.
@@ -67,6 +69,7 @@ var _sand_material: StandardMaterial3D
 var _line_material: StandardMaterial3D
 var _net_material: StandardMaterial3D
 var _post_material: StandardMaterial3D
+var _tape_material: StandardMaterial3D
 
 
 func _ready() -> void:
@@ -86,6 +89,9 @@ func _build_materials() -> void:
 	_line_material = _make_material(Color(0.96, 0.96, 0.94))
 	_net_material = _make_material(Color(0.13, 0.14, 0.16))
 	_post_material = _make_material(Color(0.72, 0.73, 0.76))
+	# The net's top band has its own material, even though it starts the colour of the lines,
+	# because the top event paints it and the lines must stay white.
+	_tape_material = _make_material(Color(0.96, 0.96, 0.94))
 
 
 func _make_material(colour: Color) -> StandardMaterial3D:
@@ -186,7 +192,7 @@ func _build_net() -> void:
 		"NetTape",
 		Vector3(width, tape, 0.03),
 		Vector3(0.0, top - tape * 0.5, 0.0),
-		_line_material
+		_tape_material
 	))
 
 	# The antennae: the flexible rods standing on the net above each sideline. They are
@@ -263,6 +269,12 @@ func _build_stands() -> void:
 	stands.seat_spacing = 0.82
 	add_child(stands)
 
+	event = EventDressing.new()
+	event.name = "Event"
+	event.layout = EventLayouts.beach()
+	event.stands = stands
+	add_child(event)
+
 
 ## The venue, and how full it is. Dressed before the crowd is counted, because dressing
 ## rebuilds the seating and everybody in it — a density set before that is thrown away.
@@ -271,6 +283,10 @@ func dress(tier: Venue.Tier, density: float) -> void:
 		return
 	stands.dress(tier)
 	stands.set_density(density)
+	# After the crowd, because the flags in it are held by people who are actually there.
+	event.dress(tier)
+	event.apply_paint("posts", _post_material)
+	event.apply_paint("tape", _tape_material)
 
 
 func cheer() -> void:
