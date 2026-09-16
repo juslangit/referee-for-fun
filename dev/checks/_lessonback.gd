@@ -34,11 +34,15 @@ func _check(scene: String) -> void:
 		arena.ui.show_career(arena.career)
 	await get_tree().process_frame
 
+	# table_tennis.tscn also ends with "tennis.tscn", so it has to be asked about first
+	# or the check prints table tennis's lesson under the heading "tennis".
 	var sport := "badminton"
 	if scene.ends_with("beach.tscn"):
 		sport = "beach"
 	elif scene.ends_with("volleyball.tscn"):
 		sport = "indoor"
+	elif scene.ends_with("table_tennis.tscn"):
+		sport = "table tennis"
 	elif scene.ends_with("tennis.tscn"):
 		sport = "tennis"
 	elif scene.ends_with("sepak_takraw.tscn"):
