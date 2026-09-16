@@ -21,8 +21,14 @@ extends Scoreboard
 signal set_won(team: Sides.Team)
 
 ## What the four point counts are called. Past three, a game is decided by the margin
-## rather than the count, so there is nothing left to name.
+## rather than the count, so there is nothing left to name. These are the tour score
+## bug's digits, which is where `score_bug.gd` reads them from.
 const CALLED := ["0", "15", "30", "40"]
+
+## The same four as the umpire says them out loud. The bug prints 0; no umpire has ever
+## called it that. Zero is love, so a game opens "LOVE ALL" and a point later it is
+## "15 - LOVE".
+const SAID := ["LOVE", "15", "30", "40"]
 
 ## Games needed to win a set, and the margin required.
 const GAMES_TO_WIN := 6
@@ -154,8 +160,8 @@ func called_score(serving: Sides.Team) -> String:
 		return "ADVANTAGE %s" % Sides.label(serving if mine > theirs else receiving)
 
 	if mine == theirs:
-		return "%s ALL" % CALLED[mini(mine, 3)]
-	return "%s - %s" % [CALLED[mini(mine, 3)], CALLED[mini(theirs, 3)]]
+		return "%s ALL" % SAID[mini(mine, 3)]
+	return "%s - %s" % [SAID[mini(mine, 3)], SAID[mini(theirs, 3)]]
 
 
 ## The games and sets, the way a scoreboard shows them.
