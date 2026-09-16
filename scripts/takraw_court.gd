@@ -54,6 +54,9 @@ var _tape_material: StandardMaterial3D
 var _post_material: StandardMaterial3D
 var _hall_material: StandardMaterial3D
 
+## The truss, the lamps and the dark air, the same rig badminton is lit by.
+var hall_light: HallLight
+
 
 func _ready() -> void:
 	_build_materials()
@@ -63,6 +66,7 @@ func _ready() -> void:
 	_build_referee_stand()
 	_build_hall()
 	_build_stands()
+	_build_hall_light()
 
 
 func _build_materials() -> void:
@@ -289,6 +293,22 @@ func dress(tier: Venue.Tier, density: float) -> void:
 	event.apply_paint("floor", _floor_material)
 	event.apply_paint("posts", _post_material)
 	event.apply_paint("hall", _hall_material)
+	# Last, and after the paint: the rung decides how dark the hall goes and how hard the
+	# lamps burn, and the walls it is darkening have only just been given their colour.
+	if hall_light != null:
+		hall_light.light(tier)
+
+
+## The lamps over the court, sized to it. A takraw court is a badminton court to the
+## centimetre, so this comes out as badminton's own rig without being told to.
+func _build_hall_light() -> void:
+	hall_light = HallLight.new()
+	hall_light.name = "HallLight"
+	hall_light.half_width = TakrawSpec.HALF_WIDTH
+	hall_light.half_length = TakrawSpec.HALF_LENGTH
+	hall_light.hall_height = HALL_HEIGHT
+	add_child(hall_light)
+	hall_light.light(Venue.Tier.REGIONAL)
 
 
 func cheer() -> void:
