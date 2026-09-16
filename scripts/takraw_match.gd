@@ -140,7 +140,6 @@ func build_the_venue() -> void:
 
 	build_the_players()
 	_build_camera()
-	_build_lighting()
 
 
 ## The two line referees, along the sidelines at diagonally opposite corners (Law 10.1).
@@ -193,26 +192,6 @@ func _build_camera() -> void:
 	camera.cull_mask = camera.cull_mask & ~TakrawCourt.STAND_LAYER
 	camera.current = true
 	add_child(camera)
-
-
-## A hall under strong, even light.
-func _build_lighting() -> void:
-	var lamp := DirectionalLight3D.new()
-	lamp.name = "Lights"
-	lamp.rotation = Vector3(deg_to_rad(-72.0), deg_to_rad(20.0), 0.0)
-	lamp.light_energy = 1.7
-	lamp.shadow_enabled = true
-	add_child(lamp)
-
-	var world := WorldEnvironment.new()
-	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.07, 0.08, 0.11)
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.62, 0.64, 0.72)
-	env.ambient_light_energy = 1.2
-	world.environment = env
-	add_child(world)
 
 
 # --- the people -----------------------------------------------------------------
