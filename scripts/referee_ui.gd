@@ -98,6 +98,11 @@ var _hud: Control
 ## were drawn together on one OpenArt sheet (dev/ref/ui-redesign/sheet_portraits.png) so
 ## they match, and cut apart by tools/ui/prepare_art.gd. `art` is still the render, kept
 ## for anything that wants a picture of the game itself.
+##
+## Replaced on 2026-09-16: `portrait` is now an action poster per sport — the smash, the
+## spike, the serve, the loop, the bicycle kick — drawn one at a time against that same
+## sheet as the style reference, and fitted to the tile by tools/ui/prepare_action_posters.gd.
+## The standing versions are in git history at 4022360 if they are ever wanted back.
 const SPORTS := [
 	{"id": &"badminton", "name": "Badminton", "art": "res://assets/ui/card_badminton.png",
 		"portrait": "res://assets/ui/portrait_badminton.png",
@@ -132,10 +137,17 @@ const SPORTS := [
 ## window, which is the smallest the game is played in.
 const CARD := Vector2(184.0, 340.0)
 
-## Which part of a portrait a tile shows: from just above the head down past the hands, so
-## the racket, ball or bat that says which sport it is stays in the picture.
-const PORTRAIT_TOP := 230.0
-const PORTRAIT_TALL := 900.0
+## Which part of a portrait a tile shows.
+##
+## The standing portraits were cropped to a band — from just above the head down past the
+## hands — because the bottom two fifths of them were nothing but legs. The action posters
+## that replaced them on 2026-09-16 have to be shown whole: a badminton smash is in the
+## air, a tennis serve reaches out of the top of any band, and the takraw bicycle kick is
+## upside down with the player's head at the BOTTOM of the picture, so the old crop
+## beheaded it. `prepare_action_posters.gd` already frames each figure on the tile, and
+## the tile's job now is to show what it framed.
+const PORTRAIT_TOP := 0.0
+const PORTRAIT_TALL := 0.0
 
 ## The title screen's logo, drawn on OpenArt and keyed by tools/ui/prepare_art.gd.
 const TITLE_LOGO := "res://assets/ui/title_logo.png"
@@ -753,7 +765,16 @@ func _sport_card(sport: Dictionary, yours := false) -> Button:
 	var picture := TextureRect.new()
 	picture.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	# Fitted inside the tile rather than filling it. One card builds both screens, and the
+	# two are different shapes: the sport menu's is the tall CARD, the title screen's is
+	# whatever is left of the row after everything above it, which is short and wide. A
+	# picture that FILLS a short tile is cropped top and bottom, and an action poster
+	# cannot afford that — it took the badminton player's feet off and the takraw player's
+	# head, he being upside down. Fitting costs a margin at the sides on the title screen,
+	# and on the sport menu costs almost nothing, the poster being within 3% of the card's
+	# own shape. The margin is invisible either way: the posters are drawn on the same flat
+	# charcoal the tile behind them is painted.
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	picture.texture = _portrait(sport)
 	if not ready:
 		picture.modulate = Color(1.0, 1.0, 1.0, 0.34)
@@ -789,6 +810,8 @@ func _portrait(sport: Dictionary) -> Texture2D:
 	if path.is_empty() or not ResourceLoader.exists(path):
 		return load(sport["art"]) if ResourceLoader.exists(sport["art"]) else null
 	var whole: Texture2D = load(path)
+	if PORTRAIT_TALL <= 0.0:
+		return whole
 	var crop := AtlasTexture.new()
 	crop.atlas = whole
 	crop.region = Rect2(0.0, PORTRAIT_TOP, whole.get_width(),
