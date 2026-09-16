@@ -63,7 +63,7 @@ GALLERIES = [
         ("hud_tennis", "Tennis, as the tours show it: bottom left, the finished set, games lit, points 40-30."),
         ("hud_table_tennis", "Table tennis, as WTT shows it: games won in colour, points beside them, GAME POINT."),
         ("screen_review_answer", "The review card: OFFICIAL REVIEW over a big verdict bar, like the BWF and FIVB graphics."),
-        ("screen_career", "The career: the ladder as broadcast plates, and all five sports in a grid."),
+        ("screen_career", "The career: the ladder as broadcast plates, and all six sports in a grid."),
         ("screen_faults", "The fault panel, with the sides in their colours."),
         ("screen_settings", "Settings, with the sliders and switch drawn in the theme."),
         ("screen_ending", "FULL TIME."),
@@ -110,7 +110,7 @@ GALLERIES = [
         ("badminton_replay_close", "Then the close-up, with what you called and what was true."),
         ("badminton_ending", "The result screen, the only screen allowed to state the truth."),
         ("badminton_paper_front", "The Morning Rally's front page, when a career ends."),
-        ("history", "Every match so far, across all five sports."),
+        ("history", "Every match so far, across all six sports."),
     ]),
     ("screens-tennis", "Tennis", "Chair umpire at the net, Fast4 at the first venues, and ends that change.", [
         ("format_tennis", "Singles or doubles: the tramlines are out in singles."),
@@ -550,7 +550,7 @@ def git(*args):
 
 def counts():
     return [
-        ("Sports", "5"),
+        ("Sports", "6"),
         ("Scripts", str(len(list((PROJECT / "scripts").glob("*.gd"))))),
         ("Checks", str(len(list((PROJECT / "dev" / "checks").glob("*.gd"))))),
         ("Looks", str(len(list((PROJECT / "dev" / "looks").glob("*.gd"))))),
