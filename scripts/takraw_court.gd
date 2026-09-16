@@ -47,6 +47,7 @@ var _shake_left := 0.0
 var _shake_strength := 0.0
 
 var _floor_material: StandardMaterial3D
+var _surround_material: StandardMaterial3D
 var _line_material: StandardMaterial3D
 var _net_material: StandardMaterial3D
 var _tape_material: StandardMaterial3D
@@ -67,7 +68,19 @@ func _ready() -> void:
 func _build_materials() -> void:
 	# A synthetic sports mat, one colour over court and free zone alike, as at Titiwangsa.
 	# The colour is the venue's; this is the plain one a community hall would have.
+	# The court itself. `EventDressing` repaints this one as the ladder climbs — the
+	# takraw layout paints it blue at the league and pink at the final, the way a real
+	# ISTAF court is laid — so it has to be the court and nothing else.
 	_floor_material = _make_material(Color(0.20, 0.42, 0.40))
+	# The hall floor the court is painted on. Until now one dark teal slab covered the
+	# court and the run-off together, so there was no court to see: just lines on a
+	# green field. A real hall paints the court and leaves the floor round it alone,
+	# which is how anyone watching knows where the court stops without reading a line.
+	# Polished concrete, as a community hall has, rather than volleyball's sprung wood.
+	# Cooler and darker than the hall wall behind it, which the takraw layout paints a
+	# warm beige at this rung. A first pass matched the two too closely and the floor
+	# and the wall merged into one grey at the horizon, so the room had no floor.
+	_surround_material = _make_material(Color(0.50, 0.51, 0.53))
 	_line_material = _make_material(Color(0.96, 0.96, 0.94))
 	_net_material = _make_material(Color(0.08, 0.08, 0.10))
 	_tape_material = _make_material(Color(0.96, 0.96, 0.94))
@@ -86,7 +99,14 @@ func _build_floor() -> void:
 	var length := (TakrawSpec.HALF_LENGTH + FLOOR_MARGIN) * 2.0
 	var width := (TakrawSpec.HALF_WIDTH + FLOOR_MARGIN) * 2.0
 	_add_box("Floor", Vector3(width, FLOOR_THICKNESS, length),
-		Vector3(0.0, FLOOR_THICKNESS * 0.5, 0.0), _floor_material)
+		Vector3(0.0, FLOOR_THICKNESS * 0.5, 0.0), _surround_material)
+
+	# The court, laid a couple of millimetres proud of the floor so it never z-fights,
+	# and drawn to the outside of the boundary lines — the lines are painted inside the
+	# court, so the court is the full 13.4 by 6.1 m.
+	_add_box("CourtFloor",
+		Vector3(TakrawSpec.HALF_WIDTH * 2.0, 0.004, TakrawSpec.HALF_LENGTH * 2.0),
+		Vector3(0.0, FLOOR_THICKNESS + 0.002, 0.0), _floor_material)
 
 	var body := StaticBody3D.new()
 	body.name = "FloorBody"
