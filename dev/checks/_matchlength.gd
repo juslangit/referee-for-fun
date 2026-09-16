@@ -125,6 +125,24 @@ func _call_it_honestly(arena: Node, name: String) -> void:
 			arena.make_call(&"out")
 		return
 
+	# Table tennis's honest umpire, in the order _ttplay calls it. Without this the
+	# measurement fell through to the volleyball branch below and errored on the first
+	# rally, because a TableTennisRally has no antennae and no handling fault.
+	if name == "table tennis":
+		if rally.is_a_let():
+			arena.make_call(&"let", rally.served_by)
+		elif rally.illegal_service:
+			arena.make_call(&"illegal_service", rally.served_by)
+		elif rally.volleyed_by != Sides.Team.NONE:
+			arena.make_call(&"volley", rally.volleyed_by)
+		elif rally.touched_the_table_by != Sides.Team.NONE:
+			arena.make_call(&"touched_the_table", rally.touched_the_table_by)
+		elif rally.double_bounce_by != Sides.Team.NONE:
+			arena.make_call(&"double_bounce", rally.double_bounce_by)
+		else:
+			arena.make_call(&"in" if rally.rightful_winner() == rally.struck_by else &"out")
+		return
+
 	if not rally.inside_the_antennae:
 		arena.make_call(&"antenna", rally.struck_by)
 	elif rally.foot_fault:
