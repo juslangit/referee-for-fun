@@ -15,7 +15,14 @@ func _ready() -> void:
 	for scene in ["res://scenes/beach.tscn", "res://scenes/volleyball.tscn",
 			"res://scenes/sepak_takraw.tscn"]:
 		await _play_to_the_end(scene)
+	print("PASS" if _problems.is_empty() else "FAIL:\n   " + "\n   ".join(_problems))
 	get_tree().quit()
+
+
+## What went wrong, if anything. A check that only prints cannot fail, and this one is
+## watching for the worst bug in the game — an ending that takes the match with it — so
+## it has to be able to say so rather than leave the reader to read the numbers.
+var _problems: Array[String] = []
 
 
 func _play_to_the_end(scene: String) -> void:
@@ -63,13 +70,22 @@ func _play_to_the_end(scene: String) -> void:
 			to = Sides.opponent(to)
 		await get_tree().process_frame
 
+	var sport: String = "beach" if beach else "indoor"
 	print("   the shortest possible match is about %d rallies" % rallies)
 	print("   match reported over: %s" % arena.board.is_over)
+	if not arena.board.is_over:
+		_problems.append("%s: the board never ended, after %d awarded points" % [sport, rallies])
 	await get_tree().process_frame
 	await get_tree().process_frame
+	var ended: bool = arena._phase == arena.Phase.REMOVED
 	print("   the ending screen came up: %s" % (
-		"yes" if arena._phase == arena.Phase.REMOVED else "NO — the match just stopped"))
-	print("   reputation after it: %d / 100" % roundi(arena.career.reputation * 100.0))
+		"yes" if ended else "NO — the match just stopped"))
+	if not ended:
+		_problems.append("%s: the match stopped without an ending screen" % sport)
+	var reputation := roundi(arena.career.reputation * 100.0)
+	print("   reputation after it: %d / 100" % reputation)
+	if reputation < 0 or reputation > 100:
+		_problems.append("%s: reputation left at %d, outside 0-100" % [sport, reputation])
 
 	arena.queue_free()
 	await get_tree().process_frame
