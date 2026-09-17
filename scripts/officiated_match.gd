@@ -1105,21 +1105,22 @@ func start_the_touch_when_due(reach: float, ceiling: float) -> void:
 		return
 	var contact: float = Player.CONTACT_AT[_next_touch]
 	var due := seconds_until_the_ball_arrives(reach, ceiling, contact)
-	if due < 0.0:
+	if float(due[0]) < 0.0:
 		return
-	if _next_toucher.begin_touch(_next_touch, maxf(due, 0.01)):
+	if _next_toucher.begin_touch(_next_touch, maxf(float(due[0]), 0.01), due[1]):
 		expect_nothing()
 
 
 ## When the ball next becomes playable off the bounce — on its way down and under
-## `ceiling` — and how high it will be then, as [seconds, height].
+## `ceiling` — and where it will be then, as [seconds, point].
 ##
 ## The racket sports take their stroke off a falling ball rather than off an aim, so this
 ## is their version of the question above. Seconds are negative when it does not happen
 ## inside `horizon`.
-func seconds_until_it_drops_under(ceiling: float, horizon := TOUCH_LEAD) -> Array:
+func seconds_until_it_drops_under(ceiling: float, horizon := TOUCH_LEAD,
+		through_the_bounce := false) -> Array:
 	if _ball == null or not is_instance_valid(_ball):
-		return [-1.0, 0.0]
+		return [-1.0, Vector3.ZERO]
 	var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 	var shot := flight()
 	var drag := gravity / (shot.terminal_velocity * shot.terminal_velocity)
@@ -1127,27 +1128,36 @@ func seconds_until_it_drops_under(ceiling: float, horizon := TOUCH_LEAD) -> Arra
 	var at := _ball.global_position
 	var moving := _ball.linear_velocity
 	var ahead := 0.0
+	var landed := not through_the_bounce
+	var surface := floor_height() + _ball.radius
 	while ahead < horizon:
 		moving += (Vector3.DOWN * gravity - drag * moving.length() * moving) * step
 		at += moving * step
 		ahead += step
-		# A bounce is not flown: the ball would have to be under the floor for that, and
-		# the stroke being waited for is the one off the bounce that has already happened.
-		if moving.y <= 0.0 and at.y <= ceiling:
-			return [ahead, at.y]
-	return [-1.0, 0.0]
+		# The bounce is flown too when asked for, because in tennis the stroke that
+		# matters is the one *after* it and the ball travels several metres between the
+		# two. Waiting for the bounce to happen before looking sends the player who has
+		# to play it to where the ball was rather than where it will be.
+		if at.y <= surface and moving.y < 0.0:
+			at.y = surface
+			moving.y = -moving.y * _ball.bounce
+			landed = true
+			continue
+		if landed and moving.y <= 0.0 and at.y <= ceiling:
+			return [ahead, at]
+	return [-1.0, Vector3.ZERO]
 
 
 ## How long until the ball is where the last contact sent it and low enough to be played.
 ##
 ## The same question `ball_has_arrived` answers about now, asked about the next little
-## while. The flight is stepped forward with the ball's own drag at the engine's own step,
-## for the reason ShotSolver gives: what is wanted is the flight this game's physics will
-## produce, integration error included. Negative when the ball does not get there inside
-## `horizon`.
-func seconds_until_the_ball_arrives(reach: float, ceiling: float, horizon := TOUCH_LEAD) -> float:
+## while, and where it will be then, as [seconds, point]. The flight is stepped forward with
+## the ball's own drag at the engine's own step, for the reason ShotSolver gives: what is
+## wanted is the flight this game's physics will produce, integration error included.
+## Seconds are negative when the ball does not get there inside `horizon`.
+func seconds_until_the_ball_arrives(reach: float, ceiling: float, horizon := TOUCH_LEAD) -> Array:
 	if _ball == null or not is_instance_valid(_ball):
-		return -1.0
+		return [-1.0, Vector3.ZERO]
 	var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 	var shot := flight()
 	var drag := gravity / (shot.terminal_velocity * shot.terminal_velocity)
@@ -1160,8 +1170,8 @@ func seconds_until_the_ball_arrives(reach: float, ceiling: float, horizon := TOU
 		at += moving * step
 		ahead += step
 		if _arrived(at, reach, ceiling):
-			return ahead
-	return -1.0
+			return [ahead, at]
+	return [-1.0, Vector3.ZERO]
 
 
 ## The two players of one side, or all six.

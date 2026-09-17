@@ -368,7 +368,7 @@ func start_rally() -> void:
 
 	# The receiving pair read the serve and one of them goes to meet it.
 	var receiver := nearest_of(Sides.opponent(serving), target)
-	receiver.chase(target)
+	receiver.chase(target, "vb_dig")
 	expect_touch(receiver, "vb_dig")
 	_partner(Sides.opponent(serving), receiver).chase(
 		_set_point(Sides.opponent(serving)))
@@ -490,7 +490,7 @@ func _take_the_next_contact() -> void:
 			_digger.dig()
 			sound.strike(here, false)
 			var to_the_setter := _set_point(_possession)
-			_setter.chase(to_the_setter)
+			_setter.chase(to_the_setter, "vb_set")
 			expect_touch(_setter, "vb_set")
 			# Off the digger's platform rather than out of the air beside them.
 			send(_digger.struck_from(Vector3(here.x, DIG_HEIGHT, here.z)),
@@ -504,7 +504,7 @@ func _take_the_next_contact() -> void:
 			sound.strike(here, false)
 			var to_the_hitter := _attack_point(_possession)
 			if _digger != null:
-				_digger.chase(to_the_hitter)
+				_digger.chase(to_the_hitter, "vb_spike")
 				expect_touch(_digger, "vb_spike")
 			send(_out_of_the_setters_hands(Vector3(here.x, SET_HEIGHT, here.z)),
 				to_the_hitter, SET_ANGLE)

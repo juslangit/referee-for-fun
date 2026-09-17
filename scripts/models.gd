@@ -168,10 +168,16 @@ static func dress_player(figure: Node3D, carries := &"badminton") -> void:
 ## so they are all tried, the same as the racket hand.
 const HITTING_HANDS := ["RightHand", "hand.R", "R.hand_028"]
 const KICKING_FEET := ["RightFoot", "foot.R", "R.foot_028"]
+const HEADERS := ["Head", "head", "head_02"]
+
+## The other hand. Three of volleyball's four touches are made with both — a dig off the
+## forearms, a set out of the fingers of both hands, a block with both arms over the tape —
+## and the ball meets them in the middle, not at either one.
+const OTHER_HANDS := ["LeftHand", "hand.L", "L.hand_028"]
 
 
-## Hangs an empty on the hand and on the kicking foot, so that whoever is holding the
-## figure can ask where either of them is at any moment.
+## Hangs an empty on the hand, on the kicking foot and on the head, so that whoever is
+## holding the figure can ask where any of them is at any moment.
 ##
 ## Volleyball and sepak takraw put nothing in the hand, so until now there was nothing on
 ## the rig to ask: a dig, a spike and a kick were all struck from the middle of the
@@ -181,7 +187,8 @@ static func _fit_sockets(figure: Node3D) -> void:
 	var skeleton := _find_skeleton(figure)
 	if skeleton == null:
 		return
-	for pair in [["hand", HITTING_HANDS], ["foot", KICKING_FEET]]:
+	for pair in [["hand", HITTING_HANDS], ["foot", KICKING_FEET], ["head", HEADERS],
+			["other_hand", OTHER_HANDS]]:
 		var bone := ""
 		for candidate in pair[1]:
 			if skeleton.find_bone(candidate) >= 0:
@@ -545,6 +552,11 @@ static func arms_of(skeleton: Skeleton3D) -> Dictionary:
 				found[side] = at
 				break
 	return found
+
+
+## The rig inside a figure, for whoever needs to pose it and look at the result.
+static func skeleton(figure: Node) -> Skeleton3D:
+	return _find_skeleton(figure)
 
 
 static func _find_skeleton(node: Node) -> Skeleton3D:
