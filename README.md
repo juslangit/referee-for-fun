@@ -116,6 +116,22 @@ unzip, hunt for the `.app`, right-click → Open — so the script turns the exp
 `build/macos/Referee For Fun.dmg`, which opens to the game beside an Applications
 shortcut. Drag, done.
 
+That window is dressed rather than left plain: the background is a badminton doubles court
+seen from above, at true proportions, in the court mat's own colour from `scripts/court.gd`,
+with the net down the middle so the game sits on one side and Applications on the other and
+the arrow crosses it. `tools/build/make_art.py` draws it, along with the app icon — the
+whistle from the title logo on a court-green tile, which replaced the **Godot robot** the
+build wore until then, because `application/icon` was empty in `export_presets.cfg` and the
+engine's own mark is not the game's. Both are committed, so the `.dmg` can be built without
+Python; re-run the script only after the art or the logo changes.
+
+A window's appearance is not metadata inside a disk image — it is a `.DS_Store` that Finder
+writes, holding the size, the icon positions and the path to the background. So the image is
+built read-write, mounted, arranged by asking Finder, unmounted, and only then compressed.
+The script reads the arrangement back out of the finished image and fails if it is missing,
+because a `.DS_Store` that did not survive looks like nothing at all here and like a plain
+white window on a player's machine.
+
 It also re-signs the app, and the reason is not cosmetic. Godot's export arrives carrying
 *Godot's* signature — identifier `godot.macos.template_release.arm64`, Godot's team id —
 with `Sealed Resources=none`, so the signature covers the executable and not the 230 MB
