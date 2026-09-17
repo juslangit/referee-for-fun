@@ -10,12 +10,15 @@ extends Node
 ##
 ## Checked in two sports because they wire it up differently. Badminton reaches the
 ## sheet from two places and has to send BACK to two different places; every other sport
-## has no title screen at all and reaches it only from the pause menu.
+## has no title screen at all and reaches it only from the pause menu. Sepak takraw, the
+## newest, is asked as well, to see it arrived on the pause menu's route with the rest.
 
 func _ready() -> void:
 	await _check("badminton", "res://scenes/match.tscn", Career.BADMINTON)
 	print()
 	await _check("table tennis", "res://scenes/table_tennis.tscn", Career.TABLE_TENNIS)
+	print()
+	await _check("takraw", "res://scenes/sepak_takraw.tscn", Career.TAKRAW)
 	print()
 	await _from_the_title_screen()
 	get_tree().paused = false
@@ -32,6 +35,7 @@ func _check(what: String, scene: String, sport: StringName) -> void:
 	hall.career.sport = sport
 	hall.settings.taught = true
 	hall.settings.taught_table_tennis = true
+	hall.settings.taught_takraw = true
 	hall._on_match_requested()
 	if hall.pressure.exists():
 		hall.ui.hide_briefing()

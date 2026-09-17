@@ -11,6 +11,7 @@ extends Node
 const WITH_SCENES := {
 	"tennis": ["res://scenes/tennis.tscn", Career.TENNIS],
 	"table tennis": ["res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
+	"takraw": ["res://scenes/sepak_takraw.tscn", Career.TAKRAW],
 	"indoor": ["res://scenes/volleyball.tscn", Career.INDOOR],
 	"beach": ["res://scenes/beach.tscn", Career.BEACH],
 }
@@ -155,6 +156,7 @@ func _match_won(sport: String) -> void:
 	# tennis: nearer the umpire's side than the middle of the court, either way.
 	# Indoor volleyball shakes hands with the referee and then along the net, so its players
 	# end up back at the net, not beside the stand: asked only that they met at the net.
+	# Sepak takraw the same: the referee comes down off the chair to the teams at the net.
 	var chair_side := {"tennis": 5.5, "table tennis": 1.0, "beach": 2.0}.get(sport, -99.0) as float
 	_expect(await _until(func() -> bool:
 		return arena.players.all(func(p: Player) -> bool: return p.position.x > chair_side), 15.0),

@@ -16,7 +16,7 @@ extends SceneTree
 const REF := "res://dev/ref/events/"
 const OUT := "res://assets/events/"
 
-const LOGOS := ["badminton", "tennis", "table_tennis", "indoor", "beach"]
+const LOGOS := ["badminton", "tennis", "table_tennis", "indoor", "beach", "sepak_takraw"]
 const SPONSORS_A := ["teras_energy", "seri_bank", "rajawali_air", "segar", "kenari_telekom", "bayu_motor"]
 const SPONSORS_B := ["teratai_hotels", "kopi_kampung", "pelangi_pay", "sinar_elektrik", "rimba_sports", "cuti_cuti_nusa"]
 const BANNERS := ["malaysia_boleh", "jom_menang", "selamat_datang", "jalur_gemilang", "go_go_go", "kami_bersamamu"]

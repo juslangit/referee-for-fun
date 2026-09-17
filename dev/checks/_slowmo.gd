@@ -22,6 +22,7 @@ func _ready() -> void:
 		["indoor", "res://scenes/volleyball.tscn", Career.INDOOR],
 		["tennis", "res://scenes/tennis.tscn", Career.TENNIS],
 		["table tennis", "res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
+		["takraw", "res://scenes/sepak_takraw.tscn", Career.TAKRAW],
 	]:
 		await _check(entry[0], entry[1], entry[2])
 	if not is_equal_approx(Engine.time_scale, 1.0):
@@ -37,7 +38,8 @@ func _check(name: String, scene: String, sport: StringName) -> void:
 	await get_tree().physics_frame
 	arena.career = Career.new()
 	arena.career.sport = sport
-	for flag in ["taught", "taught_beach", "taught_indoor", "taught_tennis", "taught_table_tennis"]:
+	for flag in ["taught", "taught_beach", "taught_indoor", "taught_tennis", "taught_table_tennis",
+			"taught_takraw"]:
 		arena.settings.set(flag, true)
 	arena.ui.match_requested.emit()
 	await get_tree().process_frame

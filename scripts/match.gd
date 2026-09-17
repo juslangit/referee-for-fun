@@ -450,6 +450,12 @@ func _go_to_sport(id: StringName) -> void:
 		get_tree().change_scene_to_file("res://scenes/table_tennis.tscn")
 		return
 
+	if id == &"takraw":
+		career.sport = Career.TAKRAW
+		career.save()
+		get_tree().change_scene_to_file("res://scenes/sepak_takraw.tscn")
+		return
+
 	if id != &"badminton":
 		return
 	career.sport = Career.BADMINTON
@@ -815,8 +821,9 @@ func enter_ready() -> void:
 
 	# The hall gets on with having an opinion whether or not anything just happened.
 	if randf() < AMBIENT_CHANCE:
-		ui.react(Crowd.ambient(suspicion.mood), 3.2)
-		the_hall_says(Crowd.said_ambient(suspicion.mood))
+		var watching := Career.name_of(career.sport).to_lower()
+		ui.react(Crowd.ambient(suspicion.mood, watching), 3.2)
+		the_hall_says(Crowd.said_ambient(suspicion.mood, watching))
 
 
 ## Lines the four of them up for the next serve, and decides whether one of them gets

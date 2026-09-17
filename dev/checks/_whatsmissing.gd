@@ -13,6 +13,7 @@ func _ready() -> void:
 		["indoor", "res://scenes/volleyball.tscn", Career.INDOOR],
 		["tennis", "res://scenes/tennis.tscn", Career.TENNIS],
 		["table tennis", "res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
+		["takraw", "res://scenes/sepak_takraw.tscn", Career.TAKRAW],
 	]:
 		await _check(entry[0], entry[1], entry[2])
 	get_tree().quit()
@@ -32,6 +33,7 @@ func _check(name: String, scene: String, sport: StringName) -> void:
 	arena.settings.taught_indoor = true
 	arena.settings.taught_tennis = true
 	arena.settings.taught_table_tennis = true
+	arena.settings.taught_takraw = true
 
 	var badminton := name == "badminton"
 	if badminton:

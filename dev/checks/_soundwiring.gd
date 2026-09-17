@@ -9,7 +9,7 @@ extends Node
 
 func _ready() -> void:
 	for scene in ["res://scenes/match.tscn", "res://scenes/beach.tscn",
-			"res://scenes/volleyball.tscn"]:
+			"res://scenes/volleyball.tscn", "res://scenes/sepak_takraw.tscn"]:
 		await _listen(scene)
 	get_tree().quit()
 
@@ -25,6 +25,8 @@ func _listen(scene: String) -> void:
 		sport = "beach"
 	elif scene.ends_with("volleyball.tscn"):
 		sport = "indoor"
+	elif scene.ends_with("sepak_takraw.tscn"):
+		sport = "takraw"
 
 	var bed_follows: bool = arena.suspicion.level_changed.is_connected(arena.sound.set_mood)
 	# `_mood` eases towards `_wanted_mood` over several frames, so the target is what
@@ -52,4 +54,6 @@ func _uses(scene: String, call: String) -> bool:
 		script = "res://scripts/beach_match.gd"
 	elif scene.ends_with("volleyball.tscn"):
 		script = "res://scripts/volley_match.gd"
+	elif scene.ends_with("sepak_takraw.tscn"):
+		script = "res://scripts/takraw_match.gd"
 	return FileAccess.get_file_as_string(script).contains(call)

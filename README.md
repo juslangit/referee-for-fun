@@ -166,7 +166,7 @@ ball off a hard court are three different noises, and the surface is half of wha
 landing tells you. Sources and licences are in `assets/audio/SOURCES.md`; everything is
 CC0.
 
-Five sports share one official.
+Six sports share one official.
 
 **Badminton** in a hall. **Beach volleyball** on sand, where the ball flies out past a
 block and only you can say whether it brushed a hand on the way. **Indoor volleyball**,
@@ -174,10 +174,19 @@ the only one that asks you to know something before the ball is served, because 
 players rotate through six positions and the referee either kept track or did not.
 **Tennis**, where a point is not one event: there is a first serve, and perhaps a second,
 and then a rally in which the ball lands over and over — so the same call costs a serve
-at one moment and the match at another. And **table tennis**, which is the only one
+at one moment and the match at another. **Table tennis**, which is the only one
 where you are alone: the sport has no line judges at any level, because at a table 2.74 m
 long there is nowhere to put a second official you cannot already see. In every other
 sport a bad call can be dressed up as agreeing with somebody. Here everything the hall
 believes is something you told them.
 
-Your reputation is shared across all five. You climb each ladder separately.
+And **sepak takraw**, to ISTAF's 2024 rules, in regu — three a side — or doubles. It is the
+only sport judged before the ball is even kicked: the tekong's standing foot has to stay in
+the service circle, and the inside players' feet in their quarter circles, while the ball is
+thrown, and a foot over a painted line is a fault nobody will point out for you. Sets go to
+15, and at 14-14 you announce setting up to 17 — there is no two-point lead, so 17-16 wins a
+set. The serve changes sides after every point, whoever wins it, and there is no whistle:
+the referee calls the score out loud. The top of its ladder is modelled on the 2026 World
+Cup final at Stadium Titiwangsa, under an invented name.
+
+Your reputation is shared across all six. You climb each ladder separately.

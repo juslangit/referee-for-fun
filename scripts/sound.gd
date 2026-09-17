@@ -121,6 +121,20 @@ const KITS := {
 		"whistle": true,
 		"shouts_out": false,
 	},
+	# Sepak takraw: a woven ball off a foot, on a synthetic mat, in a hall. No whistle — the
+	# referee calls the score (ISTAF Law of the Game 2024 never uses one in regu or doubles).
+	&"takraw": {
+		"soft": VOLLEY_SOFT,
+		"hard": VOLLEY_HARD,
+		"land": [
+			"res://assets/audio/volleyball/indoor_land_1.wav",
+			"res://assets/audio/volleyball/indoor_land_2.wav",
+		],
+		"steps": STEPS_WOOD,
+		"squeaks": true,
+		"whistle": false,
+		"shouts_out": false,
+	},
 	&"tennis": {
 		"soft": TENNIS_HIT,
 		"hard": TENNIS_HIT,

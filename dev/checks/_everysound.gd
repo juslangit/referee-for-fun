@@ -1,6 +1,6 @@
 extends Node
 
-## Does everything that happens make its own sound, in all five sports?
+## Does everything that happens make its own sound, in all six sports?
 ##
 ## Asked on 2026-09-13, and the answer was no. Tennis and table tennis were silent between
 ## a stroke and the next, a serve clipping the net made no noise in the two sports whose
@@ -24,6 +24,7 @@ const SPORTS := [
 	["indoor", "res://scenes/volleyball.tscn", Career.INDOOR],
 	["tennis", "res://scenes/tennis.tscn", Career.TENNIS],
 	["table_tennis", "res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
+	["takraw", "res://scenes/sepak_takraw.tscn", Career.TAKRAW],
 ]
 
 var _problems: Array[String] = []
@@ -62,6 +63,7 @@ func _listen_to(sport: String, scene: String, career_sport: StringName) -> void:
 		Career.INDOOR: arena.settings.taught_indoor = true
 		Career.TENNIS: arena.settings.taught_tennis = true
 		Career.TABLE_TENNIS: arena.settings.taught_table_tennis = true
+		Career.TAKRAW: arena.settings.taught_takraw = true
 
 	# A menu button, pressed the way a player presses one.
 	var clicks: UiSound = arena.ui.get_node("UiSound")
@@ -147,7 +149,7 @@ func _listen_to(sport: String, scene: String, career_sport: StringName) -> void:
 	var ball_bounces := sport == "tennis" or sport == "table_tennis"
 	_expect(sport, played > 0, "no point was played at all")
 	_expect(sport, heard.get(&"strike", 0) > 0, "the ball was never heard being struck")
-	if sport == "badminton" or volleyball:
+	if sport == "badminton" or volleyball or sport == "takraw":
 		_expect(sport, heard.get(&"land", 0) > 0, "the ball was never heard landing")
 	# Only with a few points to go on: a single point can be a serve fault that bounced once.
 	if ball_bounces and played >= 4:
@@ -163,6 +165,8 @@ func _listen_to(sport: String, scene: String, career_sport: StringName) -> void:
 			"a whistle was blown %d times in a sport without one" % heard.get(&"whistle", 0))
 	if sport == "table_tennis":
 		_expect(sport, heard.get(&"judge_out", 0) == 0, "table tennis has no line judges to shout")
+	if sport == "takraw":
+		_expect(sport, heard.get(&"judge_out", 0) == 0, "a sepak takraw line judge shouted")
 	if sport == "beach":
 		_expect(sport, heard.get(&"squeak", 0) == 0, "a shoe squeaked on sand")
 	if cords > 0:
@@ -189,7 +193,7 @@ func _the_officials() -> void:
 	print("the officials   whistle   line judge shouts OUT")
 	var rules := {
 		&"badminton": [false, true], &"beach": [true, false], &"indoor": [true, false],
-		&"tennis": [false, true], &"table_tennis": [false, false],
+		&"tennis": [false, true], &"table_tennis": [false, false], &"takraw": [false, false],
 	}
 	for sport in rules:
 		var hall := Sound.new()

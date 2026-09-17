@@ -15,6 +15,7 @@ const SCENES := [
 	["table_tennis", "res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
 	["indoor", "res://scenes/volleyball.tscn", Career.INDOOR],
 	["beach", "res://scenes/beach.tscn", Career.BEACH],
+	["takraw", "res://scenes/sepak_takraw.tscn", Career.TAKRAW],
 ]
 
 ## Where the wide camera stands for each sport, and what it looks at.
@@ -24,6 +25,7 @@ const WIDE := {
 	"table_tennis": [Vector3(-6.5, 5.0, 8.0), Vector3(0.0, 0.5, 0.0)],
 	"indoor": [Vector3(-11.0, 8.0, 15.0), Vector3(0.0, 0.5, 0.0)],
 	"beach": [Vector3(-14.0, 9.0, 18.0), Vector3(0.0, 0.5, 0.0)],
+	"takraw": [Vector3(-9.0, 6.5, 10.0), Vector3(0.0, 0.5, 0.0)],
 }
 
 ## And from the other side of the court, low, looking back at the umpire's side.
@@ -33,6 +35,7 @@ const FAR := {
 	"table_tennis": [Vector3(-3.3, 2.2, -5.0), Vector3(4.0, 1.0, 2.0)],
 	"indoor": [Vector3(-8.0, 4.0, -13.5), Vector3(8.0, 1.0, 3.0)],
 	"beach": [Vector3(-9.0, 4.0, -14.0), Vector3(9.0, 1.0, 3.0)],
+	"takraw": [Vector3(-5.5, 3.2, -9.0), Vector3(5.0, 1.0, 2.0)],
 }
 
 var SAVE := Career.save_path()
@@ -99,6 +102,7 @@ func _open(scene: String, sport: StringName, tier: int) -> OfficiatedMatch:
 	arena.settings.taught_indoor = true
 	arena.settings.taught_tennis = true
 	arena.settings.taught_table_tennis = true
+	arena.settings.taught_takraw = true
 	if sport == Career.BADMINTON:
 		arena._on_match_requested()
 		if arena.pressure.exists():

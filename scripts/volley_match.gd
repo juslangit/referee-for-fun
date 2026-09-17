@@ -138,7 +138,6 @@ func build_the_venue() -> void:
 
 	build_the_players()
 	_build_camera()
-	_build_lighting()
 
 
 ## Two of them, at diagonally opposite corners, behind the end lines and outside the
@@ -213,25 +212,6 @@ func _build_camera() -> void:
 	camera.cull_mask = camera.cull_mask & ~VolleyCourt.STAND_LAYER
 	camera.current = true
 	add_child(camera)
-
-
-func _build_lighting() -> void:
-	var lamp := DirectionalLight3D.new()
-	lamp.name = "Lights"
-	lamp.rotation = Vector3(deg_to_rad(-70.0), deg_to_rad(24.0), 0.0)
-	lamp.light_energy = 1.9
-	lamp.shadow_enabled = true
-	add_child(lamp)
-
-	var world := WorldEnvironment.new()
-	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.09, 0.10, 0.13)
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.62, 0.65, 0.72)
-	env.ambient_light_energy = 1.35
-	world.environment = env
-	add_child(world)
 
 
 ## Six a side, and one of each six wearing a different shirt.

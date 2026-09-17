@@ -13,6 +13,7 @@ extends RefCounted
 ## - **Table tennis**: the 2016 World Team Table Tennis Championships in Kuala Lumpur.
 ## - **Indoor volleyball**: SUKMA and the 2017 SEA Games — a bright hall, not a dark arena.
 ## - **Beach volleyball**: the FIVB World Tour stop at Pantai Cenang, Langkawi.
+## - **Sepak takraw**: the 2026 ISTAF World Cup final at Stadium Titiwangsa, Kuala Lumpur.
 ##
 ## The lower rungs are the same sport's ordinary Malaysian versions: a club or school event
 ## with a few printed boards, one camera and a handful of people.
@@ -47,6 +48,8 @@ static func for_sport(sport: StringName) -> Dictionary:
 			return indoor()
 		Career.BEACH:
 			return beach()
+		Career.TAKRAW:
+			return takraw()
 		_:
 			return badminton()
 
@@ -399,4 +402,76 @@ static func beach() -> Dictionary:
 		"people": people,
 		"rail_banners": {"per_level": [0, 3, 5], "sides": [-1.0, 1.0], "logo_every": 3, "above": 1.8},
 		"crowd_flags": {"per_level": [0, 8, 24]},
+	}
+
+
+## The Titiwangsa Sepak Takraw Champions Cup, modelled on the 2026 World Cup final at Stadium
+## Titiwangsa (dev/ref/takraw/research.md, section G): one raspberry-pink mat over court and
+## free zone, red padded posts, low white sponsor boards, officials' tables behind the referee,
+## blue walls and seats with an LED ribbon along the stands, and a crowd full of flags. The
+## assistant referee stands at the far post (Law 10.1), where the player sees them all match.
+## Lower down: a community hall's green mat, then a schools championship's blue one.
+static func takraw() -> Dictionary:
+	var fx := TakrawSpec.HALF_WIDTH + TakrawSpec.FREE_ZONE
+	var fz := TakrawSpec.HALF_LENGTH + TakrawSpec.FREE_ZONE
+	var wall_z := TakrawSpec.HALF_LENGTH + TakrawCourt.FLOOR_MARGIN
+	var wall_x := TakrawCourt.HALL_HALF_WIDTH
+	var props: Array = [
+		# The officials' tables behind the referee's chair, white-skirted.
+		{"kind": "table", "at": Vector3(fx - 0.6, 0.0, -2.2), "turn": -PI * 0.5, "length": 2.4,
+			"colour": Color(0.96, 0.96, 0.96), "picture": "logo_sepak_takraw", "from": R},
+	]
+	for z: float in [-1.0, 1.0]:
+		# The teams' benches behind the back lines.
+		props.append({"kind": "bench", "at": Vector3(-1.8, 0.0, z * (fz + 0.35)),
+			"turn": 0.0 if z < 0.0 else PI, "length": 2.8,
+			"colour": Color(0.70, 0.16, 0.14) if z < 0.0 else Color(0.12, 0.25, 0.60), "from": S})
+	var hangings: Array = [
+		{"at": Vector3(0.0, 5.8, wall_z - 0.25), "turn": PI, "size": Vector2(8.0, 3.4),
+			"backing": Color(0.97, 0.96, 0.94), "from": R},
+		{"at": Vector3(0.0, 4.6, wall_z - 0.25), "turn": PI, "size": Vector2(5.0, 1.4),
+			"picture": "banner_selamat_datang", "fill": 1.0, "from": S, "until": S},
+	]
+	# The LED ribbon along the top of both stands.
+	for side: float in [-1.0, 1.0]:
+		hangings.append({"at": Vector3(side * (wall_x - 0.3), 5.6, 0.0), "turn": -side * PI * 0.5,
+			"size": Vector2(16.0, 1.0), "backing": Color(0.04, 0.16, 0.62), "glowing": true,
+			"fill": 0.8, "from": A})
+	var people: Array = [
+		_person("AssistantReferee", Vector3(-TakrawSpec.POST_X - 0.5, 0.0, 0.35), OFFICIAL_NAVY, S,
+			false, Vector3(0.0, 0.0, 0.35)),
+		_person("BallFetcher", Vector3(-TakrawSpec.POST_X - 1.1, 0.0, -1.3), CREW_YELLOW, R, true),
+		_person("Photographer", Vector3(2.6, 0.0, fz - 0.3), PHOTO_RED, A, true),
+		_person("Photographer", Vector3(-2.6, 0.0, -fz + 0.3), PHOTO_RED, A, true),
+	]
+	return {
+		"logo": "logo_sepak_takraw",
+		"paint": {
+			"floor": [null, Color(0.14, 0.30, 0.55), Color(0.78, 0.22, 0.42)],
+			"posts": [null, Color(0.14, 0.30, 0.66), Color(0.78, 0.10, 0.12)],
+			"hall": [Color(0.74, 0.71, 0.62), Color(0.45, 0.50, 0.58), Color(0.10, 0.20, 0.45)],
+		},
+		"boards": {
+			"half": Vector2(fx, fz), "out": -0.1, "length": 2.6, "gap": 2.8,
+			"sponsors": ["kenari_telekom", "rimba_sports", "seri_bank", "pelangi_pay", "segar",
+				"kopi_kampung", "teras_energy"],
+			"levels": [
+				{"height": 0.8, "colour": Color(0.10, 0.30, 0.25), "every": 3},
+				{"height": 0.8, "colour": Color(0.96, 0.96, 0.96)},
+				{"height": 0.85, "colour": Color(0.96, 0.96, 0.96)},
+			],
+		},
+		"screen": {"at": Vector3(0.0, 6.0, -wall_z + 0.35), "size": Vector2(7.0, 3.9), "from": A},
+		"hangings": hangings,
+		"cameras": [
+			{"at": Vector3(-5.2, 0.0, fz + 0.4), "look": Vector3(0.0, 0.8, 0.0), "from": S},
+			{"at": Vector3(5.4, 0.0, -fz - 0.3), "look": Vector3(0.0, 0.8, 0.0), "high": true,
+				"platform": 2.0, "from": R},
+			{"at": Vector3(-5.4, 0.0, -fz - 0.3), "look": Vector3(0.0, 0.8, 0.0), "high": true,
+				"platform": 2.0, "from": A},
+		],
+		"props": props,
+		"people": people,
+		"rail_banners": {"per_level": [2, 4, 7], "sides": [-1.0, 1.0], "logo_every": 3, "above": 1.6},
+		"crowd_flags": {"per_level": [0, 12, 36]},
 	}

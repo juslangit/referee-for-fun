@@ -120,7 +120,7 @@ static func opening_for(career: Career, venue_name: String, sport_name: StringNa
 
 
 static func official_for(sport_name: StringName) -> String:
-	if sport_name == Career.BEACH or sport_name == Career.INDOOR:
+	if sport_name in [Career.BEACH, Career.INDOOR, Career.TAKRAW]:
 		return "referee"
 	return "umpire"
 
@@ -276,6 +276,28 @@ const SMALL_TALK := {
 	],
 }
 
+## Sepak takraw's own small talk, mixed in with the rest half the time. Still about the
+## official and the room, never about the rally — the commentators know what the hall knows —
+## but in the sport's terms: the circles, the voice instead of a whistle, fourteen-all.
+const TAKRAW_TALK := {
+	Tone.WARM: [
+		[[DAN, "No whistle in this sport, of course."], [AISHA, "Just the {official}'s voice. And tonight it sounds sure of itself."]],
+		[[AISHA, "Watch the {official} before the serve. Eyes down at the circles, every time. That's the job."]],
+	],
+	Tone.WATCHFUL: [
+		[[DAN, "The tekong's foot looked close to the line there."], [AISHA, "It did. The chair's the only one who really saw it."]],
+		[[AISHA, "In takraw the serve is judged before the ball's even kicked. That's where I'm looking tonight."]],
+	],
+	Tone.DOUBTING: [
+		[[DAN, "Both benches are watching the circles now, not the ball."], [AISHA, "That's what happens when the service calls stop making sense."]],
+		[[AISHA, "If this goes to fourteen-all, I'm not sure this hall trusts the {official} to call it."]],
+	],
+	Tone.DAMNING: [
+		[[DAN, "The crowd are calling the feet themselves now."], [AISHA, "Because they've stopped believing the chair."]],
+		[[AISHA, "A takraw referee has one tool, and it's their voice. Nobody in here is listening to it any more."]],
+	],
+}
+
 ## The last word, quoted on the result screen.
 const LAST_WORD := {
 	"clean": [
@@ -297,6 +319,7 @@ const LAST_WORD := {
 
 func open_match(career: Career, sport_name: StringName, venue_name: String) -> void:
 	official = official_for(sport_name)
+	_sport = sport_name
 	base_tone = tone_from_career(career)
 	var last_venue := ""
 	var matches := 0
@@ -364,10 +387,18 @@ func on_warning() -> void:
 
 
 ## A gap between points, which they fill only when they have been quiet a while.
+## Which sport the match is, for the lines that belong to one.
+var _sport := &""
+
+
 func between_points(mood: Suspicion.Mood) -> void:
 	if _speaking or _quiet_for < QUIET_BEFORE_SMALL_TALK or randf() >= SMALL_TALK_CHANCE:
 		return
-	_say(_pick(SMALL_TALK[tone_for(base_tone, mood)]), Priority.SMALL_TALK)
+	var tone := tone_for(base_tone, mood)
+	if _sport == Career.TAKRAW and randf() < 0.5:
+		_say(_pick(TAKRAW_TALK[tone]), Priority.SMALL_TALK)
+		return
+	_say(_pick(SMALL_TALK[tone]), Priority.SMALL_TALK)
 
 
 ## Aisha's verdict on the night, for the result screen.

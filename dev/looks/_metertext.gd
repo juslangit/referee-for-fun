@@ -16,6 +16,7 @@ func _ready() -> void:
 		[Career.BEACH, RefereeUI.BEACH_LESSONS, "beach"],
 		[Career.INDOOR, RefereeUI.INDOOR_LESSONS, "indoor"],
 		[Career.TENNIS, RefereeUI.TENNIS_LESSONS, "tennis"],
+		[Career.TAKRAW, RefereeUI.TAKRAW_LESSONS, "takraw"],
 	]:
 		var pages: Array = entry[1]
 		arena.ui.show_teaching(entry[0])
@@ -28,7 +29,7 @@ func _ready() -> void:
 			entry[2], pages[pages.size() - 1]["title"],
 			String(pages[pages.size() - 1]["body"]).length()])
 
-	print("saved 4")
+	print("saved 5")
 	get_tree().quit()
 
 

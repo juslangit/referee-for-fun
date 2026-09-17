@@ -13,8 +13,8 @@ They are sorted by what they do with what they find:
 
 | folder | what is in it |
 |---|---|
-| `checks/` | **84 scenes that print numbers.** Everything with an answer that can be wrong: fair play, aim, scoring, rotation, pricing, whether a match can finish. These are the ones to run after changing anything. |
-| `looks/` | **49 scenes that take pictures.** The hall from the chair, a lesson page, a pose held at the frame that matters. Judged by eye, because some things only a person can see. |
+| `checks/` | **91 scenes that print numbers.** Everything with an answer that can be wrong: fair play, aim, scoring, rotation, pricing, whether a match can finish. These are the ones to run after changing anything. |
+| `looks/` | **59 scenes that take pictures.** The hall from the chair, a lesson page, a pose held at the frame that matters. Judged by eye, because some things only a person can see. |
 | `shots/` | Where the pictures land. Ignored by git — output, not source. |
 
 Run one with:
@@ -36,20 +36,20 @@ The ones worth keeping in mind:
 | `_menus` | The three front-of-game screens. |
 | `_seat`, `_layout`, `_close` | The hall from the chair, from above, and up close. `TIER=0..2` picks the venue. |
 | `_card`, `_courtmap` | Regenerate the artwork in `assets/ui/`. |
-| `_everysound` | Does everything that happens make its own sound, in all five sports? Plays real points and counts what the hall was asked to play: bounces between strokes, feet, the net cord, the edge ball, the scoreboard, a review, a set, the end of the match and a menu click — and that the whistle is only heard in volleyball and the OUT shout only in tennis and badminton. `RALLIES=12`. Puts the career save back. |
+| `_everysound` | Does everything that happens make its own sound, in all six sports? Plays real points and counts what the hall was asked to play: bounces between strokes, feet, the net cord, the edge ball, the scoreboard, a review, a set, the end of the match and a menu click — and that the whistle is only heard in volleyball and the OUT shout only in tennis and badminton. `RALLIES=12`. Puts the career save back. |
 | `_soundwiring` | Is the room audible in every sport? Checks the crowd bed follows suspicion and that the ball is heard being struck and landing. Both volleyballs shipped without any of it. |
 | `_servelaw` | Can a serve struck below 1.15 m still clear the net and reach the service box, and does each of the three service faults price correctly called, missed and invented? |
-| `_worstcalls` | Does the end-of-match replay keep the right calls, show all of them, and give way to the result — and does the paper come out when, and only when, the umpire was taken off or the career ended? All five sports, plus every combination of facts the paper can print, checked for pronouns and trademarks. Puts the career save back afterwards. |
-| `_replayshot` | Pictures of the replay and the paper at full size, in `looks/`. `SPORT=badminton\|beach\|indoor\|tennis\|table_tennis`, `TIER=`, `PAGE=front` for a career that ends. |
+| `_worstcalls` | Does the end-of-match replay keep the right calls, show all of them, and give way to the result — and does the paper come out when, and only when, the umpire was taken off or the career ended? All six sports, plus every combination of facts the paper can print, checked for pronouns and trademarks. Puts the career save back afterwards. |
+| `_replayshot` | Pictures of the replay and the paper at full size, in `looks/`. `SPORT=badminton\|beach\|indoor\|tennis\|table_tennis\|takraw`, `TIER=`, `PAGE=front` for a career that ends. |
 | `_badmintonreview` | Does a badminton review finish? Asks for one at the national championship directly. |
 | `_fps` | How fast does every sport run, at the bottom and top of its ladder, and what does each expensive thing cost? Windowed, vsync off, real rallies. `ONLY=badminton`, `SECONDS=6`, `TRIALS=lamp,upscale` to run only the trials whose names contain those words, `SHOTS=1` to keep a picture of each. In `looks/`. |
 | `_budget` | Where the triangles are: every visible model in a venue by triangles times copies, and which cast shadows. Found the 7,404-triangle stadium seat that held badminton to twenty frames a second. `SPORT=`, `TIER=`. In `looks/`. |
 | `_lessonback` | Can a player read the rules again, in every sport? Checks the ladder offers HOW TO REFEREE, that it opens that sport's lesson, and that GOT IT comes back to the ladder. |
-| `_endings` | Can a match in each sport actually finish, and how many rallies does the shortest one take? Every other harness stops after a fixed count, so the ending screen and the career fold-in had never been reached in either volleyball. |
-| `_faultkey` | Does F open the fault panel and complete a call, in both volleyballs? Written after both prompts turned out to advertise a key nothing was listening to. |
+| `_endings` | Can a match in each sport actually finish, and how many rallies does the shortest one take? Every other harness stops after a fixed count, so the ending screen and the career fold-in had never been reached in either volleyball. Asks both volleyballs and sepak takraw, whose sets are set up to 17 at 14-14. |
+| `_faultkey` | Does F open the fault panel and complete a call, in both volleyballs and sepak takraw? Written after both prompts turned out to advertise a key nothing was listening to. |
 | `_indoorbugs` | Three reported faults at the venue a new career actually starts on: are there line judges, are the six in position before the first serve, and does a rally follow every whistle? |
-| `_cover` | Do the volleyball line judges actually give an official cover? Prices the same wrong call three ways — nobody spoke, the judge agreed, the judge disagreed. Found the verdict-enum mismatch. |
-| `_sets` | Is the last set shorter than the rest? Drives each sport's match to its decider and prints what every set was played to. |
+| `_cover` | Do the volleyball and sepak takraw line judges actually give an official cover? Prices the same wrong call three ways — nobody spoke, the judge agreed, the judge disagreed. Found the verdict-enum mismatch. |
+| `_sets` | Is the last set shorter than the rest? Drives each sport's match to its decider and prints what every set was played to. Sepak takraw is driven on its own board, which has no shorter decider. |
 | `_tennislook` | The tennis court empty, from the chair and from above: do the two sets of sidelines read as one court, and does the net look like it sags? |
 | `_tennisscore` | Does tennis count the way tennis counts? A game, deuce and advantage, a set won by two, a tiebreak at six-all, and a match. Arithmetic, checked before anything was built on it. |
 | `_rotate` | Does the rotation rotate the way volleyball rotates? Six turns, who serves, and whether the legality test catches the arrangements it should. Pure arithmetic, checked before anything was built on it. |
@@ -64,6 +64,7 @@ The ones worth keeping in mind:
 | `_beachflow` | Can a player reach a beach rally from the menu? Checks the sport card is there and playable, then drives the beach scene from the career screen to a call pressing only what a player can press. |
 | `_sportshot` | The sport menu, now that more than one card is lit. |
 | `_beachplay` | Beach volleyball's fair-play check: plays a match calling everything truthfully — line, touch and faults — and reports what the game charged for it. Must be zero. |
+| `_takrawplay` | Sepak takraw's fair-play check: an honest referee over a best-of-three, that the serve changes sides after every point, that every kind of fault really happens, and that 14-14 sets up to 17. `DOUBLES=1` for doubles. Ends in PASS or FAIL. |
 | `_ballaim` | Does the volleyball land where it was aimed? The beach answer to `_aimcheck`. |
 | `_beachlook`, `_beachshot` | The sand court empty, and the match in progress from the stand. |
 | `_serveheight` | How high a beach serve is when it reaches the net, per angle and depth. Written to answer why thirteen of the first seventeen rallies buried themselves in the tape. |
