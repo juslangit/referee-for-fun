@@ -5,6 +5,20 @@ extends Node
 ##   1. No line judges on court.
 ##   2. The six are not standing in their positions when the match starts.
 ##   3. Pressing SPACE after the first serve gives no rally.
+##
+## All three were fixed. This is now the check that keeps them fixed, so it ends in
+## PASS or FAIL rather than only printing what it found. A wall of numbers with no
+## verdict reads exactly the same whether the game is healthy or broken, and these
+## three in particular were found by Luqman playing rather than by anything here —
+## which is the reason to make them fail out loud if they ever come back.
+
+var _failures: Array[String] = []
+
+
+func _expect(ok: bool, what: String) -> void:
+	if not ok:
+		_failures.append(what)
+
 
 func _ready() -> void:
 	var arena: Node = load("res://scenes/volleyball.tscn").instantiate()
@@ -27,9 +41,16 @@ func _ready() -> void:
 		await get_tree().physics_frame
 
 	print("1. LINE JUDGES")
-	print("   venue promises them: %s" % arena.career.venue()["line_judges"])
-	print("   built: %d, visible: %d" % [
-		arena.line_judges.size(), _visible(arena.line_judges)])
+	var promised: bool = arena.career.venue()["line_judges"]
+	# Typed by hand: `arena` is a bare Node here, so the compiler cannot infer an int
+	# out of `line_judges.size()` and the whole script silently fails to parse.
+	var built: int = arena.line_judges.size()
+	var seen: int = _visible(arena.line_judges)
+	print("   venue promises them: %s" % promised)
+	print("   built: %d, visible: %d" % [built, seen])
+	if promised:
+		_expect(built > 0, "the venue promises line judges and none were built")
+		_expect(seen == built, "%d line judge(s) were built but only %d are visible" % [built, seen])
 
 	print()
 	print("2. WHERE THE TWELVE ARE STANDING, before a ball is served")
@@ -39,9 +60,11 @@ func _ready() -> void:
 			spots.append("%.1f,%.1f" % [player.position.x, player.position.z])
 		print("   %-5s %s" % [Sides.label(team), "  ".join(spots)])
 	print("   all on the same spot: %s" % _stacked(arena))
+	_expect(not _stacked(arena), "the six are standing on one spot before the first serve")
 
 	print()
 	print("3. PRESSING SPACE, RALLY BY RALLY")
+	var played := 0
 	for attempt in 6:
 		if arena._phase != arena.Phase.READY:
 			print("   attempt %d: phase is %d, not READY — nothing would happen" % [
@@ -56,6 +79,7 @@ func _ready() -> void:
 			print("   attempt %d: the rally never came down (phase %d after %d frames)" % [
 				attempt + 1, arena._phase, waited])
 			break
+		played += 1
 		print("   attempt %d: rally played, %d contacts, landed %.1f,%.1f" % [
 			attempt + 1, arena.rally.contacts,
 			arena.rally.landing_point.x, arena.rally.landing_point.z])
@@ -65,6 +89,14 @@ func _ready() -> void:
 		while arena._phase == arena.Phase.AWAITING_CALL and settle < 600:
 			await get_tree().process_frame
 			settle += 1
+	_expect(played == 6, "only %d of 6 whistles produced a rally" % played)
+
+	print("")
+	if _failures.is_empty():
+		print("PASS  all three reports stay fixed")
+	else:
+		for failure in _failures:
+			print("FAIL  " + failure)
 	get_tree().quit()
 
 
