@@ -58,6 +58,7 @@ var taught_beach := false
 var taught_indoor := false
 var taught_tennis := false
 var taught_table_tennis := false
+var taught_takraw := false
 
 
 static func load_or_default() -> Settings:
@@ -75,6 +76,7 @@ static func load_or_default() -> Settings:
 			settings.taught_indoor = true
 			settings.taught_tennis = true
 			settings.taught_table_tennis = true
+			settings.taught_takraw = true
 		return settings
 	settings.master = file.get_value("audio", "master", settings.master)
 	settings.crowd = file.get_value("audio", "crowd", settings.crowd)
@@ -89,6 +91,7 @@ static func load_or_default() -> Settings:
 		"player", "taught_tennis", settings.taught_tennis)
 	settings.taught_table_tennis = file.get_value(
 		"player", "taught_table_tennis", settings.taught_table_tennis)
+	settings.taught_takraw = file.get_value("player", "taught_takraw", settings.taught_takraw)
 	return settings
 
 
@@ -104,6 +107,7 @@ func save() -> void:
 	file.set_value("player", "taught_indoor", taught_indoor)
 	file.set_value("player", "taught_table_tennis", taught_table_tennis)
 	file.set_value("player", "taught_tennis", taught_tennis)
+	file.set_value("player", "taught_takraw", taught_takraw)
 	file.save(path())
 
 

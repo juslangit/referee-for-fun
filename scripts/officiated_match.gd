@@ -278,6 +278,7 @@ func _has_been_taught() -> bool:
 		Career.INDOOR: return settings.taught_indoor
 		Career.TENNIS: return settings.taught_tennis
 		Career.TABLE_TENNIS: return settings.taught_table_tennis
+		Career.TAKRAW: return settings.taught_takraw
 	return settings.taught
 
 
@@ -287,6 +288,7 @@ func _remember_being_taught() -> void:
 		Career.INDOOR: settings.taught_indoor = true
 		Career.TENNIS: settings.taught_tennis = true
 		Career.TABLE_TENNIS: settings.taught_table_tennis = true
+		Career.TAKRAW: settings.taught_takraw = true
 		_: settings.taught = true
 	settings.save()
 
@@ -812,6 +814,7 @@ func sport_name() -> String:
 		Career.INDOOR: return "INDOOR VOLLEYBALL"
 		Career.TENNIS: return "TENNIS"
 		Career.TABLE_TENNIS: return "TABLE TENNIS"
+		Career.TAKRAW: return "SEPAK TAKRAW"
 	return "BADMINTON"
 
 

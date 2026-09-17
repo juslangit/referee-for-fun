@@ -72,7 +72,7 @@ const AMBIENT := {
 		"a coach has not sat down for three rallies",
 	],
 	Suspicion.Mood.HOSTILE: [
-		"nobody is watching the badminton any more",
+		"nobody is watching the %s any more",
 		"the crowd counts every second you take to decide",
 		"a steward has moved to stand near your chair",
 	],
@@ -182,10 +182,10 @@ static func react_to_card(red: bool) -> String:
 
 
 ## Something for the hall to do between rallies, once it has stopped trusting you.
-static func ambient(mood: Suspicion.Mood) -> String:
+static func ambient(mood: Suspicion.Mood, sport := "badminton") -> String:
 	if not AMBIENT.has(mood):
 		return ""
-	return _pick(AMBIENT[mood])
+	return _name_the_sport(_pick(AMBIENT[mood]), sport)
 
 
 # --- what one person in the stands says -----------------------------------------
@@ -271,7 +271,7 @@ const SAID_AMBIENT := {
 	],
 	Suspicion.Mood.HOSTILE: [
 		"\"How is he still in that chair?\"",
-		"\"Nobody's here for the badminton now.\"",
+		"\"Nobody's here for the %s now.\"",
 	],
 	Suspicion.Mood.WARNED: [
 		"\"They're writing it all down.\"",
@@ -332,11 +332,18 @@ static func said_about_review(overturned: bool) -> String:
 	return _pick(SAID_OVERTURNED if overturned else SAID_UPHELD)
 
 
-static func said_ambient(mood: Suspicion.Mood) -> String:
+static func said_ambient(mood: Suspicion.Mood, sport := "badminton") -> String:
 	if not SAID_AMBIENT.has(mood):
 		return ""
-	return _pick(SAID_AMBIENT[mood])
+	return _name_the_sport(_pick(SAID_AMBIENT[mood]), sport)
 
 
 static func _pick(lines: Array) -> String:
 	return lines[randi() % lines.size()]
+
+
+## Two of the ambient lines name the sport the hall has stopped watching. They used to
+## say "badminton" whatever was on the court, so a table tennis crowd walked out of a
+## badminton match. Only those lines carry a %s; the rest are left alone.
+static func _name_the_sport(line: String, sport: String) -> String:
+	return (line % sport) if line.contains("%s") else line

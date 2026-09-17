@@ -11,9 +11,14 @@ const SHEET := "res://dev/ref/ui-redesign/sheet_portraits.png"
 const LOGO := "res://dev/ref/ui-redesign/logo_green.png"
 const ORDER := ["badminton", "beachvolleyball", "volleyball", "tennis", "tabletennis"]
 
+## The sixth athlete, drawn later (2026-09-15) on its own with the sheet as the style
+## reference, so it has to be fitted to the sheet's framing rather than cut from it.
+const TAKRAW := "res://dev/ref/takraw/portrait_takraw_raw.png"
+
 
 func _init() -> void:
 	_split_portraits()
+	_fit_the_takraw_portrait()
 	_key_logo()
 	quit()
 
@@ -54,6 +59,29 @@ func _split_portraits() -> void:
 		var out := "res://assets/ui/portrait_%s.png" % ORDER[i]
 		part.save_png(ProjectSettings.globalize_path(out))
 		print("saved ", out, " ", part.get_size())
+
+
+## Scaled and placed so the sepak takraw player stands where the other five do: the top of
+## the head at the same height, cut off at the same point down the legs, on a tile the same
+## size. Measured on the sheet and on the drawing: on the sheet the top of the head is 325 px
+## down a 1344 px column and the bottom of the shirt is at 1315; on this drawing they are at
+## 6% and 66% of its height.
+func _fit_the_takraw_portrait() -> void:
+	var src := Image.load_from_file(ProjectSettings.globalize_path(TAKRAW))
+	src.convert(Image.FORMAT_RGBA8)
+	var tile := Image.load_from_file(ProjectSettings.globalize_path("res://assets/ui/portrait_volleyball.png"))
+	var w := tile.get_width()
+	var h := tile.get_height()
+	var head_top := 0.06 * src.get_height()
+	var shirt_end := 0.66 * src.get_height()
+	var scale := (1315.0 - 325.0) / (shirt_end - head_top)
+	src.resize(int(src.get_width() * scale), int(src.get_height() * scale), Image.INTERPOLATE_LANCZOS)
+	var out := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	out.fill(src.get_pixel(4, 4))
+	var offset := Vector2i((w - src.get_width()) / 2, int(325.0 - head_top * scale))
+	out.blit_rect(src, Rect2i(Vector2i.ZERO, src.get_size()), offset)
+	out.save_png(ProjectSettings.globalize_path("res://assets/ui/portrait_takraw.png"))
+	print("saved portrait_takraw ", out.get_size())
 
 
 func _key_logo() -> void:

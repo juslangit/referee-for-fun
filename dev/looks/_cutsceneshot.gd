@@ -25,6 +25,7 @@ var _clock := 0.0
 const SCENES := {
 	"tennis": ["res://scenes/tennis.tscn", Career.TENNIS],
 	"table_tennis": ["res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
+	"takraw": ["res://scenes/sepak_takraw.tscn", Career.TAKRAW],
 	"indoor": ["res://scenes/volleyball.tscn", Career.INDOOR],
 	"beach": ["res://scenes/beach.tscn", Career.BEACH],
 }

@@ -16,6 +16,7 @@ func _ready() -> void:
 		[Career.BEACH, true, 0.12], [Career.BADMINTON, false, 0.04],
 		[Career.INDOOR, true, 0.55], [Career.TENNIS, false, 0.09],
 		[Career.TENNIS, true, 0.22], [Career.BEACH, true, 0.86],
+		[Career.TAKRAW, false, 0.18],
 	]:
 		career.sport = entry[0]
 		career.doubles = entry[1]

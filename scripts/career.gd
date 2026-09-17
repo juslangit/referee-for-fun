@@ -57,6 +57,7 @@ const BEACH := &"beach"
 const INDOOR := &"indoor"
 const TENNIS := &"tennis"
 const TABLE_TENNIS := &"table_tennis"
+const TAKRAW := &"takraw"
 
 ## Which sports are played by one a side as well as two.
 ##
@@ -65,7 +66,10 @@ const TABLE_TENNIS := &"table_tennis"
 ## games** rather than the same game with fewer people — the court is a different width,
 ## the service court is a different length, and in badminton the serving order changes
 ## completely. So it is a question worth asking rather than a setting worth assuming.
-const BOTH_FORMATS := [BADMINTON, TENNIS]
+##
+## Sepak takraw is the third, with a difference in the names: its "singles" is **regu**, three
+## a side, and its doubles is two. `doubles` false means regu.
+const BOTH_FORMATS := [BADMINTON, TENNIS, TAKRAW]
 
 
 static func has_both_formats(which: StringName) -> bool:
@@ -446,14 +450,90 @@ const TABLE_TENNIS_LADDER := [
 	},
 ]
 
+## Sepak takraw, from a kampung court to a final at Stadium Titiwangsa.
+##
+## Modelled on the real Malaysian ladder (see dev/ref/takraw/research.md, section G): a local
+## open, the national schools championship, the state games, the Sepak Takraw League, and the
+## 2026 World Cup at Titiwangsa — "the Home of Sepak Takraw" — as the top. The names are the
+## game's own. ISTAF's video challenge exists (three a side a set on the 2025 scoresheet), so
+## the top two rungs have one.
+const TAKRAW_LADDER := [
+	{
+		"name": "Kampung open",
+		"crowd": 0.22,
+		"blurb": "A community hall court, and half the kampung knows the tekong's mother.",
+		"line_judges": true,
+		"close_cam": true,
+		"hawk_eye": false,
+		"quick": true,
+		"dressing": Venue.Tier.SCHOOL,
+		"scrutiny": 0.65,
+		"matches_needed": 2,
+		"reputation_needed": 0.40,
+	},
+	{
+		"name": "Schools championship",
+		"crowd": 0.40,
+		"blurb": "Every school has brought a bus, and every bus has brought a drum it was told not to.",
+		"line_judges": true,
+		"close_cam": true,
+		"hawk_eye": false,
+		"quick": true,
+		"dressing": Venue.Tier.SCHOOL,
+		"scrutiny": 0.90,
+		"matches_needed": 2,
+		"reputation_needed": 0.50,
+	},
+	{
+		"name": "State games",
+		"crowd": 0.60,
+		"blurb": "Best of three. Fourteen states, and every one of them counts the medals.",
+		"line_judges": true,
+		"close_cam": true,
+		"hawk_eye": false,
+		"quick": false,
+		"dressing": Venue.Tier.REGIONAL,
+		"scrutiny": 1.10,
+		"matches_needed": 3,
+		"reputation_needed": 0.55,
+	},
+	{
+		"name": "Takraw league",
+		"crowd": 0.84,
+		"blurb": "On television every night of the week, and the challenge card is on the bench.",
+		"line_judges": true,
+		"close_cam": true,
+		"hawk_eye": true,
+		"quick": false,
+		"dressing": Venue.Tier.REGIONAL,
+		"scrutiny": 1.35,
+		"matches_needed": 3,
+		"reputation_needed": 0.60,
+	},
+	{
+		"name": "Champions cup final",
+		"crowd": 1.0,
+		"blurb": "Titiwangsa, sold out, and fourteen-all is a call a whole country will replay.",
+		"line_judges": true,
+		"close_cam": true,
+		"hawk_eye": true,
+		"quick": false,
+		"dressing": Venue.Tier.ARENA,
+		"scrutiny": 1.60,
+		"matches_needed": 0,
+		"reputation_needed": 1.0,
+	},
+]
+
 ## The sports in the order they are shown, and what each is called on screen.
-const IN_ORDER := [BADMINTON, BEACH, INDOOR, TENNIS, TABLE_TENNIS]
+const IN_ORDER := [BADMINTON, BEACH, INDOOR, TENNIS, TABLE_TENNIS, TAKRAW]
 const NAMES := {
 	BADMINTON: "Badminton",
 	BEACH: "Beach volleyball",
 	INDOOR: "Indoor volleyball",
 	TENNIS: "Tennis",
 	TABLE_TENNIS: "Table tennis",
+	TAKRAW: "Sepak takraw",
 }
 
 
@@ -474,6 +554,8 @@ static func format_of(which: StringName, quick: bool) -> String:
 			return "one set to 11" if quick else "best of three — 21, 21 and 15"
 		INDOOR:
 			return "one set to 15" if quick else "best of five — 25s and a 15"
+		TAKRAW:
+			return "one set to 15" if quick else "best of three to 15, set up to 17"
 	return "one game to 11" if quick else "best of three to 21"
 
 
@@ -483,6 +565,7 @@ const LADDERS := {
 	INDOOR: INDOOR_LADDER,
 	TENNIS: TENNIS_LADDER,
 	TABLE_TENNIS: TABLE_TENNIS_LADDER,
+	TAKRAW: TAKRAW_LADDER,
 }
 
 

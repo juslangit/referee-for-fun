@@ -63,7 +63,7 @@ GALLERIES = [
         ("hud_tennis", "Tennis, as the tours show it: bottom left, the finished set, games lit, points 40-30."),
         ("hud_table_tennis", "Table tennis, as WTT shows it: games won in colour, points beside them, GAME POINT."),
         ("screen_review_answer", "The review card: OFFICIAL REVIEW over a big verdict bar, like the BWF and FIVB graphics."),
-        ("screen_career", "The career: the ladder as broadcast plates, and all five sports in a grid."),
+        ("screen_career", "The career: the ladder as broadcast plates, and all six sports in a grid."),
         ("screen_faults", "The fault panel, with the sides in their colours."),
         ("screen_settings", "Settings, with the sliders and switch drawn in the theme."),
         ("screen_ending", "FULL TIME."),
@@ -110,7 +110,7 @@ GALLERIES = [
         ("badminton_replay_close", "Then the close-up, with what you called and what was true."),
         ("badminton_ending", "The result screen, the only screen allowed to state the truth."),
         ("badminton_paper_front", "The Morning Rally's front page, when a career ends."),
-        ("history", "Every match so far, across all five sports."),
+        ("history", "Every match so far, across all six sports."),
     ]),
     ("screens-tennis", "Tennis", "Chair umpire at the net, Fast4 at the first venues, and ends that change.", [
         ("format_tennis", "Singles or doubles: the tramlines are out in singles."),
@@ -139,6 +139,23 @@ GALLERIES = [
         ("indoor_rally", "A rally; the liberos wear yellow."),
         ("indoor_serve", "The serve."),
         ("vb_serve_frames", "\"Volleyball 1\": the serve keyed by hand from Luqman's Meshy screen recording."),
+    ]),
+    ("screens-takraw", "Sepak takraw", "The sixth sport, added 2026-09-15 by ISTAF's 2024 Law of the Game: regu and doubles, the serving side's feet held in painted circles until the kick, sets to 15 with setting up to 17, and no whistle.", [
+        ("dev/ref/events/logo_sepak_takraw.png", "OpenArt (GPT Image 2): the Titiwangsa Sepak Takraw Champions Cup logo. Invented event, modelled on the 2026 World Cup final at Stadium Titiwangsa."),
+        ("dev/ref/takraw/portrait_takraw_raw.png", "OpenArt (Nano Banana 2): the sixth athlete, drawn with the other five as its style reference."),
+        ("sports", "The sport menu with six cards, fitting a 1280-pixel window."),
+        ("format_takraw", "REGU or DOUBLES: three a side with a tekong and two inside players, or two a side served from behind the back line."),
+        ("takraw_lineup", "From the referee's chair before the serve: the tekong in the service circle, the inside players in their quarter circles at the net."),
+        ("takraw_kick", "An inside player has thrown; the tekong kicks the serve."),
+        ("takraw_spike", "The bicycle-kick spike over a 1.52 m net, from the side."),
+        ("takraw_landing", "The landing, with the overhead camera on the line."),
+        ("takraw_foot_fault", "A service fault: the tekong's standing foot outside the circle. Drawn where the foot really is, and priced by how far out."),
+        ("hud_takraw", "The score bug top left with an orange serve arrow, as ISTAF's world feed shows it."),
+        ("st_poses_side", "The seven sepak takraw clips keyed in Blender (tools/meshy/takraw_clips.py): serve, throw, receive, header, set, spike, block."),
+        ("dev/shots/events/takraw_0_wide.png", "Kampung open: a community hall, green mat, a few printed boards, one camera."),
+        ("dev/shots/events/takraw_2_wide.png", "State games: a blue mat and hall, white sponsor boards, officials' table, flags."),
+        ("dev/shots/events/takraw_4_wide.png", "Champions cup final: raspberry-pink mat, red padded posts, the screen, an LED ribbon, the assistant referee at the far post."),
+        ("dev/shots/events/takraw_4_chair.png", "The final from the chair."),
     ]),
     ("screens-behind", "Behind the scenes", "Pictures taken to check the work rather than to show it.", [
         ("_shot_models", "An early model test, before the characters were forged in Blender."),
@@ -257,6 +274,27 @@ CUTSCENES = [
          ("cut_indoor_taken_off_10.5", "10.5 s", "Walked off court.")]),
       ("Moved up", "On CONTINUE after a promotion", [
          ("cut_indoor_moved_up_06.5", "6.5 s", "The new hall, from the floor to above the court.")])]),
+    ("cutscenes-takraw", "Sepak takraw", "Built 2026-09-15, waiting for Luqman's review",
+     "ISTAF Law of the Game 2024 (Law 8, the toss; Law 14.3, the Official Referee), Sepak Takraw Canada's match protocol, and the Thai Department of Physical Education referee manual (2012).",
+     [("Law 8", "The Court Referee tosses the coin in front of both captains; the winner chooses to serve."),
+      ("Protocol", "The teams are announced from behind their back lines, walk round the court and shake hands over the middle of the net."),
+      ("Manual", "\"Players of both teams, shake hands.\" The referee then takes the chair and calls the score; there is no whistle."),
+      ("After", "The result announced, the referees' hands shaken, then each other's over the net."),
+      ("Law 14.3", "Only the Official Referee may stop a match, so the Official Referee takes a removed referee off.")],
+     [("Walk-on", "Before the first service", [
+         ("cut_takraw_walk_on_04.5", "4.5 s", "The teams announced from behind their back lines."),
+         ("cut_takraw_walk_on_10.0", "10.0 s", "Hands shaken over the net."),
+         ("cut_takraw_walk_on_14.5", "14.5 s", "The court referee's toss with both captains."),
+         ("cut_takraw_walk_on_17.0", "17.0 s", "The referee on the chair: love all, and no whistle.")]),
+      ("Match won", "After the last point", [
+         ("cut_takraw_match_won_01.5", "1.5 s", "RED win, with every set's score."),
+         ("cut_takraw_match_won_08.5", "8.5 s", "Hands shaken over the net."),
+         ("cut_takraw_match_won_11.0", "11.0 s", "And the referee's.")]),
+      ("Taken off", "When the hall has had enough", [
+         ("cut_takraw_taken_off_04.0", "4.0 s", "The Official Referee comes to the chair."),
+         ("cut_takraw_taken_off_10.5", "10.5 s", "Walked off court.")]),
+      ("Moved up", "On CONTINUE after a promotion", [
+         ("cut_takraw_moved_up_06.5", "6.5 s", "The new hall, from the floor to above the court.")])]),
     ("cutscenes-beach", "Beach volleyball", "Built 2026-09-15, waiting for Luqman's review",
      "FIVB Beach Volleyball Refereeing Guidelines and Instructions (2023), Official Match Protocol.",
      [("-5 min", "Coin toss in front of the scorer's table."),
@@ -512,7 +550,7 @@ def git(*args):
 
 def counts():
     return [
-        ("Sports", "5"),
+        ("Sports", "6"),
         ("Scripts", str(len(list((PROJECT / "scripts").glob("*.gd"))))),
         ("Checks", str(len(list((PROJECT / "dev" / "checks").glob("*.gd"))))),
         ("Looks", str(len(list((PROJECT / "dev" / "looks").glob("*.gd"))))),

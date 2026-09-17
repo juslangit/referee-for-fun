@@ -46,6 +46,14 @@ const CARDS := [
 		"sport": &"table_tennis", "clip": "smash", "at": 7.0 / 24.0,
 		"offset": Vector3(2.5, 1.50, 2.35), "look": 0.92,
 	},
+	# The roll spike at the moment the foot meets the ball, which is the picture everybody
+	# has of the sport. Stood off like the volleyballs, because the kick is as high as a
+	# volleyball spike is and the court is not much smaller.
+	{
+		"id": "takraw", "scene": "res://scenes/sepak_takraw.tscn",
+		"sport": &"takraw", "clip": "st_spike", "at": 14.0 / 24.0,
+		"offset": Vector3(3.9, 2.15, 2.6), "look": 1.35,
+	},
 ]
 
 
@@ -78,6 +86,7 @@ func _photograph(card: Dictionary) -> void:
 		arena.settings.taught_indoor = true
 		arena.settings.taught_tennis = true
 		arena.settings.taught_table_tennis = true
+		arena.settings.taught_takraw = true
 		arena.ui.match_requested.emit()
 		await get_tree().process_frame
 		if arena.pressure.exists():
