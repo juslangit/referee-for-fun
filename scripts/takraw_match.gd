@@ -206,6 +206,10 @@ func build_the_players() -> void:
 			var player := Player.new()
 			player.name = "%s%d" % [Sides.label(team), i]
 			player.volleyball = true
+			# Played with the feet, which is what decides where the ball leaves from: the
+			# boot at the top of a roll spike, not the hand of somebody who may not
+			# legally touch it at all.
+			player.plays_with_the_feet = true
 			player.speed = SPEED
 			player.reach = 1.1
 			add_child(player)
@@ -420,6 +424,9 @@ func _physics_process(delta: float) -> void:
 	if _beat == Beat.THROW:
 		return
 	if not ball_has_arrived(REACH, 2.2):
+		# Not yet — but the foot that is going to play it starts moving now, so that it is
+		# on the ball when it gets here rather than half a clip behind it.
+		start_the_touch_when_due(REACH, 2.2)
 		return
 	_take_the_next_contact()
 
@@ -432,6 +439,10 @@ func _kick_the_serve() -> void:
 	var target := _serve_aim
 	sound.strike(from, true)
 	send_over(from, target, SERVE_ANGLES)
+	# Whoever is nearest where it is going is the one who plays it. A serve that is still
+	# above head height when it arrives is headed instead, and the early sila is abandoned
+	# when that turns out to be what happens — see Player._took_it_early.
+	expect_touch(nearest_of(Sides.opponent(_possession), target), "st_receive")
 
 
 func _take_the_next_contact() -> void:
@@ -455,7 +466,9 @@ func _take_the_next_contact() -> void:
 				var again := Vector3(randf_range(-1.2, 1.2), TakrawCourt.SURFACE_Y,
 					Sides.half_sign(_possession) * 3.2)
 				_setter.chase(again)
-				send(Vector3(here.x, RECEIVE_HEIGHT, here.z), again, RECEIVE_ANGLE)
+				expect_touch(_setter, "st_set")
+				send(helper.struck_from(Vector3(here.x, RECEIVE_HEIGHT, here.z)),
+					again, RECEIVE_ANGLE)
 				return
 			rally.contacts += 1
 			_beat = Beat.SET
@@ -490,7 +503,10 @@ func _receive(here: Vector3) -> void:
 	var to_the_setter := Vector3(randf_range(-1.4, 1.4), TakrawCourt.SURFACE_Y,
 		Sides.half_sign(_possession) * 1.7)
 	_setter.chase(to_the_setter)
-	send(Vector3(here.x, RECEIVE_HEIGHT, here.z), to_the_setter, RECEIVE_ANGLE)
+	expect_touch(_setter, "st_set")
+	# Off the foot that played it rather than out of the air above it.
+	send(_receiver.struck_from(Vector3(here.x, RECEIVE_HEIGHT, here.z)),
+		to_the_setter, RECEIVE_ANGLE)
 
 
 ## The second touch: the feeder puts it up near the net for the killer.
@@ -502,7 +518,9 @@ func _put_it_up(here: Vector3) -> void:
 	var to_the_spiker := Vector3(clampf(here.x + randf_range(-1.2, 1.2), -2.2, 2.2),
 		TakrawCourt.SURFACE_Y, Sides.half_sign(_possession) * 0.9)
 	_spiker.chase(to_the_spiker)
-	send(Vector3(here.x, SET_HEIGHT, here.z), to_the_spiker, SET_ANGLE)
+	expect_touch(_spiker, "st_spike")
+	send(_setter.struck_from(Vector3(here.x, SET_HEIGHT, here.z)) if _setter != null
+		else Vector3(here.x, SET_HEIGHT, here.z), to_the_spiker, SET_ANGLE)
 
 
 ## The spike, the block, and the call the whole rally was building to.
@@ -529,7 +547,9 @@ func _attack(from: Vector3) -> void:
 		_spiker.takraw_spike()
 	sound.strike(from, true)
 	_meet_the_attack(against, from)
-	send_over(from, target, SPIKE_ANGLES)
+	# Off the boot. A roll spike is struck by the foot at the top of the turn, and that is
+	# where the ball leaves from.
+	send_over(_spiker.struck_from(from) if _spiker != null else from, target, SPIKE_ANGLES)
 
 
 ## The defending inside players turn their backs to the net and jump at the spike. A blocker
