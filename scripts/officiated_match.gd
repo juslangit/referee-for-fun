@@ -73,6 +73,10 @@ var _phase := Phase.MENU:
 		_phase = value
 		if value == Phase.IN_PLAY and was != Phase.IN_PLAY and ui != null:
 			ui.dismiss_reason()
+		# Nobody is owed a touch at the start of a rally, and a leftover one from the last
+		# would have somebody swinging at a ball that is not coming.
+		if value != Phase.IN_PLAY:
+			expect_nothing()
 		# The recorder is made here, the first time any rally is put in play, for the
 		# same reason: this setter is the one thing all five sports go through. Badminton's
 		# `_ready` does not call up to the spine's, so a recorder made there would have
@@ -1044,10 +1048,130 @@ func send(from: Vector3, to: Vector3, angle: float) -> void:
 ## Whether the ball has reached where the last contact sent it, and is low enough to be
 ## played. `reach` is how close counts; `ceiling` is how high is still too high.
 func ball_has_arrived(reach: float, ceiling: float) -> bool:
-	var here := _ball.global_position
+	return _arrived(_ball.global_position, reach, ceiling)
+
+
+func _arrived(here: Vector3, reach: float, ceiling: float) -> bool:
 	if Vector2(here.x - _aim.x, here.z - _aim.z).length() > reach:
 		return false
 	return here.y <= ceiling
+
+
+# --- seeing the touch coming ----------------------------------------------------
+#
+# A touch used to begin on the frame the ball was played, and every one of these clips
+# keys its contact a third of the way in — so the ball left the player's hands while their
+# hands were still going back for it. It reads as the ball bouncing off somebody who has
+# not moved yet, which is what it was.
+#
+# The fix is to start the clip early and stretch it, so its own moment of contact lands on
+# the ball. That needs two things: knowing *when* the ball will be playable, which is this
+# section, and knowing *who* is going to play it, which the contact that sent the ball to
+# them already decided — see `expect_touch`.
+
+## How far ahead the arrival is looked for. Longer than the slowest contact in any of these
+## sports, which is the volleyball serve at 0.63 s.
+const TOUCH_LEAD := 0.8
+
+## Who plays the ball next and with which clip, recorded by whoever sent it to them.
+var _next_toucher: Player = null
+var _next_touch := ""
+
+
+## Says who will play the ball next, and how. Called by the contact that sends it to them,
+## because that is where the choice is actually made — working it out a second time here
+## would be a copy of the decision, and a copy of a decision is a bug waiting for one of
+## the two to change.
+func expect_touch(player: Player, clip: String) -> void:
+	_next_toucher = player
+	_next_touch = clip
+
+
+## Forgets it. A rally that has ended, or a ball that is going to the floor.
+func expect_nothing() -> void:
+	_next_toucher = null
+	_next_touch = ""
+
+
+## Starts the touch that is coming, if it is close enough now to be worth starting.
+##
+## Asked on every frame the ball has not arrived yet. `reach` and `ceiling` are the same
+## two numbers the sport hands `ball_has_arrived`, so the moment being predicted is exactly
+## the moment that will fire.
+func start_the_touch_when_due(reach: float, ceiling: float) -> void:
+	if _next_toucher == null or not is_instance_valid(_next_toucher):
+		return
+	if not Player.CONTACT_AT.has(_next_touch):
+		return
+	var contact: float = Player.CONTACT_AT[_next_touch]
+	var due := seconds_until_the_ball_arrives(reach, ceiling, contact)
+	if float(due[0]) < 0.0:
+		return
+	if _next_toucher.begin_touch(_next_touch, maxf(float(due[0]), 0.01), due[1]):
+		expect_nothing()
+
+
+## When the ball next becomes playable off the bounce — on its way down and under
+## `ceiling` — and where it will be then, as [seconds, point].
+##
+## The racket sports take their stroke off a falling ball rather than off an aim, so this
+## is their version of the question above. Seconds are negative when it does not happen
+## inside `horizon`.
+func seconds_until_it_drops_under(ceiling: float, horizon := TOUCH_LEAD,
+		through_the_bounce := false) -> Array:
+	if _ball == null or not is_instance_valid(_ball):
+		return [-1.0, Vector3.ZERO]
+	var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
+	var shot := flight()
+	var drag := gravity / (shot.terminal_velocity * shot.terminal_velocity)
+	var step := 1.0 / float(Engine.physics_ticks_per_second)
+	var at := _ball.global_position
+	var moving := _ball.linear_velocity
+	var ahead := 0.0
+	var landed := not through_the_bounce
+	var surface := floor_height() + _ball.radius
+	while ahead < horizon:
+		moving += (Vector3.DOWN * gravity - drag * moving.length() * moving) * step
+		at += moving * step
+		ahead += step
+		# The bounce is flown too when asked for, because in tennis the stroke that
+		# matters is the one *after* it and the ball travels several metres between the
+		# two. Waiting for the bounce to happen before looking sends the player who has
+		# to play it to where the ball was rather than where it will be.
+		if at.y <= surface and moving.y < 0.0:
+			at.y = surface
+			moving.y = -moving.y * _ball.bounce
+			landed = true
+			continue
+		if landed and moving.y <= 0.0 and at.y <= ceiling:
+			return [ahead, at]
+	return [-1.0, Vector3.ZERO]
+
+
+## How long until the ball is where the last contact sent it and low enough to be played.
+##
+## The same question `ball_has_arrived` answers about now, asked about the next little
+## while, and where it will be then, as [seconds, point]. The flight is stepped forward with
+## the ball's own drag at the engine's own step, for the reason ShotSolver gives: what is
+## wanted is the flight this game's physics will produce, integration error included.
+## Seconds are negative when the ball does not get there inside `horizon`.
+func seconds_until_the_ball_arrives(reach: float, ceiling: float, horizon := TOUCH_LEAD) -> Array:
+	if _ball == null or not is_instance_valid(_ball):
+		return [-1.0, Vector3.ZERO]
+	var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
+	var shot := flight()
+	var drag := gravity / (shot.terminal_velocity * shot.terminal_velocity)
+	var step := 1.0 / float(Engine.physics_ticks_per_second)
+	var at := _ball.global_position
+	var moving := _ball.linear_velocity
+	var ahead := 0.0
+	while ahead < horizon:
+		moving += (Vector3.DOWN * gravity - drag * moving.length() * moving) * step
+		at += moving * step
+		ahead += step
+		if _arrived(at, reach, ceiling):
+			return [ahead, at]
+	return [-1.0, Vector3.ZERO]
 
 
 ## The two players of one side, or all six.

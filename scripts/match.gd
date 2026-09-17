@@ -73,6 +73,10 @@ const HOME_POSITIONS_SINGLES := [
 ## How many shots a rally can run to before somebody simply runs out of legs.
 const RALLY_SHOT_CAP := 16
 
+## How fast a badminton player covers the court, in metres a second, going forwards. See
+## `Player.BACKWARD_PACE` for what it costs to go the other way.
+const SPEED := 4.7
+
 ## A hard stop on a rally, in seconds. A backstop, not a design.
 const MAX_RALLY_SECONDS := 40.0
 
@@ -215,13 +219,19 @@ var _all_line_judges: Array[LineJudge] = []
 
 var _shots_this_rally := 0
 
-## Which shot of the rally a smash wind-up has already been started for, so it is started
-## once per shot rather than on every frame the shuttle is still coming.
+## Which shot of the rally a smash wind-up, and the stroke itself, have already been
+## started for — so each is started once per shot rather than on every frame the shuttle
+## is still on its way.
 var _wound_up_on_shot := -1
+var _stroke_begun_on_shot := -1
 
-## How far ahead the game looks for a smash about to happen. A little longer than the
-## wind-up clip (0.32 s), which is then played slightly slower so it ends on the strike.
-const WIND_UP_LEAD := 0.40
+## How far ahead the game looks for the next contact.
+##
+## It has to cover both movements end to end, because they now run one after the other
+## rather than both finishing on the strike: the crouch (0.32 s, played between 0.6 and
+## 1.6 times speed) and then the quarter-second the stroke takes to bring the racket onto
+## the shuttle. It was 0.40 s while the crouch was the only thing being waited for.
+const WIND_UP_LEAD := 0.75
 
 ## The contact height above which a stroke is played as a smash. `_return_shot` decides it
 ## the same way; the two must agree or a wind-up leads into a forehand.
@@ -650,6 +660,12 @@ func build_the_players() -> void:
 		var home: Vector3 = spots[i]
 		var player := Player.new()
 		player.name = "Player%d" % i
+		# Badminton left this at the default 4 m/s while everybody could run at the same
+		# speed in every direction. They cannot any more — a backpedal costs nearly a
+		# third — so the base is raised to keep a rally the length it used to be. Without
+		# it the shuttle beat them to the back of the court and rallies lost a stroke and
+		# a half each.
+		player.speed = SPEED
 		# One of the four builds each, so the court holds four people rather than one
 		# person standing in four places.
 		add_child(player)
@@ -846,6 +862,7 @@ func _set_up_the_serve() -> void:
 func start_rally() -> void:
 	_shots_this_rally = 0
 	_wound_up_on_shot = -1
+	_stroke_begun_on_shot = -1
 	_rally_seconds = 0.0
 	for judge in line_judges:
 		judge.silence()
@@ -873,17 +890,39 @@ func start_rally() -> void:
 		contact,
 		Sides.half_sign(serving) * SERVE_DISTANCE
 	)
+	# Stood where the racket can reach the shuttle, before the fault is staged, so that a
+	# foot fault takes its step off the spot they are actually going to serve from.
+	var server := _server_of(serving)
+	if server != null:
+		server.stand_to_serve(from)
 	_show_the_service_fault(illegal, from, contact)
 	var target := _pick_serve_target(
 		Sides.half_sign(Sides.opponent(serving)), -served_from)
 
-	if not _hit_or_something_safer(from, target, serving):
-		push_warning("Could not serve at all from %v" % from)
-		return
-
 	sound.whistle()
 	_phase = Phase.IN_PLAY
 	ui.set_prompt("watch it")
+
+	# The server plays the serve and the shuttle leaves when the racket gets to it, which
+	# is the arrangement the other four sports already have: the whistle, then the action,
+	# then the ball. The wait is the serve clip's own moment of contact, so the two agree
+	# by construction rather than by being tuned against each other.
+	var served := from
+	if server != null:
+		server.serve_the_shuttle()
+		var this_rally := rally
+		await get_tree().create_timer(Player.CONTACT_AT["serve"], false).timeout
+		if _phase != Phase.IN_PLAY or rally != this_rally:
+			return
+		# Off the racket head, keeping the height the fault is judged on. Where the shuttle
+		# is struck sideways is the server's business; how high it was struck is the
+		# umpire's, and `contact` is what the service fault was rolled against.
+		served = server.struck_from(from)
+		served.y = from.y
+
+	if not _hit_or_something_safer(served, target, serving):
+		push_warning("Could not serve at all from %v" % served)
+		return
 
 
 ## Watches for a player getting a racket on the shuttle before it can land.
@@ -917,7 +956,7 @@ func _physics_process(_delta: float) -> void:
 			_return_shot(player)
 			return
 
-	_see_a_smash_coming(receiving)
+	_see_the_contact_coming(receiving)
 
 	# A rally that has somehow gone on far too long is brought to an end rather than
 	# left to hang. Nothing should reach this, but a match that cannot finish is a
@@ -960,16 +999,27 @@ func _watch_for_net_crossing() -> void:
 		rally.went_over_the_net = false
 
 
-## Starts a player's crouch before a smash they are about to play.
+## Starts the parts of a stroke that have to begin before the shuttle gets there.
 ##
 ## The strike itself is decided exactly as before, by `can_strike` on the frame it becomes
 ## true. This only looks ahead: the shuttle's flight is stepped forward with its own drag,
-## at the engine's own step (see ShotSolver for why), and if within WIND_UP_LEAD it comes
-## within reach of where a chasing player will be by then (`position_in`) — above
-## OVERHEAD_HEIGHT on their side of the net, the wind-up starts. Without it the smash began
-## on the frame of the strike and the jump had no crouch in front of it.
-func _see_a_smash_coming(receiving: Sides.Team) -> void:
-	if _wound_up_on_shot == _shots_this_rally:
+## at the engine's own step (see ShotSolver for why), and the first moment within
+## WIND_UP_LEAD at which it comes within reach of where a chasing player will be by then
+## (`position_in`) is taken as the contact that is coming.
+##
+## Two things then happen at the right time rather than at the wrong one:
+##
+## The **crouch** before a smash, which is the one shot with a wind-up in front of it. It
+## now ends where the stroke starts rather than at the strike, because the stroke is no
+## longer the last thing to happen.
+##
+## The **stroke**, started a quarter of a second early — a shot is keyed with contact six
+## frames into sixteen — so the racket is on the shuttle at the moment the shuttle is
+## struck. Before this it began on the frame of the strike, so the shuttle left while the
+## racket was still up behind the player's head, and no contact in the game looked like a
+## contact.
+func _see_the_contact_coming(receiving: Sides.Team) -> void:
+	if _stroke_begun_on_shot == _shots_this_rally:
 		return
 	var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 	var drag := gravity / (Shuttle.TERMINAL_VELOCITY * Shuttle.TERMINAL_VELOCITY)
@@ -981,18 +1031,31 @@ func _see_a_smash_coming(receiving: Sides.Team) -> void:
 		moving += (Vector3.DOWN * gravity - drag * moving.length() * moving) * step
 		at += moving * step
 		ahead += step
-		if at.y <= OVERHEAD_HEIGHT:
-			return
-		if at.y > Player.HIGHEST_STRIKE or at.z * Sides.half_sign(receiving) <= 0.0:
+		if at.y > Player.HIGHEST_STRIKE or at.y < Player.LOWEST_STRIKE:
+			continue
+		if at.z * Sides.half_sign(receiving) <= 0.0:
 			continue
 		for player in players:
 			if player.team != receiving or not player.chasing:
 				continue
 			if player.position_in(ahead).distance_to(Vector3(at.x, 0.0, at.z)) > player.reach:
 				continue
-			_wound_up_on_shot = _shots_this_rally
-			player.wind_up(ahead)
+			_begin_the_stroke(player, ahead, at, step)
 			return
+
+
+## The crouch and the stroke, each started when it is its turn.
+func _begin_the_stroke(player: Player, ahead: float, at: Vector3, step: float) -> void:
+	var overhead := at.y > OVERHEAD_HEIGHT
+	var contact: float = Player.CONTACT_AT["smash" if overhead else "forehand"]
+	if overhead and _wound_up_on_shot != _shots_this_rally:
+		_wound_up_on_shot = _shots_this_rally
+		player.wind_up(maxf(ahead - contact, step))
+	if ahead > contact + step:
+		# Still too far off to swing at. The look-ahead runs again next frame.
+		return
+	_stroke_begun_on_shot = _shots_this_rally
+	player.begin_stroke(ahead, at, overhead)
 
 
 func _return_shot(player: Player) -> void:
@@ -1001,13 +1064,16 @@ func _return_shot(player: Player) -> void:
 		player.stand_off()
 		return
 
-	# They have played their shot, whatever happens next. Standing them off first
-	# also stops this being re-entered while a carry is being held.
-	player.stand_off()
 	# Overhead if the shuttle is up around head height, which is what decides whether
 	# the animation plays a smash or a groundstroke.
 	var overhead := _shuttle.global_position.y > OVERHEAD_HEIGHT
+	# The swing comes before standing them off, because standing off forgets a stroke
+	# that is already running and this one almost always is — `_see_the_contact_coming`
+	# started it a quarter of a second ago so that the racket would be here now.
 	player.swing(overhead)
+	# They have played their shot, whatever happens next. Standing them off also stops
+	# this being re-entered while a carry is being held.
+	player.stand_off()
 	sound.strike(_shuttle.global_position, overhead)
 
 	var offence := _roll_for_offence(player)
@@ -1022,7 +1088,9 @@ func _return_shot(player: Player) -> void:
 			return
 		_shuttle.freeze = false
 
-	var from := _shuttle.global_position
+	# Struck off the racket rather than out of thin air: the head of it is where the
+	# animation has put it, and the shuttle is brought the last few centimetres onto it.
+	var from := player.struck_from(_shuttle.global_position)
 	var target := _pick_target(Sides.half_sign(Sides.opponent(player.team)))
 	if not _hit_or_something_safer(from, target, player.team):
 		return

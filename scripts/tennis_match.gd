@@ -22,6 +22,11 @@ enum Beat { SERVE, RALLY }
 
 ## Where the server stands behind their baseline, and how high the ball is struck.
 const SERVE_BEHIND := 0.35
+
+## How far the rig's own serve contact may be from SERVE_HEIGHT and still be believed. A
+## measurement that comes back near the floor means the clip was read at the wrong frame,
+## and the nominal height is the safer answer.
+const MOST_A_CONTACT_DIFFERS := 0.7
 const SERVE_HEIGHT := 2.55
 
 ## A foot fault puts them over the line instead of behind it. Small — it is a foot
@@ -492,7 +497,13 @@ func start_rally() -> void:
 		stand_x * randf_range(0.35, 3.1),
 		SERVE_HEIGHT,
 		side * (TennisSpec.HALF_LENGTH + behind))
-	server.position = Vector3(from.x, 0.0, from.z)
+	server.place_to_serve(Vector3(from.x, 0.0, from.z))
+	# Tossed to where the racket will be at full stretch, rather than to a point straight
+	# above the server's head. The feet stay where they were put, which is what the foot
+	# fault is judged on; the contact leans out in front of them, which is what a serve does.
+	var racket := server.contact_point("tn_serve", server.rotation.y)
+	if absf(racket.y - SERVE_HEIGHT) < MOST_A_CONTACT_DIFFERS:
+		from = racket
 	receiver.chase(Vector3(
 		_service_court * randf_range(1.2, 3.6),
 		0.0,
@@ -524,6 +535,22 @@ func start_rally() -> void:
 ## The gap is the clip's own: `tn_serve` tosses on frame 8 and makes contact on frame 22,
 ## which at 24 fps is fourteen frames. The ball and the animation therefore agree by
 ## construction rather than by being tuned against each other.
+##
+## Both frames matter, and for a while only one of them was used. The ball was thrown on the
+## frame the clip *started* and struck fourteen frames later — so it was met on frame 14 with
+## the racket still coming up, a third of a second before the racket got there. The toss now
+## waits for frame 8 as well, which is when the hand that is not holding the racket actually
+## lets go.
+const TOSS_AT := 8.0 / 24.0
+
+## True from the whistle until the ball actually leaves the server's hand.
+##
+## The rally is in play from the whistle, as it is in the rules, but for those eight frames
+## the only ball on court is the **last** rally's, lying where it came down — and the rally
+## logic looked at it, decided it was a ball on somebody's side falling below the strike
+## ceiling, and played a stroke with it. The server was sent running backwards away from the
+## serve they were about to play, and `_contact` found them three metres from it.
+var _waiting_for_the_toss := false
 const TOSS_SECONDS := 14.0 / 24.0
 
 ## Thrown from about shoulder height, hard enough to arrive at the contact point just as
@@ -534,6 +561,11 @@ const TOSS_SPEED := 4.4
 
 
 func _toss_it_up(from: Vector3, target: Vector3) -> void:
+	_waiting_for_the_toss = true
+	await get_tree().create_timer(TOSS_AT).timeout
+	_waiting_for_the_toss = false
+	if _phase != Phase.IN_PLAY:
+		return
 	_ball.launch(from - Vector3(0.0, TOSS_FROM_BELOW, 0.0),
 		Vector3(0.0, TOSS_SPEED, 0.0))
 	await get_tree().create_timer(TOSS_SECONDS).timeout
@@ -541,7 +573,10 @@ func _toss_it_up(from: Vector3, target: Vector3) -> void:
 	if _phase != Phase.IN_PLAY:
 		return
 	sound.strike(from, true)
-	send_over(from, target, SERVE_ANGLES)
+	# Off the strings. The toss was aimed at them and the clip is on its contact frame now,
+	# so this closes whatever the two have drifted apart by.
+	send_over(_striker.struck_from(from) if _striker != null else from,
+		target, SERVE_ANGLES)
 
 
 ## Where the serve is aimed.
@@ -637,6 +672,8 @@ var _server_end := 0.0
 func _physics_process(delta: float) -> void:
 	if _phase != Phase.IN_PLAY:
 		return
+	if _waiting_for_the_toss:
+		return
 	_rally_seconds += delta
 	if _cord_to_hear >= 0.0 and signf(_ball.global_position.z) != _server_end:
 		sound.net_cord(Vector3(_ball.global_position.x, net_height(), 0.0), _cord_to_hear)
@@ -662,8 +699,43 @@ func _physics_process(delta: float) -> void:
 	# Struck off the bounce, on the way down, at about waist height.
 	var here := _ball.global_position
 	if _ball.linear_velocity.y > 0.0 or here.y > STRIKE_CEILING:
+		_see_the_stroke_coming()
 		return
 	_take_the_stroke(here)
+
+
+## Starts the stroke before the ball gets to it.
+##
+## A tennis stroke is keyed with contact six frames into sixteen — a quarter of a second —
+## and it used to be started on the frame the ball was struck, so the ball left while the
+## racket was still going back. The ball's drop is flown forward with the same drag it is
+## flying with, and the swing begins a quarter of a second before it will be playable.
+func _see_the_stroke_coming() -> void:
+	var player := _player(side_defending(_ball.global_position.z), _ball.global_position)
+	if player == null:
+		return
+	var due := seconds_until_it_drops_under(STRIKE_CEILING, CHASE_LEAD)
+	if float(due[0]) < 0.0:
+		return
+	var meeting: Vector3 = due[1]
+	# Run them at where the ball will actually be played rather than where it landed. A
+	# tennis ball goes on travelling after the bounce — several metres of it — and the
+	# player was sent to the bounce, so every stroke in this sport was played by somebody
+	# standing where the ball had been a second ago.
+	player.chase(meeting)
+	if float(due[0]) > Player.CONTACT_AT["forehand"]:
+		return
+	player.begin_stroke(maxf(float(due[0]), 0.01), meeting, meeting.y > OVERHEAD_HEIGHT)
+
+
+## How far ahead the ball's drop is flown, in seconds. Long enough to give the player time
+## to get to it, which is the whole point of looking.
+const CHASE_LEAD := 1.4
+
+
+## The height above which a stroke is played as a smash rather than off the ground. Only
+## reachable on a ball that has barely bounced, which is exactly when a player would.
+const OVERHEAD_HEIGHT := 1.6
 
 
 ## The next groundstroke. Whoever the ball is on the side of plays it.
@@ -687,7 +759,7 @@ func _take_the_stroke(here: Vector3) -> void:
 	# does it here — on their way to a shot, at the net, where both happen.
 	_stage_any_incident()
 
-	_striker.swing(here.y > 1.6)
+	_striker.swing(here.y > OVERHEAD_HEIGHT)
 	sound.strike(here, going_for_it)
 
 	# A ball hit at a line is a winner: the point ends where it lands, and the player it
@@ -702,7 +774,39 @@ func _take_the_stroke(here: Vector3) -> void:
 	else:
 		_defender.chase(target)
 
-	send_over(Vector3(here.x, STRIKE_HEIGHT, here.z), target, RALLY_ANGLES)
+	# Off the strings rather than out of the air beside them: the head of the racket is
+	# where the swing has put it, and the ball is brought the last few centimetres onto it.
+	send_over(_striker.struck_from(Vector3(here.x, STRIKE_HEIGHT, here.z)), target, RALLY_ANGLES)
+
+	# And now that it is in the air, send whoever has to play it to the spot they will
+	# actually play it from — past the bounce, which in tennis is metres past the landing.
+	# `chase(target)` above puts them where it comes down; this moves them on to where it
+	# will be when it is next low enough to hit.
+	if not _letting_it_go and _defender != null:
+		var next := seconds_until_it_drops_under(STRIKE_CEILING, WHOLE_FLIGHT, true)
+		if float(next[0]) > 0.0:
+			var spot: Vector3 = next[1]
+			if _defender.distance_to(spot) > _defender.speed * float(next[0]) * WORTH_CHASING:
+				# They cannot get there, so they do not: the ball was too good and the
+				# point ends on the second bounce. This used to play the stroke anyway,
+				# from wherever the player happened to be standing — a third of tennis's
+				# contacts were made by somebody metres from the ball, which is what a
+				# ball being hit by nothing looks like from the chair.
+				_aimed_to_end = true
+				_letting_it_go = true
+				_defender.stand_off()
+			else:
+				_defender.chase(spot)
+
+
+## How far ahead a whole shot is flown, in seconds: long enough to cover a lob, its bounce
+## and the drop after it.
+const WHOLE_FLIGHT := 4.0
+
+## How much of the distance to the ball a player has to be able to cover in the time before
+## it is playable for the ball to be worth chasing. Short of all of it, because arriving at
+## a full sprint on the exact frame is not a shot anybody plays either.
+const WORTH_CHASING := 0.92
 
 
 ## A ball hit safely inside, which the other player will reach and return.

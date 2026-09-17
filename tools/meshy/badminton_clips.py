@@ -122,6 +122,14 @@ def _with(base, **changes):
     return pose
 
 
+def _moved(pose, shift):
+    """A pose with the whole body shifted. `MOVE` is not a bone, so it cannot go
+    through `_with`'s keyword arguments."""
+    posed = dict(pose)
+    posed[MOVE] = shift
+    return posed
+
+
 CLIPS = {
     # --- the ones that repeat ---------------------------------------------------
     "idle": {
@@ -149,6 +157,93 @@ CLIPS = {
                        LeftLeg=(34, 0, 0), RightLeg=(34, 0, 0),
                        RightArm=(0, -42, 38), RightForeArm=(0, 0, 78))),
             (20, READY),
+        ],
+    },
+    # --- going backwards and sideways without turning your back ------------------
+    #
+    # Nobody in a net sport turns round and runs at a ball that is behind them. The
+    # ball is in front of you and your eyes stay on it, so you go back on your toes
+    # with your chest square to the net and you go across on a chassé. Turning to
+    # sprint is how you leave the court, not how you play a shot.
+    #
+    # Both are deliberately symmetrical left to right, because the game plays the same
+    # clip whichever way the player is going and only turns their shoulders into it.
+    # See `Player.FOOTWORK`.
+
+    # Backwards: short strides, the knee coming through low, the trailing foot pushing
+    # off its toe, and the weight back behind the hips. A long backwards stride puts
+    # you on the floor, which is why a real one is barely half a forward one.
+    "backpedal": {
+        "loop": True,
+        "keys": [
+            (0, lean(_with(READY,
+                           RightUpLeg=(26, 0, 6), RightLeg=(16, 0, 0), RightFoot=(-24, 0, 0),
+                           LeftUpLeg=(-12, 0, -4), LeftLeg=(48, 0, 0),
+                           Spine02=(2, 0, 0),
+                           RightArm=(0, -44, 18), RightForeArm=(0, 0, 70),
+                           LeftArm=(0, 50, -44), LeftForeArm=(0, 0, -58)), -7)),
+            (5, lean(_with(READY,
+                           RightUpLeg=(4, 0, 6), RightLeg=(34, 0, 0), RightFoot=(-10, 0, 0),
+                           LeftUpLeg=(4, 0, -6), LeftLeg=(34, 0, 0), LeftFoot=(-10, 0, 0),
+                           Spine02=(4, 0, 0),
+                           RightArm=(0, -48, 34), RightForeArm=(0, 0, 74),
+                           LeftArm=(0, 52, -34), LeftForeArm=(0, 0, -64)), -5)),
+            (10, lean(_with(READY,
+                            LeftUpLeg=(26, 0, -6), LeftLeg=(16, 0, 0), LeftFoot=(-24, 0, 0),
+                            RightUpLeg=(-12, 0, 4), RightLeg=(48, 0, 0),
+                            Spine02=(2, 0, 0),
+                            RightArm=(0, -50, 44), RightForeArm=(0, 0, 78),
+                            LeftArm=(0, 46, -22), LeftForeArm=(0, 0, -52)), -7)),
+            (15, lean(_with(READY,
+                            RightUpLeg=(4, 0, 6), RightLeg=(34, 0, 0), RightFoot=(-10, 0, 0),
+                            LeftUpLeg=(4, 0, -6), LeftLeg=(34, 0, 0), LeftFoot=(-10, 0, 0),
+                            Spine02=(4, 0, 0),
+                            RightArm=(0, -48, 34), RightForeArm=(0, 0, 74),
+                            LeftArm=(0, 52, -34), LeftForeArm=(0, 0, -64)), -5)),
+            (20, lean(_with(READY,
+                            RightUpLeg=(26, 0, 6), RightLeg=(16, 0, 0), RightFoot=(-24, 0, 0),
+                            LeftUpLeg=(-12, 0, -4), LeftLeg=(48, 0, 0),
+                            Spine02=(2, 0, 0),
+                            RightArm=(0, -44, 18), RightForeArm=(0, 0, 70),
+                            LeftArm=(0, 50, -44), LeftForeArm=(0, 0, -58)), -7)),
+        ],
+    },
+    # Sideways: the chassé. The feet come wide apart and snap back together, and the
+    # body drops as they spread and rises as they close, which is the whole of what a
+    # shuffle looks like from the chair. Feet never cross.
+    "shuffle": {
+        "loop": True,
+        "keys": [
+            (0, lean(_moved(_with(READY,
+                           LeftUpLeg=(-6, 0, -17), LeftLeg=(30, 0, 0),
+                           RightUpLeg=(-6, 0, 17), RightLeg=(30, 0, 0),
+                           LeftArm=(0, 46, -36), LeftForeArm=(0, 0, -58),
+                           RightArm=(0, -42, 40), RightForeArm=(0, 0, 66)),
+                        (0.0, 0.0, -0.06)), 12)),
+            (4, lean(_moved(_with(READY,
+                           LeftUpLeg=(-10, 0, -3), LeftLeg=(16, 0, 0),
+                           RightUpLeg=(-10, 0, 3), RightLeg=(16, 0, 0),
+                           LeftArm=(0, 50, -30), LeftForeArm=(0, 0, -52),
+                           RightArm=(0, -46, 34), RightForeArm=(0, 0, 60)),
+                        (0.0, 0.0, 0.03)), 8)),
+            (8, lean(_moved(_with(READY,
+                           LeftUpLeg=(-6, 0, -17), LeftLeg=(30, 0, 0),
+                           RightUpLeg=(-6, 0, 17), RightLeg=(30, 0, 0),
+                           LeftArm=(0, 46, -36), LeftForeArm=(0, 0, -58),
+                           RightArm=(0, -42, 40), RightForeArm=(0, 0, 66)),
+                        (0.0, 0.0, -0.06)), 12)),
+            (12, lean(_moved(_with(READY,
+                           LeftUpLeg=(-10, 0, -3), LeftLeg=(16, 0, 0),
+                           RightUpLeg=(-10, 0, 3), RightLeg=(16, 0, 0),
+                           LeftArm=(0, 50, -30), LeftForeArm=(0, 0, -52),
+                           RightArm=(0, -46, 34), RightForeArm=(0, 0, 60)),
+                        (0.0, 0.0, 0.03)), 8)),
+            (16, lean(_moved(_with(READY,
+                           LeftUpLeg=(-6, 0, -17), LeftLeg=(30, 0, 0),
+                           RightUpLeg=(-6, 0, 17), RightLeg=(30, 0, 0),
+                           LeftArm=(0, 46, -36), LeftForeArm=(0, 0, -58),
+                           RightArm=(0, -42, 40), RightForeArm=(0, 0, 66)),
+                        (0.0, 0.0, -0.06)), 12)),
         ],
     },
     # Bent double with hands on the knees, between rallies in a long third game.

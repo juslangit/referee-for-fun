@@ -100,10 +100,15 @@ static func _style_buttons(theme: Theme) -> void:
 	# A slanted plate with a bar of colour down the leading edge that brightens on hover.
 	# It reads as a broadcast caption, and it gives the button an obvious focus state
 	# without resorting to an outline, which at this size looks like a mistake.
+	#
+	# These four are the fallback for any button that is not made live. Every button in a
+	# menu goes through `RefereeUI._make_live()`, which replaces all four with one plate it
+	# owns and tweens between dark and gold — see the long note there for why hover and
+	# focus had to stop being two different looks.
 	theme.set_stylebox("normal", "Button", _button_style(RAISED, ACCENT.darkened(0.45)))
 	theme.set_stylebox("hover", "Button", _button_style(RAISED.lightened(0.14), ACCENT))
 	theme.set_stylebox("pressed", "Button", _button_style(RAISED.darkened(0.22), ACCENT))
-	theme.set_stylebox("focus", "Button", _button_style(RAISED.lightened(0.06), ACCENT))
+	theme.set_stylebox("focus", "Button", _button_style(RAISED.lightened(0.24), ACCENT))
 	theme.set_stylebox("disabled", "Button", _button_style(CARD, EDGE.darkened(0.4)))
 
 	theme.set_font("font", "Button", heavy())
@@ -116,14 +121,30 @@ static func _style_buttons(theme: Theme) -> void:
 	theme.set_constant("h_separation", "Button", 12)
 
 
-static func _button_style(fill: Color, edge: Color) -> StyleBoxFlat:
+const RESTING_EDGE := 8
+
+
+## A plate a single button owns and animates for itself, rather than one of the four the
+## theme hands out per state.
+##
+## The theme's styleboxes are shared: every Button in the game draws the same `normal` and
+## the same `hover`. That is right for a stylebox nobody changes, and useless for one that
+## has to be tweened, because tweening a shared box would light every button at once. A
+## button that wants to animate takes a copy of the resting plate and keeps it.
+##
+## It starts at rest. `RefereeUI._paint_live()` moves it from there.
+static func live_button_style() -> StyleBoxFlat:
+	return _button_style(RAISED, ACCENT.darkened(0.45))
+
+
+static func _button_style(fill: Color, edge: Color, edge_width := RESTING_EDGE) -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()
 	box.bg_color = fill
 	box.set_content_margin_all(14)
 	box.content_margin_left = 30
 	box.content_margin_right = 30
 	box.skew = Vector2(LEAN, 0.0)
-	box.border_width_left = 8
+	box.border_width_left = edge_width
 	box.border_color = edge
 	box.anti_aliasing = true
 	return box

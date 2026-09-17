@@ -12,8 +12,11 @@ config_version=5
 
 config/name="Referee For Fun"
 config/description="You are the referee. The game knows the truth. You don't have to tell it."
-run/main_scene="res://scenes/match.tscn"
+run/main_scene="res://scenes/boot.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
+boot_splash/bg_color=Color(0.043, 0.051, 0.066, 1)
+boot_splash/stretch_mode=0
+boot_splash/image="res://assets/icon.png"
 config/icon="res://assets/icon.png"
 
 [display]

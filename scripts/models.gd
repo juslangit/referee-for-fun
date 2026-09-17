@@ -88,7 +88,16 @@ const SHUTTLE_LENGTH := 0.085
 ## The Meshy characters need no sizing at all — they are generated at a real height with
 ## their feet on the floor — so unlike the downloaded ones there is no settle() step.
 ## Put a racket in their hand and they are ready.
-static func player(team: Sides.Team) -> Node3D:
+## `libero` picks the third character file — the same body in the repainted shirt. It is
+## a model choice made before the figure is built rather than a material put on afterwards,
+## because the material route does not draw (see `tools/meshy/bake_kit.py`).
+static func player(team: Sides.Team, libero := false) -> Node3D:
+	if libero:
+		var kitted := _load_ready(str(LIBERO_MODELS.get(team, "")))
+		if kitted != null:
+			kitted.set_meta("kitted", true)
+			return kitted
+		push_warning("no libero model for %s — falling back to the team kit" % Sides.label(team))
 	var figure := _load_ready(PLAYERS.get(team, PLAYERS[Sides.Team.BLUE]))
 	if figure != null:
 		# Their kit is already the right colour, so there is nothing to put on them.
@@ -150,8 +159,48 @@ static func dress_player(figure: Node3D, carries := &"badminton") -> void:
 	# players do not need one — one of them is dressed in blue and the other in red.
 	if not figure.get_meta("kitted", false):
 		_add_bib(figure, figure.get_meta("bib_colour", Color.WHITE))
+	_fit_sockets(figure)
 	if carries != &"":
 		_hold_racket(figure, carries)
+
+
+## The bone a hand is, and the bone a kicking foot is. Every rig names them its own way,
+## so they are all tried, the same as the racket hand.
+const HITTING_HANDS := ["RightHand", "hand.R", "R.hand_028"]
+const KICKING_FEET := ["RightFoot", "foot.R", "R.foot_028"]
+const HEADERS := ["Head", "head", "head_02"]
+
+## The other hand. Three of volleyball's four touches are made with both — a dig off the
+## forearms, a set out of the fingers of both hands, a block with both arms over the tape —
+## and the ball meets them in the middle, not at either one.
+const OTHER_HANDS := ["LeftHand", "hand.L", "L.hand_028"]
+
+
+## Hangs an empty on the hand, on the kicking foot and on the head, so that whoever is
+## holding the figure can ask where any of them is at any moment.
+##
+## Volleyball and sepak takraw put nothing in the hand, so until now there was nothing on
+## the rig to ask: a dig, a spike and a kick were all struck from the middle of the
+## player's chest because that was the only point anybody knew. The racket has had this
+## all along, by accident — it needs a bone attachment to be carried at all.
+static func _fit_sockets(figure: Node3D) -> void:
+	var skeleton := _find_skeleton(figure)
+	if skeleton == null:
+		return
+	for pair in [["hand", HITTING_HANDS], ["foot", KICKING_FEET], ["head", HEADERS],
+			["other_hand", OTHER_HANDS]]:
+		var bone := ""
+		for candidate in pair[1]:
+			if skeleton.find_bone(candidate) >= 0:
+				bone = candidate
+				break
+		if bone.is_empty():
+			continue
+		var socket := BoneAttachment3D.new()
+		socket.name = "%sSocket" % String(pair[0]).capitalize()
+		socket.bone_name = bone
+		skeleton.add_child(socket)
+		figure.set_meta(String(pair[0]), socket)
 
 
 ## Puts a racket in the player's right hand, on the bone, so it moves with the arm.
@@ -282,8 +331,16 @@ static func _slide_grip_into_hand(socket: Node3D, held: Node3D) -> void:
 
 	# Move the grip end to just inside the fist, dragging the head out the other way.
 	var grip := highest if spread_low > spread_high else lowest
-	var shift := axis * (-grip - GRIP_INSET * signf(grip))
+	var along := -grip - GRIP_INSET * signf(grip)
+	var shift := axis * along
 	held.position += socket.global_transform.basis.inverse() * shift
+
+	# And where the head finished, in the racket's own space, so that whoever is holding
+	# it can find the part that touches the ball. It is measured here because this is the
+	# one place that knows which end is which — the wide end is the head, and every number
+	# above is in world space along the socket's own axis.
+	var head := (lowest if grip == highest else highest) + along
+	held.set_meta("head", held.global_transform.affine_inverse() * (hand + axis * head))
 
 
 static func _world_aabb(node: Node3D) -> AABB:
@@ -310,6 +367,60 @@ static func _world_aabb(node: Node3D) -> AABB:
 ## Puts a whole figure, and everything hanging off it, on one visual layer.
 static func set_layer(node: Node, layer: int) -> void:
 	_set_layer(node, layer)
+
+
+## The libero's kit: the same character in a different shirt, which is what the sport
+## actually does.
+##
+## `wear_bib()` below strapped a 0.34 x 0.40 x 0.26 m box to the chest bone instead, and
+## it read as exactly that. Luqman, 2026-09-17, on a screenshot of it: "change to
+## different cloth, dont put block like that".
+##
+## The note above `wear_bib` was right that a material tint cannot do this — multiplying
+## a red kit by yellow gives a dirty red, and stains the skin and shorts with it. What it
+## missed is that the kit does not have to be tinted at runtime: it can be repainted once,
+## in texture space, where the shirt is a separate region of the sheet. That is
+## `tools/meshy/recolour_kit.py`, and it keeps every fold and seam because it moves the
+## hue and leaves the relative light and shade alone.
+##
+## Falls back to the box if the repainted sheet is missing, the same way every model here
+## falls back to a figure made of boxes: a libero in a bib is worse than a libero in a
+## shirt and far better than a crash.
+static func wear_libero_kit(figure: Node3D, sheet_path: String, fallback: Color) -> void:
+	if figure == null:
+		return
+	if not ResourceLoader.exists(sheet_path):
+		push_warning("no libero kit at %s — falling back to the bib" % sheet_path)
+		wear_bib(figure, fallback)
+		return
+	var sheet: Texture2D = load(sheet_path)
+	for node in figure.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance.mesh == null:
+			continue
+		for surface in mesh_instance.mesh.get_surface_count():
+			# `surface_get_material()` rather than `get_active_material()`. The latter is
+			# what the first attempt used and it is the wrong question: on an imported
+			# glTF the active material can come back from the ImporterMesh rather than
+			# from the surface, and the copy made from it was never the material the
+			# renderer was drawing — which is why the shirt stayed blue with a correct
+			# yellow texture sitting on a correctly-found, visible mesh.
+			var was: Material = mesh_instance.mesh.surface_get_material(surface)
+			var now: StandardMaterial3D = (was.duplicate() if was is StandardMaterial3D
+				else StandardMaterial3D.new())
+			now.albedo_texture = sheet
+			mesh_instance.set_surface_override_material(surface, now)
+			# And a material_override as well, which outranks everything else on the
+			# instance. Belt and braces on the one thing the player has to be able to see.
+			mesh_instance.material_override = now
+
+
+## The libero's own character file, wearing the repainted kit. A third model beside the
+## two teams, not a material swapped onto one of them — see `tools/meshy/bake_kit.py`.
+const LIBERO_MODELS := {
+	Sides.Team.RED: "res://assets/meshy/player_red_libero/player_red_libero_animated.glb",
+	Sides.Team.BLUE: "res://assets/meshy/player_blue_libero/player_blue_libero_animated.glb",
+}
 
 
 static func wear_bib(figure: Node3D, colour: Color) -> void:
@@ -441,6 +552,11 @@ static func arms_of(skeleton: Skeleton3D) -> Dictionary:
 				found[side] = at
 				break
 	return found
+
+
+## The rig inside a figure, for whoever needs to pose it and look at the result.
+static func skeleton(figure: Node) -> Skeleton3D:
+	return _find_skeleton(figure)
 
 
 static func _find_skeleton(node: Node) -> Skeleton3D:

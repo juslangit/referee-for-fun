@@ -13,7 +13,7 @@ They are sorted by what they do with what they find:
 
 | folder | what is in it |
 |---|---|
-| `checks/` | **91 scenes that print numbers.** Everything with an answer that can be wrong: fair play, aim, scoring, rotation, pricing, whether a match can finish. These are the ones to run after changing anything. |
+| `checks/` | **93 scenes that print numbers.** Everything with an answer that can be wrong: fair play, aim, scoring, rotation, pricing, whether a match can finish. These are the ones to run after changing anything. |
 | `looks/` | **59 scenes that take pictures.** The hall from the chair, a lesson page, a pose held at the frame that matters. Judged by eye, because some things only a person can see. |
 | `shots/` | Where the pictures land. Ignored by git — output, not source. |
 
@@ -75,6 +75,8 @@ The ones worth keeping in mind:
 | `_readme` | The six pictures in the top-level README, written into `docs/`. Kept as a scene so they can be retaken after the game changes rather than slowly becoming a photograph of a version nobody can play. |
 | `_courtshot` | The same serve from the chair, lined up correctly and then with each side in the wrong box — the only way to check that the call is fair to ask for. |
 | `_debt` | Does the umpire's own first visible mistake trap them? Checks both that the trap fires and that it never fires on a call the hall could not see. |
+| `_offsets` | Does a character know where its own racket, hands and feet are? Prints every stroke's measured contact point and checks that the strokes disagree with each other and that each is somewhere a body could put it. Written after a one-frame speed-up made all seventeen strokes report the same offset — measured-looking and wrong. |
+| `_contact` | Do the players face the ball, and does the thing they hit it with actually touch it? Two numbers per sport: the worst angle anybody turned off square while moving — a quarter turn past it is their back to the net — and the distance from the racket head, the hand or the kicking foot to the ball at the moment of every contact. `SPORT=`, `RALLIES=`, `EVERY=1` to print every contact. Ends in PASS or FAIL. |
 | `_props`, `_people` | Every downloaded model in a row, at the size it is used, so a model that arrived upside down is seen before three hundred of it are put in the stands. |
 
 Every one of these writes its pictures into `shots/`. Twenty-one of them used to write
