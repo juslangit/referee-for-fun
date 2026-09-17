@@ -100,10 +100,19 @@ static func _style_buttons(theme: Theme) -> void:
 	# A slanted plate with a bar of colour down the leading edge that brightens on hover.
 	# It reads as a broadcast caption, and it gives the button an obvious focus state
 	# without resorting to an outline, which at this size looks like a mistake.
+	#
+	# The focused plate widens that bar rather than adding anything new to the button.
+	# Until 2026-09-17 focus differed from rest by a slightly brighter sliver eight pixels
+	# wide, which was enough while focus could only be reached by clicking — nobody ever
+	# saw it, because clicking a button also presses it. Now that the whole menu can be
+	# walked with the arrow keys, the focused plate is the only thing telling you where
+	# you are, and a difference nobody can see at a glance is the same as no keyboard
+	# support at all. Hence a bar wide enough to find from across the room, in the
+	# language the buttons already speak.
 	theme.set_stylebox("normal", "Button", _button_style(RAISED, ACCENT.darkened(0.45)))
 	theme.set_stylebox("hover", "Button", _button_style(RAISED.lightened(0.14), ACCENT))
 	theme.set_stylebox("pressed", "Button", _button_style(RAISED.darkened(0.22), ACCENT))
-	theme.set_stylebox("focus", "Button", _button_style(RAISED.lightened(0.06), ACCENT))
+	theme.set_stylebox("focus", "Button", _button_style(RAISED.lightened(0.24), ACCENT, FOCUS_EDGE))
 	theme.set_stylebox("disabled", "Button", _button_style(CARD, EDGE.darkened(0.4)))
 
 	theme.set_font("font", "Button", heavy())
@@ -116,14 +125,19 @@ static func _style_buttons(theme: Theme) -> void:
 	theme.set_constant("h_separation", "Button", 12)
 
 
-static func _button_style(fill: Color, edge: Color) -> StyleBoxFlat:
+## How wide the leading bar goes when a button has the keyboard.
+const FOCUS_EDGE := 26
+const RESTING_EDGE := 8
+
+
+static func _button_style(fill: Color, edge: Color, edge_width := RESTING_EDGE) -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()
 	box.bg_color = fill
 	box.set_content_margin_all(14)
 	box.content_margin_left = 30
 	box.content_margin_right = 30
 	box.skew = Vector2(LEAN, 0.0)
-	box.border_width_left = 8
+	box.border_width_left = edge_width
 	box.border_color = edge
 	box.anti_aliasing = true
 	return box

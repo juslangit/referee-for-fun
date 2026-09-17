@@ -266,6 +266,87 @@ func _ready() -> void:
 	add_child(clicks)
 
 
+# --- keyboard ---------------------------------------------------------------------
+#
+# Every menu in this game could only ever be worked with a mouse. The theme has had a
+# distinct focus state for its buttons since it was written — `_style_buttons()` sets a
+# lit `focus` stylebox and a white `font_focus_color`, and the comment above it says in
+# so many words that it "gives the button an obvious focus state" — and Godot moves focus
+# between controls on the arrow keys and presses the focused one on `ui_accept` without
+# being asked. All of that was already true and none of it was reachable, because
+# **nothing ever took focus in the first place**, and with nothing focused the arrow keys
+# have nowhere to start from.
+#
+# So this is two calls rather than a navigation system: take focus when a menu opens,
+# give it back when the menu closes.
+#
+# Giving it back is not tidiness. `match.gd` starts a rally on SPACE in `Phase.READY`,
+# and a focused Button eats `ui_accept` before `_unhandled_input` ever sees it. A button
+# left focused behind a match would swallow the serve key and press REFEREE THIS MATCH
+# again instead, which would look exactly like the serve key having stopped working.
+
+
+## Focus the first button a player would reach for: the first one in tree order that is
+## actually on screen and actually pressable.
+##
+## Tree order rather than position, because every menu here is built top to bottom with
+## its main action first — PLAY, REFEREE THIS MATCH, RESUME — so the first button is the
+## one already meant to be the default. Godot works out the arrow-key neighbours from the
+## layout on its own.
+##
+## `_is_dying()` is the part that took two goes to get right, and it is worth writing down
+## because nothing about it is visible from the outside.
+##
+## The title screen and the career screen rebuild themselves by calling `queue_free()` on
+## the children of their column. `queue_free()` does not take a node out of the tree — it
+## takes it out at the *end of the frame*. So for the whole of the frame in which a menu
+## is rebuilt, the old buttons are still present, still visible, still findable, sitting
+## in front of the new ones in tree order. Focus landed on one of those and then
+## evaporated a frame later when it was freed.
+##
+## The first attempt at a guard asked the button itself, and that is not enough: what was
+## queued is the *wrapper container* the button sits in, so `is_queued_for_deletion()` on
+## the button answers false while its parent is on its way out. The question has to be
+## asked of every ancestor up to the menu's own root.
+##
+## Symptom, for anyone who meets it again: the menu is focused the first time it is ever
+## opened and dead every time after, because the first time there is nothing stale to
+## find. A probe printed ten buttons on a five-button screen, which is what gave it away.
+func _focus_first(root: Node) -> void:
+	if root == null:
+		return
+	for node in root.find_children("*", "Button", true, false):
+		var button := node as Button
+		if button.disabled or not button.is_visible_in_tree():
+			continue
+		if _is_dying(button, root):
+			continue
+		button.grab_focus()
+		return
+
+
+## Is this node, or anything it hangs from up to `root`, already on its way out?
+func _is_dying(node: Node, root: Node) -> bool:
+	var walk := node
+	while walk != null:
+		if walk.is_queued_for_deletion():
+			return true
+		if walk == root:
+			return false
+		walk = walk.get_parent()
+	return false
+
+
+## Let go, so that no button is listening when the match wants the keyboard back.
+func _release_focus() -> void:
+	var viewport := get_viewport()
+	if viewport == null:
+		return
+	var held := viewport.gui_get_focus_owner()
+	if held != null:
+		held.release_focus()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	# Escape closes the pause menu. It has to be handled here rather than in the
 	# match, because the match is paused and is not being given input at all.
@@ -481,6 +562,7 @@ func show_main_menu(career: Career) -> void:
 	_main_menu_column.add_child(_stretch())
 
 	_main_menu.visible = true
+	_focus_first(_main_menu)
 
 
 ## One button on the title screen. Wider than a footer button and all of them the same
@@ -595,6 +677,7 @@ func show_format_menu(sport: StringName) -> void:
 	_format_column.add_child(_gap(20))
 	_format_column.add_child(_menu_footer(AT_FORMAT))
 	_format_menu.visible = true
+	_focus_first(_format_menu)
 
 
 func hide_format_menu() -> void:
@@ -724,10 +807,12 @@ func show_sport_menu() -> void:
 	if _hud != null:
 		_hud.visible = false
 	_sport_menu.visible = true
+	_focus_first(_sport_menu)
 
 
 func hide_sport_menu() -> void:
 	_sport_menu.visible = false
+	_release_focus()
 
 
 # --- the review ------------------------------------------------------------------
@@ -1469,6 +1554,7 @@ func show_teaching(sport := Career.BADMINTON) -> void:
 	_lesson = 0
 	_draw_lesson()
 	_teaching.visible = true
+	_focus_first(_teaching)
 
 
 func hide_teaching() -> void:
@@ -1711,6 +1797,7 @@ func show_settings(settings: Settings, over_a_match := false) -> void:
 		_hud.visible = false
 	_build_settings_menu(settings)
 	_settings_menu.visible = true
+	_focus_first(_settings_menu)
 
 
 func hide_settings() -> void:
@@ -1778,6 +1865,7 @@ func show_pause_menu(can_leave_freely := false) -> void:
 		_leave_button.visible = can_leave_freely
 		_leave_note.visible = can_leave_freely
 	_pause_menu.visible = true
+	_focus_first(_pause_menu)
 
 
 
@@ -2322,6 +2410,7 @@ func clear_messages() -> void:
 
 
 func hide_pause_menu() -> void:
+	_release_focus()
 	_pause_menu.visible = false
 	# Back to whatever the umpire was still reading when they paused. The shout is not
 	# put back with it: a bubble is somebody speaking at a moment, and that moment has
@@ -2391,6 +2480,7 @@ func show_history(career: Career) -> void:
 	_history_column.add_child(_gap(18))
 	_history_column.add_child(_menu_footer(AT_HISTORY))
 	_history_panel.visible = true
+	_focus_first(_history_panel)
 
 
 ## One match. The cost is what it did to your name, which is the only number here that
@@ -2479,6 +2569,7 @@ func show_career(career: Career) -> void:
 		)))
 		_career_column.add_child(_gap(16))
 		_career_column.add_child(_menu_footer(AT_CAREER))
+		_focus_first(_career_panel)
 		return
 
 	_career_column.add_child(_make_label("YOUR CAREER", TITLE_SIZE - 4, Color(0.95, 0.95, 0.93)))
@@ -2613,6 +2704,7 @@ func show_career(career: Career) -> void:
 	# player who opened it to look at the ladder had to referee a match to leave.
 	_career_column.add_child(_gap(8))
 	_career_column.add_child(_menu_footer(AT_CAREER))
+	_focus_first(_career_panel)
 
 
 ## All five ladders at once, under the one you are standing on.
@@ -2700,6 +2792,7 @@ func show_hud(shown: bool) -> void:
 
 
 func hide_menus() -> void:
+	_release_focus()
 	_reason_paused = ""
 	if _hud != null:
 		_hud.visible = true
@@ -2920,10 +3013,12 @@ func show_briefing(pressure: Pressure) -> void:
 		Sides.colour(pressure.wants) if pressure.wants != Sides.Team.NONE
 		else Color(0.95, 0.90, 0.60))
 	_briefing.visible = true
+	_focus_first(_briefing)
 
 
 func hide_briefing() -> void:
 	_briefing.visible = false
+	_release_focus()
 
 
 ## The match starts the moment the briefing is dismissed, or straight away when there
@@ -3497,6 +3592,7 @@ func show_ending(headline: String, detail: String, tint := Color(0.96, 0.42, 0.3
 	_ending_headline.add_theme_color_override("font_color", tint)
 	_ending_detail.text = detail
 	_ending.visible = true
+	_focus_first(_ending)
 
 
 
