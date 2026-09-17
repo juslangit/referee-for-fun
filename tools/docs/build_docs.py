@@ -169,6 +169,10 @@ GALLERIES = [
         ("_shot_career_up", "The career screen after a promotion."),
         ("brief_grudge", "A grudge carried between matches: \"You know one of them\"."),
     ]),
+    ("packaging", "Packaging", "What a player sees before the game starts: the disk image the Mac build installs from, dressed on 2026-09-17, and the icon the app wears. Both are drawn by tools/build/make_art.py from the game's own colours and title logo.", [
+        ("tools/build/dmg/background.tiff", "The disk image window, 640x420. Finder places the game at 168,236 and the Applications shortcut at 472,236 — either side of the net, with the arrow crossing it. The court is a real doubles court: 13.4 m by 6.1 m, service lines 1.98 m from the net. This is the artwork, not a photograph of the window: the machine this was built on has no Screen Recording permission, so the window itself cannot be photographed."),
+        ("assets/icon.png", "The app icon, 1024 px: the whistle from the title logo on a tile in the court mat's green. It replaced Godot's robot, which every build wore until then because application/icon was empty in both export presets. Crisp at the sizes Finder and the Dock use; soft here, because the whistle is only 136 px in the logo and there is no larger original."),
+    ]),
 ]
 
 # Cutscenes, sport by sport, with the procedure each follows and whether Luqman has
