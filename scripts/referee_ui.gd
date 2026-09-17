@@ -2842,6 +2842,18 @@ func show_hud(shown: bool) -> void:
 		_hud.visible = shown
 
 
+## The title screen alone, without disturbing the HUD or anything else.
+##
+## `hide_menus()` is the wrong tool for this: it also makes the match HUD visible, which
+## is right on the way into a rally and wrong when the boot sequence wants the hall bare
+## behind its title card. Focus goes with it, because a focused button would eat the very
+## key press that card is waiting for.
+func hide_main_menu() -> void:
+	if _main_menu != null:
+		_main_menu.visible = false
+	_release_focus()
+
+
 func hide_menus() -> void:
 	_release_focus()
 	_reason_paused = ""
