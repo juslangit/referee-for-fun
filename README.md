@@ -104,13 +104,33 @@ and run `scenes/match.tscn`.
 ## Building it
 
     godot --headless --export-release "macOS"  "build/macos/Referee For Fun.zip"
+    tools/build/make_dmg.sh
     godot --headless --export-release "Windows" "build/windows/Referee For Fun.exe"
 
-Both presets are in `export_presets.cfg` and neither is signed, which costs nothing and
-matters differently on the two platforms. A macOS build **you** make opens with no
-warning, because Gatekeeper only quarantines files that arrived from somewhere else; one
-you send to somebody else needs a right-click → Open the first time, unless you pay
-Apple to notarise it. Windows runs unsigned with a SmartScreen warning you click past.
+Both presets are in `export_presets.cfg`. Neither asks Apple or Microsoft for anything,
+which costs nothing and matters differently on the two platforms.
+
+**Installing it should be one step on both**, and that is what `tools/build/make_dmg.sh`
+is for. Windows already is one: double-click `Referee For Fun.exe`. macOS was three —
+unzip, hunt for the `.app`, right-click → Open — so the script turns the export into
+`build/macos/Referee For Fun.dmg`, which opens to the game beside an Applications
+shortcut. Drag, done.
+
+It also re-signs the app, and the reason is not cosmetic. Godot's export arrives carrying
+*Godot's* signature — identifier `godot.macos.template_release.arm64`, Godot's team id —
+with `Sealed Resources=none`, so the signature covers the executable and not the 230 MB
+of game data next to it in `Contents/Resources`. An app in that state can be refused by
+macOS as **"the app is damaged and should be moved to the Trash"**, which reads like a
+corrupt download rather than a security prompt. The script signs it ad-hoc under this
+game's own `com.juslangit.refereeforfun`, which seals the game data in and is free.
+
+What that does **not** buy is the removal of the Gatekeeper prompt on a copy somebody
+downloads — only Apple notarisation (a paid Developer ID, 99 USD a year) clears that, and
+it was measured rather than assumed: a `.dmg` tagged with the quarantine attribute Safari
+writes is still `rejected` by `spctl`. So a download needs right-click → Open once, or
+System Settings → Privacy & Security → Open Anyway. A copy handed over on a USB stick is
+never quarantined and opens with no prompt at all. Windows runs unsigned with a
+SmartScreen warning you click past, which is the same bargain.
 
 The macOS preset is a universal binary, and that needs `import_etc2_astc` on in the
 project settings — Godot refuses a universal or arm64 export without it. The alternative
