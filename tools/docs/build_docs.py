@@ -8,11 +8,12 @@ work goes on. So this is a generator rather than a hand-written page: the projec
 the source of truth, and the page is rebuilt from them.
 
     python3 tools/docs/build_docs.py
-    python3 tools/docs/build_docs.py --publish                # and put it on the website
+    python3 tools/docs/build_docs.py --publish                # and rebuild the local records site
 
-The page is published as a website at SITE below. `docs-site publish` collects
-every project's docs/index.html and deploys them together, so the link never
-changes and anyone can open it.
+The page is gathered into a local records site at SITE below. `docs-site publish`
+collects every project's docs/index.html into ~/Documents/dev/docs-site and stops
+there - `docs-site open` opens it. Nothing is deployed: Luqman asked on
+2026-09-17 to stop using Netlify and keep the records local.
 
 Reads:
     ~/.claude/knowledge/projects/referee-for-fun/*.md and log/*.md   (override: KNOWLEDGE=...)
@@ -40,7 +41,7 @@ PROJECT = pathlib.Path(__file__).resolve().parents[2]
 KNOWLEDGE = pathlib.Path(os.environ.get(
     "KNOWLEDGE", pathlib.Path.home() / ".claude/knowledge/projects/referee-for-fun"))
 OUT = PROJECT / "docs" / "index.html"
-SITE = "https://luqman-docs.netlify.app/referee-for-fun/"   # the page on the documentation website
+SITE = pathlib.Path.home() / "Documents/dev/docs-site/referee-for-fun/index.html"   # the built page on this machine
 SHOTS = PROJECT / "dev" / "shots"
 IMAGE_WIDTH = 880
 IMAGE_QUALITY = 62
