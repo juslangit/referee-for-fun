@@ -6,6 +6,12 @@ extends Node
 ## answer here: indoor volleyball has four calls whose truth is a matter of record
 ## rather than of judgement, and a referee who knows all four must never be punished for
 ## saying so.
+##
+## That claim is the verdict this ends on: no call scored WRONG, suspicion never reaching
+## the warning, and enough rallies judged to mean a match happened. `WATCHING=no` is the
+## comparison arm and is deliberately exempt — a referee with his eyes on the ball alone
+## is supposed to be caught by the positional calls, so failing him would be failing the
+## game for working.
 
 func _ready() -> void:
 	var arena: Node = load("res://scenes/volleyball.tscn").instantiate()
@@ -92,6 +98,31 @@ func _ready() -> void:
 				within += 1
 		print("closest call:    %.3f m from the line" % near[0])
 		print("within 25 cm of a line: %d of %d" % [within, judged])
+
+	print("")
+	if OS.get_environment("WATCHING") == "no":
+		# The referee who never looks at the lineup is meant to be caught out by the four
+		# positional calls, so failing him here would be failing the game for working as
+		# designed. This arm exists to be compared against the one above it, and it says
+		# so out loud rather than ending in a silence that reads like a pass.
+		print("NOT A VERDICT  WATCHING=no is the comparison arm: %d wrong, suspicion %.3f" % [
+			wrong, arena.suspicion.level])
+		get_tree().quit()
+		return
+
+	var problems: Array[String] = []
+	if wrong > 0:
+		problems.append("%d call(s) scored WRONG — a referee who told the truth must score none" % wrong)
+	if arena.suspicion.level >= Suspicion.WARNING_LEVEL:
+		problems.append("suspicion reached %.3f — an honest referee must stay under %.2f" % [
+			arena.suspicion.level, Suspicion.WARNING_LEVEL])
+	if judged < 20:
+		problems.append("only %d rallies were judged — the match did not really play" % judged)
+	if problems.is_empty():
+		print("PASS  an honest referee judged %d rallies and was never doubted" % judged)
+	else:
+		for problem in problems:
+			print("FAIL  " + problem)
 	get_tree().quit()
 
 

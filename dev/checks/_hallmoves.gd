@@ -18,9 +18,9 @@ func _ready() -> void:
 		bad += await _hall_reacts(sport, "res://scenes/match.tscn")
 	print("")
 	if bad == 0:
-		print("the hall gets out of its seats")
+		print("PASS  the hall gets out of its seats")
 	else:
-		print("%d PROBLEM(S)" % bad)
+		print("FAIL  %d hall(s) sat through everything" % bad)
 	get_tree().quit()
 
 
