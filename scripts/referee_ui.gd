@@ -2676,6 +2676,38 @@ func show_career(career: Career) -> void:
 		history.custom_minimum_size.x = 320
 		actions.add_child(history)
 
+	# A career you can end on purpose, and not only one that ends on you.
+	#
+	# START AGAIN existed, but only in the `is_over` branch above, so the single way to
+	# clear a career that was still alive was to quit the game and delete `career.json`
+	# by hand. The signal it emits has been wired up in both `match.gd` and
+	# `officiated_match.gd` the whole time; only the button was missing.
+	#
+	# Two clicks rather than one. A dead career has nothing left to lose and gets a
+	# single press, but a living one is somebody's evenings, and the second press names
+	# how many matches are about to go so that what is being thrown away is on the
+	# button itself rather than left to be remembered. Nothing needs to disarm it: this
+	# screen is rebuilt from scratch every time `show_career` runs, so leaving and coming
+	# back is already a cancel.
+	_career_column.add_child(_gap(8))
+	var wipe := Button.new()
+	wipe.name = "StartAgain"
+	wipe.text = "START AGAIN"
+	wipe.custom_minimum_size = Vector2(FOOTER_BUTTON_WIDTH, UiTheme.BUTTON_HEIGHT)
+	var armed := {"yes": false}
+	wipe.pressed.connect(func() -> void:
+		if armed["yes"]:
+			career_restart_requested.emit()
+			return
+		armed["yes"] = true
+		wipe.text = "SURE? %d %s GO" % [
+			career.matches_refereed,
+			"MATCH" if career.matches_refereed == 1 else "MATCHES",
+		]
+		wipe.add_theme_color_override("font_color", Color(0.96, 0.42, 0.36))
+		wipe.custom_minimum_size.x = FOOTER_BUTTON_WIDTH + 120)
+	_career_column.add_child(_centred(wipe))
+
 	# The screen had no way off it at all until now: no BACK, no MAIN MENU, and the only
 	# exits were forward into a match or sideways into the lesson and the history. A
 	# player who opened it to look at the ladder had to referee a match to leave.
