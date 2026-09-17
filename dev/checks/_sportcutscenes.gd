@@ -200,6 +200,26 @@ func _walked_out(sport: String) -> void:
 	await get_tree().process_frame
 
 
+## A promotion, and the scene that shows the new hall.
+##
+## The match is refereed with nobody leaning on the umpire, and that is deliberate rather
+## than incidental. `Career.finish_match()` applies a match's pressures BEFORE it credits
+## the match to the rung, and an unsatisfied one takes the credit away again — a
+## TOURNAMENT pressure resets `matches_at_tier` to zero, a PROMOTION pressure decrements
+## it. Which side a pressure wants is a coin flip and this scenario always finishes RED
+## WIN, so half of them came out unsatisfied and there was no promotion to notice.
+##
+## That is the game working as designed: fail the people who leaned on you and you lose
+## your place in the queue. It is the assertion that was wrong. Left alone, it said "a
+## promotion is noticed" while actually testing whether a randomly generated pressure
+## happened to want the side that won, and it failed four runs out of seven — on beach,
+## takraw, tennis and indoor in turn, which is what finally gave it away. A check that
+## cries wolf more often than not is worse than no check, because the next real failure
+## gets waved through as "that flaky one again".
+##
+## So the lottery is taken out rather than re-rolled until it behaves. What a pressure
+## does to a promotion is real behaviour and deserves a check of its own; it does not
+## belong inside one that is about cutscenes.
 func _moved_up(sport: String) -> void:
 	print("=== %s moved up" % sport)
 	var arena := await _arena(WITH_SCENES[sport])
@@ -207,6 +227,10 @@ func _moved_up(sport: String) -> void:
 	arena.career.reputation = 1.0
 	var tier_before := arena.career.tier
 	await _under_way(arena)
+	# After the match has started, because starting it is what calls Pressure.for_match()
+	# and sets this. A fresh Pressure is Kind.NONE, so exists() is false and finish()
+	# has nothing to apply.
+	arena.pressure = Pressure.new()
 	arena.cutscenes = false
 	arena.finish("RED WIN", Color.RED, false)
 	await get_tree().process_frame
