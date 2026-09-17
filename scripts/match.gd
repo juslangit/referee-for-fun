@@ -73,6 +73,10 @@ const HOME_POSITIONS_SINGLES := [
 ## How many shots a rally can run to before somebody simply runs out of legs.
 const RALLY_SHOT_CAP := 16
 
+## How fast a badminton player covers the court, in metres a second, going forwards. See
+## `Player.BACKWARD_PACE` for what it costs to go the other way.
+const SPEED := 4.7
+
 ## A hard stop on a rally, in seconds. A backstop, not a design.
 const MAX_RALLY_SECONDS := 40.0
 
@@ -656,6 +660,12 @@ func build_the_players() -> void:
 		var home: Vector3 = spots[i]
 		var player := Player.new()
 		player.name = "Player%d" % i
+		# Badminton left this at the default 4 m/s while everybody could run at the same
+		# speed in every direction. They cannot any more — a backpedal costs nearly a
+		# third — so the base is raised to keep a rally the length it used to be. Without
+		# it the shuttle beat them to the back of the court and rallies lost a stroke and
+		# a half each.
+		player.speed = SPEED
 		# One of the four builds each, so the court holds four people rather than one
 		# person standing in four places.
 		add_child(player)
@@ -1030,12 +1040,13 @@ func _see_the_contact_coming(receiving: Sides.Team) -> void:
 				continue
 			if player.position_in(ahead).distance_to(Vector3(at.x, 0.0, at.z)) > player.reach:
 				continue
-			_begin_the_stroke(player, ahead, at.y > OVERHEAD_HEIGHT, step)
+			_begin_the_stroke(player, ahead, at, step)
 			return
 
 
 ## The crouch and the stroke, each started when it is its turn.
-func _begin_the_stroke(player: Player, ahead: float, overhead: bool, step: float) -> void:
+func _begin_the_stroke(player: Player, ahead: float, at: Vector3, step: float) -> void:
+	var overhead := at.y > OVERHEAD_HEIGHT
 	var contact: float = Player.CONTACT_AT["smash" if overhead else "forehand"]
 	if overhead and _wound_up_on_shot != _shots_this_rally:
 		_wound_up_on_shot = _shots_this_rally
@@ -1044,7 +1055,7 @@ func _begin_the_stroke(player: Player, ahead: float, overhead: bool, step: float
 		# Still too far off to swing at. The look-ahead runs again next frame.
 		return
 	_stroke_begun_on_shot = _shots_this_rally
-	player.begin_stroke(ahead, overhead)
+	player.begin_stroke(ahead, at, overhead)
 
 
 func _return_shot(player: Player) -> void:

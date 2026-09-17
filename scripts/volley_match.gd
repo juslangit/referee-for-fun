@@ -444,7 +444,7 @@ func start_rally() -> void:
 		server.serve_the_ball(target)
 
 	var receiver := nearest_of(Sides.opponent(serving), target)
-	receiver.chase(target)
+	receiver.chase(target, "vb_dig")
 	expect_touch(receiver, "vb_dig")
 	_phase = Phase.IN_PLAY
 	sound.whistle()
@@ -538,7 +538,7 @@ func _take_the_next_contact() -> void:
 			_digger.dig()
 			sound.strike(here, false)
 			var to_the_setter := _set_point(_possession)
-			_setter.chase(to_the_setter)
+			_setter.chase(to_the_setter, "vb_set")
 			expect_touch(_setter, "vb_set")
 			# Off the digger's platform rather than out of the air beside them.
 			send(_digger.struck_from(Vector3(here.x, DIG_HEIGHT, here.z)),
@@ -556,7 +556,7 @@ func _take_the_next_contact() -> void:
 			var illegal := _back_row_attack_wanted and _attacker_is_back_row
 			var to_the_hitter := _attack_point(_possession, _attacker_is_back_row, illegal)
 			_digger = hitter
-			hitter.chase(to_the_hitter)
+			hitter.chase(to_the_hitter, "vb_spike")
 			expect_touch(hitter, "vb_spike")
 			send(_out_of_the_setters_hands(Vector3(here.x, SET_HEIGHT, here.z)),
 				to_the_hitter, SET_ANGLE)

@@ -30,7 +30,12 @@ const LOWEST_STRIKE := 0.28
 @export var speed := 4.0
 
 ## How far from the shuttle they can still reach it, racket included.
-@export var reach := 0.95
+##
+## It is a real measurement and not a difficulty knob: an arm is about 60 cm and a badminton
+## racket 67, so a player who has stretched for one is about a metre and a quarter from it.
+## It was 0.95 while nothing checked where the racket was, and the gap between the two — a
+## third of a metre — was a third of a metre of shuttle struck by nothing at all.
+@export var reach := 1.25
 
 ## How far the player has to move in a second before they look like they are running.
 const MOVING_THRESHOLD := 0.35
@@ -148,6 +153,7 @@ func _settle_when_posed(model: Node3D) -> void:
 	Models.settle(model)
 	Models.dress_player(model, _carries())
 	_take_up_racket(model)
+	_measure_the_contacts()
 
 
 ## Picks up the racket, if this sport has one. Asking for the meta unconditionally is
@@ -188,6 +194,11 @@ func _play(clip: String, one_shot := false, speed := 1.0) -> void:
 	if clip == _clip and not one_shot:
 		return
 	if not _animator.has_animation(clip):
+		return
+	if _measuring:
+		# The rig is being posed clip by clip and cannot play anything yet. Remembered,
+		# and played the moment the measurement finishes.
+		_asked_for_while_measuring = clip
 		return
 	_clip = clip
 	_one_shot = one_shot
@@ -249,24 +260,26 @@ func swing(overhead := false) -> void:
 		# would put the racket back at the top of the backswing on the frame of contact,
 		# which is the fault `begin_stroke` exists to fix.
 		_stroke_under_way = false
+		_stroke_clip = ""
 		_swing_left = SWING_SECONDS
 		return
-	_swing(overhead, 0.0)
+	_swing("smash" if overhead else ("forehand" if randf() < 0.65 else "backhand"), 0.0)
 
 
 ## The stroke itself. `in_seconds` stretches it so that its contact frame lands then;
 ## zero plays it at its own pace, which is what an untimed swing does.
-## The three shot names are written out here rather than picked into a variable so that
+## The three shot names are written out here rather than reached through a variable so that
 ## `dev/checks/_clipaudit` can still see them: it reads the quoted strings on every line
 ## that plays something, which is how it caught a clip nobody was playing.
-func _swing(overhead: bool, in_seconds: float) -> void:
+func _swing(clip: String, in_seconds: float) -> void:
 	_swing_left = SWING_SECONDS
-	if overhead:
-		_play("smash", true, _pace_to_contact("smash", in_seconds))
-	elif randf() < 0.65:
-		_play("forehand", true, _pace_to_contact("forehand", in_seconds))
+	var pace := _pace_to_contact(clip, in_seconds)
+	if clip == "smash":
+		_play("smash", true, pace)
+	elif clip == "backhand":
+		_play("backhand", true, pace)
 	else:
-		_play("backhand", true, _pace_to_contact("backhand", in_seconds))
+		_play("forehand", true, pace)
 
 
 # --- volleyball ------------------------------------------------------------------
@@ -362,9 +375,21 @@ func serve_the_shuttle() -> void:
 
 ## Stands where the racket can reach `contact`, facing across the net.
 func stand_to_serve(contact: Vector3) -> void:
+	place_to_serve(hitting_stance(contact))
+
+
+## Stands exactly here to serve, going nowhere.
+##
+## Setting `position` on its own is not enough and never was: `_destination` still holds
+## wherever they were last sent, so the next physics frame starts walking them back to it.
+func place_to_serve(spot: Vector3) -> void:
 	_walking = false
 	chasing = false
-	position = hitting_stance(contact)
+	# Standing up to serve ends whatever stroke was still nominally running, so the serve
+	# itself is free to be started early.
+	_stroke_under_way = false
+	_stroke_clip = ""
+	position = Vector3(spot.x, 0.0, spot.z)
 	_destination = position
 	rotation.y = across_the_net()
 
@@ -379,6 +404,11 @@ func stand_to_serve(contact: Vector3) -> void:
 ## the foot fault is at the start of it and the net cord is at the end.
 func serve_for_tennis() -> void:
 	_play("tn_serve", true)
+	# Planted, like the other three serves. A tennis server used to be put on the spot and
+	# then walk back towards wherever they had last been sent while the ball was in the air,
+	# so by the moment of contact they were nearly three metres from it.
+	if _animator != null and _animator.has_animation("tn_serve"):
+		_planted_left = _animator.get_animation("tn_serve").length
 
 
 ## A serve played with the racket head above the hand, which is a fault.
@@ -427,6 +457,17 @@ func takraw_serve(toward: Vector3) -> void:
 	_play("st_serve", true)
 	if _animator != null and _animator.has_animation("st_serve"):
 		_planted_left = _animator.get_animation("st_serve").length
+
+
+## Where the kicking foot will be when it meets the serve, so the throw can be sent there.
+##
+## The ball used to be thrown to a point straight above the tekong's feet, and the foot
+## meets it two thirds of a metre in front of that — so the tekong kicked at a ball hanging
+## over their own head. `height` is what to use on a character with no rig to measure.
+func kicking_point(height: float) -> Vector3:
+	if not _contact_offset.has("st_serve"):
+		return position + Vector3(0.0, height, 0.0)
+	return contact_point("st_serve", rotation.y)
 
 
 ## An inside player's underarm toss to the tekong, with both hands. The one time in the
@@ -562,16 +603,30 @@ func _physics_process(delta: float) -> void:
 	var travelled := here.distance_to(moved) / maxf(delta, 0.0001)
 	var running := travelled > MOVING_THRESHOLD
 	var heading := moved - here
-	_turn_into_the_run(delta, heading, there.distance_to(moved))
+	if _stroke_under_way:
+		rotation.y = rotate_toward(rotation.y, _stroke_facing, TURN_SPEED * 2.0 * delta)
+	else:
+		_turn_into_the_run(delta, heading, there.distance_to(moved))
 	_animate(delta, running)
 	if _animator != null:
 		_play_footwork(running, heading)
 
 
-## The way they face when they are not looking at anything in particular: across the
-## net, at whoever they are playing. Every other angle in here is measured off it.
+## The way they face when they are not looking at anything in particular: across the net, at
+## whoever they are playing. Every other angle in here is measured off it.
+##
+## Off the half they are **standing on**, not off their team. Tennis, table tennis and
+## badminton all change ends, and a player whose square was decided by their team spent the
+## second half of every match facing the back wall: the footwork read every run at the net
+## as a retreat, backpedalled at three quarters speed towards the ball, and turned its back
+## on the rally — which is the fault all of this exists to fix, reappearing at the changeover.
+## `_contact` caught it at 178 degrees off square in tennis.
 func across_the_net() -> float:
-	return PI if Sides.half_sign(team) > 0.0 else 0.0
+	var side := position.z
+	if absf(side) < 0.05:
+		# Standing on the net itself, which happens in a cutscene rather than a rally.
+		side = Sides.half_sign(team)
+	return PI if side > 0.0 else 0.0
 
 
 ## How far a heading is from square to the net, in radians. Zero is straight at the net,
@@ -604,6 +659,10 @@ func _turn_into_the_run(delta: float, heading: Vector2, still_to_go: float) -> v
 	if heading.length() < 0.0005:
 		return
 	var want := atan2(heading.x, heading.y)
+	if _stroke_under_way:
+		# Turned into the shot and staying turned. See `_turn_into_the_shot`.
+		rotation.y = rotate_toward(rotation.y, _stroke_facing, TURN_SPEED * 2.0 * delta)
+		return
 	if not _walking:
 		# `sin` is zero straight at the net and zero straight away from it, and largest
 		# along it, which is exactly the shape the shoulders want.
@@ -682,11 +741,14 @@ func slump() -> void:
 
 
 ## Go after the shuttle, to the spot they believe it will land.
-func chase(point: Vector3) -> void:
+## `with_clip` is the stroke they are going there to play, when the sport already knows —
+## which it usually does, because it decided who was playing the next ball at the same
+## moment it decided where to put it.
+func chase(point: Vector3, with_clip := "") -> void:
 	_walking = false
 	chasing = true
 	_planted_left = 0.0
-	_destination = hitting_stance(point)
+	_destination = hitting_stance(point, with_clip)
 
 
 ## Decide the shuttle is going out and stand and watch it. This is a gamble on the
@@ -694,6 +756,7 @@ func chase(point: Vector3) -> void:
 func stand_off() -> void:
 	chasing = false
 	_stroke_under_way = false
+	_stroke_clip = ""
 
 
 ## Throws the player at a spot for a moment, overriding wherever they were going.
@@ -753,7 +816,11 @@ const CONTACT_AT := {
 	"forehand": 6.0 / 24.0,
 	"backhand": 6.0 / 24.0,
 	"serve": 8.0 / 24.0,
-	"tn_serve": 16.0 / 24.0,
+	# Frame 22, not the middle key at 16: `tn_serve` tosses on 8 and strikes on 22, which
+	# is what TennisMatch.TOSS_SECONDS is the gap between. Reading the middle key as the
+	# contact put the measurement mid-swing, with the racket down by the hip, and the ball
+	# was then tossed to meet it there.
+	"tn_serve": 22.0 / 24.0,
 	"vb_dig": 9.0 / 24.0,
 	"vb_set": 10.0 / 24.0,
 	"vb_spike": 9.0 / 24.0,
@@ -776,20 +843,106 @@ const SWING_FASTEST := 1.8
 
 ## How far the contact may drag the ball onto the implement, in metres.
 ##
-## A cap rather than a snap. When the racket is genuinely on the ball this moves it a few
-## centimetres and the two agree exactly; when the stroke has been mistimed it closes what
-## it can and leaves the rest, which is never worse than striking from where the ball was.
-const CONTACT_PULL := 0.45
+## A cap rather than a snap. Standing off the ball by the implement's own reach and turning
+## into the shot bring the two together in plan; what is left is mostly height, because a
+## forehand meets the ball at the height a forehand meets it at, whatever the ball is doing.
+## This closes that, and on a stroke that went wrong it closes what it can and leaves the
+## rest — which is never worse than striking from wherever the ball happened to be.
+const CONTACT_PULL := 0.7
 
-## Where the feet go, as a share of their reach, so the ball arrives on the implement
-## rather than on their head. Nobody stands underneath a ball they mean to hit: they stand
-## far enough off it to swing, and a little to the side the racket is on.
+## Where the feet go when the stroke that is coming has not been named, as a share of their
+## reach: behind the ball and a little to the side the racket is on. `hitting_stance` uses
+## the measured offset instead whenever it knows which stroke is being run to.
 const STANCE_BEHIND := 0.62
 const STANCE_ASIDE := 0.28
 
 ## Set when a stroke has been started early, so that the `swing` at the moment of contact
 ## lets the one already running finish instead of playing it again from the backswing.
 var _stroke_under_way := false
+
+## Which stroke is running, and which way the body was turned to play it. A stroke holds
+## its own facing: a player turns into the shot and stays turned through it, rather than
+## going on being steered by wherever their feet are still carrying them.
+var _stroke_clip := ""
+var _stroke_facing := 0.0
+
+## Where the implement is at each stroke's own moment of contact, as an offset from the
+## player's origin in the player's own frame.
+##
+## Measured on this character rather than written down: the clip is run to its contact
+## frame and the racket head, the hand or the foot is read off the rig where it has ended
+## up. It is the same measurement `VB_SERVE_REACH` and `VB_SERVE_WIDE` are, which were done
+## by hand in `dev/looks/_serveshot` and then typed in — except that these are twenty
+## numbers across seventeen clips, and a typed copy of twenty measurements is a copy that
+## will be wrong the next time a clip is touched.
+var _contact_offset := {}
+
+
+## Runs every stroke to its moment of contact and writes down where the implement was.
+##
+## Once, when the body is built. A frame is waited on between clips because a bone
+## attachment does not follow the skeleton until the skeleton has posed itself, so reading
+## the racket in the same frame the pose was set reads the previous pose.
+func _measure_the_contacts() -> void:
+	if _animator == null or _figure == null:
+		return
+	# A frame per clip, and there is no way round it. Forcing the skeleton to update does
+	# **not** carry through to the bone attachments the racket and the hands hang on: it was
+	# tried on 2026-09-17 and every clip came back with the same stale offset — one pose,
+	# seventeen times, which is worse than not measuring at all because it looks measured.
+	# `dev/checks/_offsets` exists to catch exactly that.
+	#
+	# So the cost is paid instead: the figure is hidden, and anything that asks for a clip
+	# while this is running is remembered and played the moment it finishes, because the
+	# players are rebuilt at the start of every match and a serve landing inside this window
+	# used to be played with no animation at all.
+	_measuring = true
+	_asked_for_while_measuring = ""
+	var seen := _figure.visible
+	_figure.visible = false
+	for clip in CONTACT_AT:
+		if not _animator.has_animation(clip):
+			continue
+		_animator.play(clip)
+		_animator.seek(float(CONTACT_AT[clip]), true, true)
+		await get_tree().process_frame
+		if not is_instance_valid(self) or _animator == null or _figure == null:
+			return
+		_contact_offset[clip] = (hitting_point(clip) - global_position).rotated(
+			Vector3.UP, -rotation.y)
+	_animator.stop()
+	_measuring = false
+	_clip = ""
+	_one_shot = false
+	_holding_the_crouch = 0.0
+	_figure.visible = seen
+	if _asked_for_while_measuring.is_empty():
+		_play("idle")
+	else:
+		# Whatever was wanted while this was running gets played now rather than lost.
+		_play(_asked_for_while_measuring, true)
+		_asked_for_while_measuring = ""
+
+
+## Whether the character is being measured, and the last clip anything asked for while it
+## was. See `_measure_the_contacts`.
+var _measuring := false
+var _asked_for_while_measuring := ""
+
+
+## How high the implement is at this clip's moment of contact, or below zero when the clip
+## was never measured — which is what a figure with no rig answers.
+func contact_height(clip: String) -> float:
+	return Vector3(_contact_offset[clip]).y if _contact_offset.has(clip) else -1.0
+
+
+## Where the implement will be when `clip` reaches its moment of contact, standing where
+## they are standing and facing `facing`. Falls back to wherever it is now on a clip that
+## was never measured, which is what a figure with no rig at all answers with.
+func contact_point(clip: String, facing: float) -> Vector3:
+	if not _contact_offset.has(clip):
+		return hitting_point()
+	return global_position + Vector3(_contact_offset[clip]).rotated(Vector3.UP, facing)
 
 ## Whether this sport is played with the feet, which decides what `hitting_point` answers
 ## with. Sepak takraw is the only one, and its players carry nothing — so `volleyball`,
@@ -803,16 +956,41 @@ var plays_with_the_feet := false
 ## the hand bone ever since; the hitting hand in the sports played without one; the kicking
 ## foot in sepak takraw. Falls back to a point at arm's length in front of the chest on a
 ## figure with no rig at all, which is the boxes in figure.gd.
-func hitting_point() -> Vector3:
+## `for_clip` names the stroke being asked about, which decides which part of the body
+## answers. It defaults to whatever is playing now; `_measure_the_contacts` has to say,
+## because it poses the rig directly rather than through `_play` and so never sets `_clip`.
+func hitting_point(for_clip := "") -> Vector3:
+	var clip := _clip if for_clip.is_empty() else for_clip
 	if _racket != null and is_instance_valid(_racket):
 		if _racket.has_meta("head"):
 			return _racket.global_transform * Vector3(_racket.get_meta("head"))
 		return _racket.global_position
-	var socket := _socket(&"foot" if plays_with_the_feet else &"hand")
+	# Three of volleyball's touches are made with both hands at once and the ball meets them
+	# in the middle: the forearm platform of a dig, the two hands of a set, the two arms of a
+	# block. Answering with the right hand alone puts the contact a forearm's width off every
+	# one of them, which is most of what indoor volleyball's remaining error was.
+	if TWO_HANDED.has(clip):
+		var right := _socket(&"hand")
+		var left := _socket(&"other_hand")
+		if right != null and left != null:
+			return (right.global_position + left.global_position) * 0.5
+
+	# Sepak takraw's header is the one contact in any of these sports made with a forehead,
+	# and answering with the kicking foot for it puts the contact on the floor.
+	var part := &"hand"
+	if clip == "st_header":
+		part = &"head"
+	elif plays_with_the_feet:
+		part = &"foot"
+	var socket := _socket(part)
 	if socket != null:
 		return socket.global_position
 	var facing := Vector3(sin(rotation.y), 0.0, cos(rotation.y))
 	return global_position + Vector3(0.0, BARE_SHOULDER, 0.0) + facing * BARE_REACH
+
+
+## The touches made with both hands, which are met in the middle of the two.
+const TWO_HANDED := ["vb_dig", "vb_set", "vb_block"]
 
 
 ## Where a figure with no skeleton hits from: shoulder height, at arm's length in front.
@@ -830,36 +1008,62 @@ func _socket(which: StringName) -> Node3D:
 
 ## Where the ball is actually struck from: on the implement when it is anywhere near, and
 ## drawn towards it by no more than `CONTACT_PULL` when the stroke has been mistimed.
+##
+## Never dragged far *down*, whatever the implement is doing. A shot struck a metre lower
+## than the ball really was has a metre less of net to play with, and badminton found out:
+## letting the contact fall all the way to a groundstroke's own height cost the better part
+## of a stroke a rally in shots that could no longer be got over the tape.
 func struck_from(ball_spot: Vector3) -> Vector3:
-	return ball_spot.move_toward(hitting_point(), CONTACT_PULL)
+	var point := ball_spot.move_toward(hitting_point(), CONTACT_PULL)
+	point.y = maxf(point.y, ball_spot.y - MOST_OF_A_DROP)
+	return point
+
+
+## How far below the ball the contact may be brought, in metres.
+const MOST_OF_A_DROP := 0.3
 
 
 ## Where the feet belong so that a ball arriving at `ball_spot` arrives on the implement.
 ##
-## Behind it, towards their own baseline, and offset to the side the racket swings from.
 ## Running the feet to the landing spot itself — which is what `chase` used to be handed —
 ## puts the ball on the top of the player's head, and no shot in any of these sports is
-## played from there.
-func hitting_stance(ball_spot: Vector3) -> Vector3:
+## played from there. They stand off it by however far the implement reaches, which is a
+## measured number when the stroke that is coming is known: a dig reaches half a metre in
+## front of the knees and a smash reaches most of a metre out and up, and standing the same
+## distance off the ball for both is wrong for both.
+##
+## Without a named stroke it falls back to a share of their reach, which is what every chase
+## in the game did before any of this was measured — and which is what the three racket
+## sports still use. Their implements reach further than `reach` allows them to strike from,
+## so standing at the racket's own length costs more rallies than it buys contacts: badminton
+## went from five and a half strokes a rally to two and a half. The volleyballs and sepak
+## takraw are the other way round, reaching well inside their own, and there it is the
+## measurement that puts the hands on the ball.
+func hitting_stance(ball_spot: Vector3, clip := "") -> Vector3:
 	var flat := Vector3(ball_spot.x, 0.0, ball_spot.z)
 	if _walking:
 		return flat
-	var away := Vector3(0.0, 0.0, Sides.half_sign(team))
-	var aside := (-away).cross(Vector3.UP)
+	var away := _away_from_the_net()
+	var forward := -away
+	var aside := forward.cross(Vector3.UP)
+	if _contact_offset.has(clip):
+		# The rig's own axes: the model's +X is the player's left, its +Z is in front.
+		var offset: Vector3 = _contact_offset[clip]
+		var out := Vector2(offset.x, offset.z)
+		# Never further off the ball than they are allowed to strike from. A badminton
+		# backhand puts the racket head a metre and a third out — further than `reach`,
+		# which is what decides whether a shuttle counts as reached at all — so standing
+		# at the racket's full length is standing outside their own strike zone, and
+		# every rally died on the first shot when this was first tried without the cap.
+		if out.length() > reach * MOST_OF_A_REACH:
+			out = out.normalized() * (reach * MOST_OF_A_REACH)
+		return flat + aside * out.x - forward * out.y
 	return flat + away * (reach * STANCE_BEHIND) + aside * (reach * STANCE_ASIDE)
 
 
-## Starts a named touch now so that its own moment of contact lands in `in_seconds`.
-##
-## The racket sports go through `begin_stroke`, which picks the shot; the sports played
-## with the hands and the feet name the clip themselves, because which of a dig, a set and
-## a spike this is was decided three contacts ago.
-func begin_touch(clip: String, in_seconds: float) -> bool:
-	if _stroke_under_way or _animator == null or not _animator.has_animation(clip):
-		return false
-	_stroke_under_way = true
-	_play(clip, true, _pace_to_contact(clip, in_seconds))
-	return true
+## How much of their reach they may stand off the ball by. Short of all of it, so that a
+## ball arriving a little differently from the way it was read is still inside it.
+const MOST_OF_A_REACH := 0.85
 
 
 ## Whether `clip` was already started early, and so should be left to finish rather than
@@ -874,19 +1078,93 @@ func _took_it_early(clip: String) -> bool:
 	if not _stroke_under_way:
 		return false
 	_stroke_under_way = false
+	_stroke_clip = ""
 	return _clip == clip
 
 
-## Starts the stroke now so the implement is on the ball in `in_seconds`.
+## Starts the stroke now so the implement is on the ball at `meeting` in `in_seconds`.
 ##
 ## Answers whether it started one, so a match can stop asking. The `swing` that follows at
 ## the moment of contact finds the stroke already running and leaves it alone.
-func begin_stroke(in_seconds: float, overhead := false) -> bool:
+func begin_stroke(in_seconds: float, meeting: Vector3, overhead := false) -> bool:
 	if _stroke_under_way:
 		return false
+	var clip := _stroke_for(meeting, in_seconds, overhead)
 	_stroke_under_way = true
-	_swing(overhead, in_seconds)
+	_stroke_clip = clip
+	_turn_into_the_shot(clip, meeting, in_seconds)
+	_swing(clip, in_seconds)
 	return true
+
+
+## Starts a named touch now so that its own moment of contact lands on the ball at
+## `meeting` in `in_seconds`.
+func begin_touch(clip: String, in_seconds: float, meeting: Vector3) -> bool:
+	if _stroke_under_way or _animator == null or not _animator.has_animation(clip):
+		return false
+	_stroke_under_way = true
+	_stroke_clip = clip
+	_turn_into_the_shot(clip, meeting, in_seconds)
+	_play(clip, true, _pace_to_contact(clip, in_seconds))
+	return true
+
+
+## Which stroke reaches this ball: the one whose own contact point best fits where the ball
+## will be, seen from where the player will be standing by then.
+##
+## A smash when the ball is up overhead and the rally asked for one; otherwise the
+## groundstroke that fits. A backhand on this character is played at nearly full stretch and
+## a forehand closer in, so a ball that arrives wide is a backhand and one that arrives on
+## top of somebody is a forehand — which is what a player does, and which is what puts the
+## racket where the shuttle is instead of a metre from it. It used to be a coin weighted
+## 65:35, with no reference to where the shuttle was at all.
+func _stroke_for(meeting: Vector3, in_seconds: float, overhead: bool) -> String:
+	if overhead or _contact_offset.is_empty():
+		return "smash" if overhead else ("forehand" if randf() < 0.65 else "backhand")
+	var standing := position_in(in_seconds)
+	var want := Vector2(meeting.x - standing.x, meeting.z - standing.z).length()
+	var best := "forehand"
+	var closest := INF
+	for clip in ["forehand", "backhand"]:
+		if not _contact_offset.has(clip):
+			continue
+		var offset: Vector3 = _contact_offset[clip]
+		var miss := absf(Vector2(offset.x, offset.z).length() - want) \
+			+ absf(offset.y - meeting.y)
+		if miss < closest:
+			closest = miss
+			best = clip
+	return best
+
+
+## Turns the body so that this stroke's implement points at the ball.
+##
+## This is the half of the fix the timing alone could not do. A forehand puts the racket
+## head a fixed distance out on the player's racket side at a fixed height, wherever the
+## ball happens to be — so a contact only looks like one if the player has turned that side
+## of themselves towards the ball. They were not turning at all: they ran to the spot the
+## shuttle was going to land on, stood on it, and swung at a point a metre from their
+## racket.
+##
+## The turn is capped at `MOST_OF_A_TURN` for the same reason the footwork is: a shot
+## reached by turning your back on the net is not a shot anybody plays.
+func _turn_into_the_shot(clip: String, meeting: Vector3, in_seconds: float) -> void:
+	if not _contact_offset.has(clip):
+		return
+	var offset: Vector3 = _contact_offset[clip]
+	var out := Vector2(offset.x, offset.z)
+	var standing := position_in(in_seconds)
+	var towards := Vector2(meeting.x - standing.x, meeting.z - standing.z)
+	if out.length() < 0.01 or towards.length() < 0.01:
+		return
+	var want := atan2(towards.x, towards.y) - atan2(out.x, out.y)
+	var off := wrapf(want - across_the_net(), -PI, PI)
+	_stroke_facing = across_the_net() + clampf(off, -MOST_OF_A_TURN, MOST_OF_A_TURN)
+
+
+## How far the body may be turned to play a shot. Under a quarter turn past square, which
+## is where the ball would start being behind them.
+const MOST_OF_A_TURN := deg_to_rad(85.0)
 
 
 ## How fast to play a clip so its contact lands in `in_seconds`. One when nothing is being
@@ -905,6 +1183,12 @@ func can_strike(shuttle_position: Vector3) -> bool:
 		return false
 	var gap := Vector2(shuttle_position.x - position.x, shuttle_position.z - position.z)
 	return gap.length() <= reach
+
+
+## Which way their own baseline is. The half they are standing on, for the reason
+## `across_the_net` gives.
+func _away_from_the_net() -> Vector3:
+	return Vector3(0.0, 0.0, -1.0 if across_the_net() < PI * 0.5 else 1.0)
 
 
 ## How far they still have to run to reach a point.
@@ -939,6 +1223,7 @@ func _build_body() -> void:
 			Models.dress_player(model, _carries())
 			_take_up_racket(model)
 			_set_up_clips(model)
+			_measure_the_contacts()
 		else:
 			_settle_when_posed(model)
 	else:

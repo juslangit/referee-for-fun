@@ -422,7 +422,9 @@ func start_rally() -> void:
 			TableTennisSpec.HALF_WIDTH - 0.1),
 		SERVE_HEIGHT,
 		side * (TableTennisSpec.HALF_LENGTH + SERVE_BEHIND))
-	server.position = _off_the_table(Vector3(from.x, 0.0, from.z), serving)
+	# Stood there and staying there. Setting `position` alone leaves `_destination` holding
+	# wherever they were last sent, so they walked off the serve while playing it.
+	server.place_to_serve(_off_the_table(Vector3(from.x, 0.0, from.z), serving))
 	receiver.go_home()
 
 	# The first bounce, on the server's own half. Near the middle of it: a serve that
@@ -434,7 +436,13 @@ func start_rally() -> void:
 		side * randf_range(0.35, 1.15))
 	_serve_lands_at = _serve_target()
 
-	server.serve_for_tennis()
+	# Timed so the bat is on the ball when the ball is struck, and turned so it is on the
+	# right side of the body to be. Without it the service action ran at its own pace — a
+	# contact nearly a second in, against a toss of 0.42 s — and the ball left off the
+	# server's chest with the bat still coming up. Every serve in the sport was half a metre
+	# from the bat, which is a fifth of the length of the table.
+	if not server.begin_touch("tn_serve", THROW_SECONDS, from):
+		server.serve_for_tennis()
 	sound.whistle()
 	_phase = Phase.IN_PLAY
 	ui.set_prompt("watch it")
@@ -464,8 +472,8 @@ func _throw_it_up(from: Vector3, first: Vector3) -> void:
 		return
 	sound.strike(from, false)
 	# Down onto the server's own half first. It does not cross the net, so it is sent
-	# rather than sent over — nothing to clear.
-	send(from, first, 16.0)
+	# rather than sent over — nothing to clear. Off the rubber, like every other contact.
+	send(_striker.struck_from(from) if _striker != null else from, first, 16.0)
 
 
 ## Where the serve is meant to finish, on the far half.
@@ -603,11 +611,20 @@ func _see_the_stroke_coming() -> void:
 	var player := _player(side_defending(_ball.global_position.z))
 	if player == null:
 		return
-	var due := seconds_until_it_drops_under(STRIKE_CEILING, Player.CONTACT_AT["forehand"])
+	var due := seconds_until_it_drops_under(STRIKE_CEILING, CHASE_LEAD)
 	if float(due[0]) < 0.0:
 		return
-	player.begin_stroke(maxf(float(due[0]), 0.01),
-		float(due[1]) > TableTennisSpec.HEIGHT + 0.35)
+	var meeting: Vector3 = due[1]
+	# Where the ball will be played, which is past the bounce. See TennisMatch.
+	player.chase(_off_the_table(meeting, side_defending(_ball.global_position.z)))
+	if float(due[0]) > Player.CONTACT_AT["forehand"]:
+		return
+	player.begin_stroke(maxf(float(due[0]), 0.01), meeting,
+		meeting.y > TableTennisSpec.HEIGHT + 0.35)
+
+
+## How far ahead the ball's drop is flown, in seconds. See TennisMatch.
+const CHASE_LEAD := 1.0
 
 
 func _take_the_stroke(here: Vector3) -> void:
