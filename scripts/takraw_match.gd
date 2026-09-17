@@ -41,6 +41,10 @@ const SPIKE_ANGLES := [-14.0, -6.0, 4.0, 14.0]
 ## How close the ball has to get before the next player takes it.
 const REACH := 0.8
 
+## How far the killer will run onto a set, in metres. The set is aimed inside this, because
+## a set nobody reaches is a spike played at a ball a foot could never have met.
+const FURTHEST_A_KILLER_RUNS := 2.0
+
 ## How often a spike going long clips the block on its way. The block in this sport is a back
 ## turned to the net and a pair of legs, so it touches less than a volleyball block does.
 const BLOCK_TOUCHES := 0.32
@@ -206,6 +210,10 @@ func build_the_players() -> void:
 			var player := Player.new()
 			player.name = "%s%d" % [Sides.label(team), i]
 			player.volleyball = true
+			# Played with the feet, which is what decides where the ball leaves from: the
+			# boot at the top of a roll spike, not the hand of somebody who may not
+			# legally touch it at all.
+			player.plays_with_the_feet = true
 			player.speed = SPEED
 			player.reach = 1.1
 			add_child(player)
@@ -319,7 +327,8 @@ func start_rally() -> void:
 	if playing_doubles():
 		# A doubles server throws the ball to themselves (Double Law 9).
 		_beat = Beat.SERVE
-		var from := _server.position + Vector3(0.0, SERVE_HEIGHT, 0.0)
+		_server.face(target)
+		var from := _server.kicking_point(SERVE_HEIGHT)
 		_server.takraw_serve(target)
 		toss_then_serve(from, target, SERVE_ANGLES, Player.ST_SERVE_CONTACT)
 		return
@@ -331,7 +340,8 @@ func start_rally() -> void:
 	# Thrown to arrive at the tekong's kicking height after a fixed time, rather than solved
 	# to land on the floor like every other shot: the throw is caught by a foot in the air.
 	# Over a two-metre lob drag barely matters, so the arc is worked out as if it did not.
-	var catch_at := _server.position + Vector3(0.0, SERVE_HEIGHT, 0.0)
+	_server.face(target)
+	var catch_at := _server.kicking_point(SERVE_HEIGHT)
 	var from := _thrower.position + Vector3(0.0, 0.95, 0.0)
 	var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 	_aim = catch_at
@@ -420,6 +430,9 @@ func _physics_process(delta: float) -> void:
 	if _beat == Beat.THROW:
 		return
 	if not ball_has_arrived(REACH, 2.2):
+		# Not yet — but the foot that is going to play it starts moving now, so that it is
+		# on the ball when it gets here rather than half a clip behind it.
+		start_the_touch_when_due(REACH, 2.2)
 		return
 	_take_the_next_contact()
 
@@ -432,6 +445,15 @@ func _kick_the_serve() -> void:
 	var target := _serve_aim
 	sound.strike(from, true)
 	send_over(from, target, SERVE_ANGLES)
+	# Whoever is nearest where it is going is the one who plays it. A serve that is still
+	# above head height when it arrives is headed instead, and the early sila is abandoned
+	# when that turns out to be what happens — see Player._took_it_early.
+	var receiver := nearest_of(Sides.opponent(_possession), target)
+	# And they go to meet it. Nobody was ever sent to a takraw serve: the receiving side
+	# stood at home and played it from wherever they happened to be, which is a metre from
+	# where the foot could reach.
+	receiver.chase(target, "st_receive")
+	expect_touch(receiver, "st_receive")
 
 
 func _take_the_next_contact() -> void:
@@ -454,8 +476,10 @@ func _take_the_next_contact() -> void:
 				sound.strike(here, false)
 				var again := Vector3(randf_range(-1.2, 1.2), TakrawCourt.SURFACE_Y,
 					Sides.half_sign(_possession) * 3.2)
-				_setter.chase(again)
-				send(Vector3(here.x, RECEIVE_HEIGHT, here.z), again, RECEIVE_ANGLE)
+				_setter.chase(again, "st_set")
+				expect_touch(_setter, "st_set")
+				send(helper.struck_from(Vector3(here.x, RECEIVE_HEIGHT, here.z)),
+					again, RECEIVE_ANGLE)
 				return
 			rally.contacts += 1
 			_beat = Beat.SET
@@ -489,8 +513,11 @@ func _receive(here: Vector3) -> void:
 	sound.strike(here, false)
 	var to_the_setter := Vector3(randf_range(-1.4, 1.4), TakrawCourt.SURFACE_Y,
 		Sides.half_sign(_possession) * 1.7)
-	_setter.chase(to_the_setter)
-	send(Vector3(here.x, RECEIVE_HEIGHT, here.z), to_the_setter, RECEIVE_ANGLE)
+	_setter.chase(to_the_setter, "st_set")
+	expect_touch(_setter, "st_set")
+	# Off the foot that played it rather than out of the air above it.
+	send(_receiver.struck_from(Vector3(here.x, RECEIVE_HEIGHT, here.z)),
+		to_the_setter, RECEIVE_ANGLE)
 
 
 ## The second touch: the feeder puts it up near the net for the killer.
@@ -501,8 +528,19 @@ func _put_it_up(here: Vector3) -> void:
 	_spiker = _someone_else(_possession, _setter)
 	var to_the_spiker := Vector3(clampf(here.x + randf_range(-1.2, 1.2), -2.2, 2.2),
 		TakrawCourt.SURFACE_Y, Sides.half_sign(_possession) * 0.9)
-	_spiker.chase(to_the_spiker)
-	send(Vector3(here.x, SET_HEIGHT, here.z), to_the_spiker, SET_ANGLE)
+	# Set where the killer can actually get to. A set put on the net with the spiker three
+	# metres behind it is a set nobody reaches, and the spike then happens with the ball
+	# somewhere the foot was never going to be — measured at nearly two metres away.
+	var run := Vector2(to_the_spiker.x - _spiker.position.x,
+		to_the_spiker.z - _spiker.position.z)
+	if run.length() > FURTHEST_A_KILLER_RUNS:
+		run = run.normalized() * FURTHEST_A_KILLER_RUNS
+		to_the_spiker = Vector3(_spiker.position.x + run.x, TakrawCourt.SURFACE_Y,
+			_spiker.position.z + run.y)
+	_spiker.chase(to_the_spiker, "st_spike")
+	expect_touch(_spiker, "st_spike")
+	send(_setter.struck_from(Vector3(here.x, SET_HEIGHT, here.z)) if _setter != null
+		else Vector3(here.x, SET_HEIGHT, here.z), to_the_spiker, SET_ANGLE)
 
 
 ## The spike, the block, and the call the whole rally was building to.
@@ -529,7 +567,9 @@ func _attack(from: Vector3) -> void:
 		_spiker.takraw_spike()
 	sound.strike(from, true)
 	_meet_the_attack(against, from)
-	send_over(from, target, SPIKE_ANGLES)
+	# Off the boot. A roll spike is struck by the foot at the top of the turn, and that is
+	# where the ball leaves from.
+	send_over(_spiker.struck_from(from) if _spiker != null else from, target, SPIKE_ANGLES)
 
 
 ## The defending inside players turn their backs to the net and jump at the spike. A blocker

@@ -8,11 +8,12 @@ work goes on. So this is a generator rather than a hand-written page: the projec
 the source of truth, and the page is rebuilt from them.
 
     python3 tools/docs/build_docs.py
-    python3 tools/docs/build_docs.py --publish                # and put it on the website
+    python3 tools/docs/build_docs.py --publish                # and rebuild the local records site
 
-The page is published as a website at SITE below. `docs-site publish` collects
-every project's docs/index.html and deploys them together, so the link never
-changes and anyone can open it.
+The page is gathered into a local records site at SITE below. `docs-site publish`
+collects every project's docs/index.html into ~/Documents/dev/docs-site and stops
+there - `docs-site open` opens it. Nothing is deployed: Luqman asked on
+2026-09-17 to stop using Netlify and keep the records local.
 
 Reads:
     ~/.claude/knowledge/projects/referee-for-fun/*.md and log/*.md   (override: KNOWLEDGE=...)
@@ -40,7 +41,7 @@ PROJECT = pathlib.Path(__file__).resolve().parents[2]
 KNOWLEDGE = pathlib.Path(os.environ.get(
     "KNOWLEDGE", pathlib.Path.home() / ".claude/knowledge/projects/referee-for-fun"))
 OUT = PROJECT / "docs" / "index.html"
-SITE = "https://luqman-docs.netlify.app/referee-for-fun/"   # the page on the documentation website
+SITE = pathlib.Path.home() / "Documents/dev/docs-site/referee-for-fun/index.html"   # the built page on this machine
 SHOTS = PROJECT / "dev" / "shots"
 IMAGE_WIDTH = 880
 IMAGE_QUALITY = 62
@@ -774,18 +775,18 @@ TEMPLATE = """<!doctype html>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
 <style>
 :root {
-  --ground: #F3F6FA; --surface: #FFFFFF; --ink: #14202E; --muted: #56667A; --line: #D6DFE9;
-  --court: #2C68AC; --court-soft: #E3ECF7; --caption: #FFC22E; --caption-ink: #1A1400;
-  --done: #2E7D4F; --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --ground: #FAF7F2; --surface: #FFFFFF; --ink: #2B2622; --muted: #6B6259; --line: #E7E1D8;
+  --court: #2F6BB0; --court-soft: #D6E6FA; --caption: #FFEEC9; --caption-ink: #A97B12;
+  --done: #2F7A5C; --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
   --body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif; --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --ground: #0D1621; --surface: #142131; --ink: #E7EDF4; --muted: #95A5B8;
-    --line: #253649; --court: #6AA6E8; --court-soft: #18304A; --done: #6CC592; color-scheme: dark; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="light"]) { --ground: #FAF7F2; --surface: #FFFFFF; --ink: #2B2622; --muted: #6B6259;
+    --line: #E7E1D8; --court: #2F6BB0; --court-soft: #D6E6FA; --done: #2F7A5C; color-scheme: light; }
 }
-:root[data-theme="dark"] { --ground: #0D1621; --surface: #142131; --ink: #E7EDF4; --muted: #95A5B8;
-  --line: #253649; --court: #6AA6E8; --court-soft: #18304A; --done: #6CC592; color-scheme: dark; }
+:root[data-theme="dark"] { --ground: #FAF7F2; --surface: #FFFFFF; --ink: #2B2622; --muted: #6B6259;
+  --line: #E7E1D8; --court: #2F6BB0; --court-soft: #D6E6FA; --done: #2F7A5C; color-scheme: light; }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

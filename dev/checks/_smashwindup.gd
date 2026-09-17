@@ -1,19 +1,24 @@
 extends Node
 
-## Does a smash have its crouch in front of it, and does the crouch meet the strike?
+## Does a smash have its crouch in front of it, and does the crouch meet the stroke?
 ##
-## Badminton looks ahead for a smash about to be played (`_see_a_smash_coming`) and starts
-## `smash_windup`, timed to end on the strike. Three ways that can be wrong, all measured
-## on real rallies by watching which clip each player is in on every physics frame:
-## smashes that came with no crouch, crouches that came with no smash, and crouches that
-## end well before or after the racket meets the shuttle.
+## Badminton looks ahead for the contact that is coming (`_see_the_contact_coming`) and
+## starts `smash_windup`, timed to end where the smash itself begins. Three ways that can
+## be wrong, all measured on real rallies by watching which clip each player is in on every
+## physics frame: smashes that came with no crouch, crouches that came with no smash, and
+## crouches that end well before or after the stroke they lead into.
+##
+## The stroke in turn begins a quarter of a second before the shuttle is struck, because
+## that is how far into the clip the racket reaches the shuttle — so a crouch that meets
+## the stroke ends a quarter of a second before the strike, by design.
 
 ## At least this share of smashes should be seen coming. Not all can be: a shuttle that
 ## crosses the net and is struck within a third of a second leaves nothing to look ahead at.
 const SEEN_COMING_AT_LEAST := 0.6
 ## At most this share of wind-ups may lead to no smash by that player.
 const FALSE_ALARMS_AT_MOST := 0.25
-## How far the crouch's planned end may miss the strike, in seconds, at the median.
+## How far the crouch's planned end may miss the start of the stroke, in seconds, at the
+## median.
 const MEDIAN_MISS_AT_MOST := 0.08
 
 var _problems: Array[String] = []
@@ -90,7 +95,7 @@ func _ready() -> void:
 		smashes, seen_coming, 100.0 * seen_coming / maxf(1.0, smashes)])
 	print("wind-ups %d, with no smash after %d (%.0f%%)" % [
 		wind_ups, false_alarms, 100.0 * false_alarms / maxf(1.0, wind_ups)])
-	print("crouch end vs strike: median %.3f s, worst %.3f s" % [median, worst])
+	print("crouch end vs stroke: median %.3f s, worst %.3f s" % [median, worst])
 
 	if smashes < 5:
 		_problems.append("only %d smashes, too few to judge" % smashes)
@@ -99,7 +104,7 @@ func _ready() -> void:
 	if float(false_alarms) / maxf(1.0, wind_ups) > FALSE_ALARMS_AT_MOST:
 		_problems.append("over %.0f%% of wind-ups led to no smash" % (FALSE_ALARMS_AT_MOST * 100.0))
 	if median > MEDIAN_MISS_AT_MOST:
-		_problems.append("the crouch misses the strike by %.3f s at the median" % median)
+		_problems.append("the crouch misses the stroke by %.3f s at the median" % median)
 	print("PASS" if _problems.is_empty() else "FAIL:\n   " + "\n   ".join(_problems))
 	get_tree().quit()
 

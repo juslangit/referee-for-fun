@@ -71,6 +71,9 @@ const BUBBLE_HOLD := 2.4
 ## How wide each of the two footer buttons is.
 const FOOTER_BUTTON_WIDTH := 300
 
+## Every button on the title screen is this wide, whatever its word is.
+const TITLE_BUTTON_WIDTH := 420
+
 const REASON_WIDTH := 380
 const REASON_INSET := 44
 
@@ -263,6 +266,154 @@ func _ready() -> void:
 	add_child(clicks)
 
 
+# --- keyboard ---------------------------------------------------------------------
+#
+# Every menu in this game could only ever be worked with a mouse. The theme has had a
+# distinct focus state for its buttons since it was written — `_style_buttons()` sets a
+# lit `focus` stylebox and a white `font_focus_color`, and the comment above it says in
+# so many words that it "gives the button an obvious focus state" — and Godot moves focus
+# between controls on the arrow keys and presses the focused one on `ui_accept` without
+# being asked. All of that was already true and none of it was reachable, because
+# **nothing ever took focus in the first place**, and with nothing focused the arrow keys
+# have nowhere to start from.
+#
+# So this is two calls rather than a navigation system: take focus when a menu opens,
+# give it back when the menu closes.
+#
+# Giving it back is not tidiness. `match.gd` starts a rally on SPACE in `Phase.READY`,
+# and a focused Button eats `ui_accept` before `_unhandled_input` ever sees it. A button
+# left focused behind a match would swallow the serve key and press REFEREE THIS MATCH
+# again instead, which would look exactly like the serve key having stopped working.
+
+
+## Focus the first button a player would reach for: the first one in tree order that is
+## actually on screen and actually pressable.
+##
+## Tree order rather than position, because every menu here is built top to bottom with
+## its main action first — PLAY, REFEREE THIS MATCH, RESUME — so the first button is the
+## one already meant to be the default. Godot works out the arrow-key neighbours from the
+## layout on its own.
+##
+## `_is_dying()` is the part that took two goes to get right, and it is worth writing down
+## because nothing about it is visible from the outside.
+##
+## The title screen and the career screen rebuild themselves by calling `queue_free()` on
+## the children of their column. `queue_free()` does not take a node out of the tree — it
+## takes it out at the *end of the frame*. So for the whole of the frame in which a menu
+## is rebuilt, the old buttons are still present, still visible, still findable, sitting
+## in front of the new ones in tree order. Focus landed on one of those and then
+## evaporated a frame later when it was freed.
+##
+## The first attempt at a guard asked the button itself, and that is not enough: what was
+## queued is the *wrapper container* the button sits in, so `is_queued_for_deletion()` on
+## the button answers false while its parent is on its way out. The question has to be
+## asked of every ancestor up to the menu's own root.
+##
+## Symptom, for anyone who meets it again: the menu is focused the first time it is ever
+## opened and dead every time after, because the first time there is nothing stale to
+## find. A probe printed ten buttons on a five-button screen, which is what gave it away.
+func _focus_first(root: Node) -> void:
+	if root == null:
+		return
+	for node in root.find_children("*", "Button", true, false):
+		var button := node as Button
+		if button.disabled or not button.is_visible_in_tree():
+			continue
+		if _is_dying(button, root):
+			continue
+		button.grab_focus()
+		return
+
+
+## Is this node, or anything it hangs from up to `root`, already on its way out?
+func _is_dying(node: Node, root: Node) -> bool:
+	var walk := node
+	while walk != null:
+		if walk.is_queued_for_deletion():
+			return true
+		if walk == root:
+			return false
+		walk = walk.get_parent()
+	return false
+
+
+## How long a button takes to light up or go out. Short enough to feel like a response
+## rather than an effect — a menu you are arrowing down quickly must not lag behind you.
+const LIGHT_TIME := 0.11
+
+
+## Make a button light up as the selected one, and make hovering it the same act as
+## focusing it.
+##
+## Two separate faults were visible in the same screenshot on 2026-09-17, and they have
+## the same cause. PLAY was gold in its *resting* stylebox, so it looked like the chosen
+## item whatever else was chosen; and Godot draws `hover` and `focus` from different
+## stylebox slots, so pointing at one button while another held the keyboard lit **both**
+## of them. Luqman: "when i hover at a button, only that button is hover".
+##
+## Both go away by refusing the distinction. One StyleBoxFlat per button fills every state
+## slot, so Godot cannot draw two different looks no matter which states it thinks are
+## true, and `mouse_entered` grabs focus, so the pointer and the arrow keys move the same
+## single highlight. Nothing is "the gold button" any more: **gold is what selected looks
+## like**, and it travels. PLAY is still gold when the title screen opens, because PLAY is
+## what is selected when the title screen opens.
+##
+## The look is tweened rather than swapped so that moving from the mouse to the keyboard
+## and back reads as one highlight sliding about, which is what was asked for. The
+## resting plate is not touched: dark, with the thin bar down its leading edge.
+func _make_live(button: Button) -> void:
+	var box := UiTheme.live_button_style()
+	# Every state, deliberately. `disabled` is left alone — a button that cannot be
+	# pressed should not be able to look selected.
+	for state in ["normal", "hover", "focus", "pressed"]:
+		button.add_theme_stylebox_override(state, box)
+	_paint_live(button, box, 0.0)
+
+	var running := {"tween": null}
+	var light := func(towards: float) -> void:
+		var old = running["tween"]
+		if old != null and (old as Tween).is_valid():
+			(old as Tween).kill()
+		var from: float = button.get_meta(&"lit", 0.0)
+		if is_equal_approx(from, towards):
+			return
+		var tween := button.create_tween()
+		tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_method(func(t: float) -> void: _paint_live(button, box, t),
+			from, towards, LIGHT_TIME)
+		running["tween"] = tween
+
+	# Pointing at a button *is* selecting it. This is the line that makes going from the
+	# mouse to the keyboard seamless: there is only ever one selected button, and both
+	# ways of moving move the same one.
+	button.mouse_entered.connect(func() -> void:
+		if not button.disabled:
+			button.grab_focus())
+	button.focus_entered.connect(func() -> void: light.call(1.0))
+	button.focus_exited.connect(func() -> void: light.call(0.0))
+
+
+## `t` from 0 (resting) to 1 (selected), written into the one stylebox this button owns.
+## The label has to travel with it: gold plate, dark type.
+func _paint_live(button: Button, box: StyleBoxFlat, t: float) -> void:
+	button.set_meta(&"lit", t)
+	box.bg_color = UiTheme.RAISED.lerp(UiTheme.ACCENT, t)
+	box.border_color = UiTheme.ACCENT.darkened(0.45).lerp(UiTheme.ACCENT, t)
+	var type := UiTheme.CHALK.lerp(UiTheme.INK, t)
+	for slot in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color"]:
+		button.add_theme_color_override(slot, type)
+
+
+## Let go, so that no button is listening when the match wants the keyboard back.
+func _release_focus() -> void:
+	var viewport := get_viewport()
+	if viewport == null:
+		return
+	var held := viewport.gui_get_focus_owner()
+	if held != null:
+		held.release_focus()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	# Escape closes the pause menu. It has to be handled here rather than in the
 	# match, because the match is paused and is not being given input at all.
@@ -379,17 +530,30 @@ func _build_main_menu() -> void:
 	frame.add_child(_main_menu_column)
 
 
-## The title screen. Whether there is a career to go back to decides what the big tile
-## says.
+## The title screen: the logo, and five things you can do.
 ##
-## For a while the title screen said nothing about the career at all, on the grounds that
-## it made the front of the game read as a save-game manager. Luqman chose this layout on
-## 2026-09-15: a sports game's home screen, where carrying on is the largest thing on it
-## and starting something else is one click along the bottom — which is the opposite
-## problem solved the other way, by making the sports as easy to reach as the save.
+## This screen has now been all three ways round. It began saying nothing about the
+## career at all, on the grounds that it made the front of the game read as a save-game
+## manager. On 2026-09-15 Luqman chose the opposite — a sports game's home screen, with a
+## large CONTINUE CAREER tile, a lesson tile beside it and all six sports in a row along
+## the bottom. On 2026-09-17 he asked for the sports to come off it: *"i think it is best
+## the sports selection should be in other menu, not the same as main menu"*, and picked
+## a plain title screen over keeping the tiles.
 ##
-## The score bug goes away with it. It is a broadcast graphic for a match in progress,
-## and leaving it up over the title read as though a game were already running.
+## What that revealed is that the sport menu was already built and already finished —
+## `_build_sport_menu()` draws "WHICH SPORT?" with all six cards and a working footer —
+## and nothing had ever linked to it going forwards. `play_requested` was emitted only by
+## `_open()`, which is the *back* navigation, so the only way to reach that screen was to
+## already have been past it. The six tiles here were doing its job in its place. So this
+## change is not a new screen; it is one button restored to an orphaned one.
+##
+## What is deliberately lost: the old tile said CONTINUE CAREER, START YOUR CAREER or
+## CAREER OVER depending on the save, and showed the venue and reputation. The career
+## screen behind this button says all of it and says it better. A title screen that
+## reports your standing before you have asked is the save-game manager problem again.
+##
+## The score bug goes away with this screen. It is a broadcast graphic for a match in
+## progress, and leaving it up over the title read as though a game were already running.
 func show_main_menu(career: Career) -> void:
 	_arrive(AT_MAIN)
 	if _hud != null:
@@ -397,14 +561,15 @@ func show_main_menu(career: Career) -> void:
 	for child in _main_menu_column.get_children():
 		child.queue_free()
 
-	# --- the top line: the logo, and the two ways off the screen that are not a match.
-	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 16)
-	_main_menu_column.add_child(top)
+	# The shade behind this screen is dark top and bottom and clear through the middle,
+	# where the hall is. Pushing from both ends keeps the type in the dark and leaves the
+	# court visible between the logo and the buttons.
+	_main_menu_column.add_child(_stretch())
 
+	# --- the title.
 	var title := VBoxContainer.new()
 	title.add_theme_constant_override("separation", 6)
-	top.add_child(title)
+	_main_menu_column.add_child(_centred(title))
 	var logo := TextureRect.new()
 	logo.name = "TitleLogo"
 	logo.texture = load(TITLE_LOGO)
@@ -415,192 +580,65 @@ func show_main_menu(career: Career) -> void:
 	var tagline := _make_label(
 		"You are the umpire. The game knows the truth. You do not have to tell it.",
 		UiTheme.SMALL, UiTheme.MUTED)
-	tagline.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	tagline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_child(tagline)
 
-	var push := Control.new()
-	push.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(push)
-	for corner in [["SETTINGS", settings_requested], ["QUIT", quit_requested]]:
-		var button := Button.new()
-		button.text = corner[0]
-		button.custom_minimum_size = Vector2(190, UiTheme.BUTTON_HEIGHT)
-		button.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		var fire: Signal = corner[1]
-		button.pressed.connect(func() -> void: fire.emit())
-		top.add_child(button)
+	_main_menu_column.add_child(_stretch())
 
-	# --- the middle: the career, large, and the lessons beside it.
-	var middle := HBoxContainer.new()
-	middle.add_theme_constant_override("separation", 22)
-	_main_menu_column.add_child(middle)
-	middle.add_child(_career_tile(career))
-	middle.add_child(_lesson_tile())
+	# --- the five things you can do, in the order you are likely to want them.
+	#
+	# PLAY goes to WHICH SPORT?, which is what `play_requested` has always meant; the
+	# screen it opens simply had nothing pointing at it until now.
+	var stack := VBoxContainer.new()
+	stack.name = "TitleButtons"
+	stack.add_theme_constant_override("separation", 12)
+	_main_menu_column.add_child(_centred(stack))
 
-	# --- the bottom: every sport, one click each.
-	var heading := _make_label("REFEREE A SPORT", UiTheme.SMALL, UiTheme.ACCENT)
-	heading.add_theme_font_override("font", UiTheme.heavy())
-	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_main_menu_column.add_child(heading)
+	# PLAY is not painted gold. It is gold because it is the button selected when this
+	# screen opens, and it goes dark the moment the selection moves off it — see
+	# `_make_live()`. Gold means "this one", not "this is PLAY".
+	stack.add_child(_title_button("PLAY", func() -> void:
+		_main_menu.visible = false
+		play_requested.emit()))
 
-	var row := HBoxContainer.new()
-	row.name = "SportTiles"
-	row.add_theme_constant_override("separation", 18)
-	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_main_menu_column.add_child(row)
-	for sport in SPORTS:
-		var tile := _sport_card(sport, sport["id"] == career.sport and career.matches_refereed > 0)
-		tile.custom_minimum_size = Vector2(150, 220)
-		tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(tile)
+	# CAREER has to put this screen away itself. PLAY and HOW TO REFEREE are answered by
+	# handlers that call `hide_menus()`, but `_on_career_screen_requested()` only raises
+	# the career panel — the old career tile hid the menu for exactly this reason.
+	stack.add_child(_title_button("CAREER", func() -> void:
+		_main_menu.visible = false
+		career_screen_requested.emit()))
+	stack.add_child(_title_button("HOW TO REFEREE", func() -> void:
+		teaching_requested.emit()))
+	stack.add_child(_title_button("SETTINGS", func() -> void:
+		settings_requested.emit()))
+	stack.add_child(_title_button("QUIT", func() -> void:
+		quit_requested.emit()))
+
+	_main_menu_column.add_child(_stretch())
 
 	_main_menu.visible = true
+	_focus_first(_main_menu)
 
 
-## The big tile: carry on with the career, start one, or face the fact that it is over.
-## All three go to the same place — the sport the career is in — and that screen already
-## knows what to offer in each case.
-func _career_tile(career: Career) -> Button:
-	var tile := Button.new()
-	tile.name = "CareerTile"
-	tile.custom_minimum_size = Vector2(0, 208)
-	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tile.size_flags_stretch_ratio = 2.3
-	_dress_tile(tile, UiTheme.ACCENT, 10)
-	tile.pressed.connect(func() -> void:
-		_main_menu.visible = false
-		sport_chosen.emit(career.sport))
-
-	var inside := HBoxContainer.new()
-	inside.set_anchors_preset(Control.PRESET_FULL_RECT)
-	inside.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	inside.add_theme_constant_override("separation", 30)
-	tile.add_child(inside)
-
-	var mark := PlayMark.new()
-	mark.custom_minimum_size = Vector2(180, 0)
-	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	inside.add_child(mark)
-
-	var words := VBoxContainer.new()
-	words.alignment = BoxContainer.ALIGNMENT_CENTER
-	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	words.add_theme_constant_override("separation", 6)
-	inside.add_child(words)
-
-	var headline := "CONTINUE CAREER"
-	var detail := "%s  •  %s" % [
-		Career.name_of(career.sport).to_upper(), String(career.venue()["name"]).to_upper()]
-	if career.is_over:
-		headline = "CAREER OVER"
-		detail = "%d MATCHES  •  THROWN OFF %d" % [career.matches_refereed, career.times_removed]
-	elif career.matches_refereed == 0:
-		headline = "START YOUR CAREER"
-
-	var big := UiTheme.label(headline, UiTheme.HUGE - 8, UiTheme.CHALK, UiTheme.display())
-	big.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	big.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	words.add_child(big)
-	var where := UiTheme.label(detail, UiTheme.HEADING, UiTheme.MUTED, UiTheme.heavy())
-	where.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	where.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	words.add_child(where)
-
-	var standing := HBoxContainer.new()
-	standing.add_theme_constant_override("separation", 18)
-	standing.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	words.add_child(standing)
-	var out_of_100 := roundi(career.reputation * 100.0)
-	var number := UiTheme.label("REPUTATION  %d / 100" % out_of_100, UiTheme.SMALL,
-		UiTheme.CHALK, UiTheme.strong())
-	number.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	standing.add_child(number)
-	var bar := ProgressBar.new()
-	bar.min_value = 0.0
-	bar.max_value = 100.0
-	bar.value = out_of_100
-	bar.show_percentage = false
-	bar.custom_minimum_size = Vector2(0, 14)
-	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var track := StyleBoxFlat.new()
-	track.bg_color = UiTheme.INK
-	bar.add_theme_stylebox_override("background", track)
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = _meter_colour(career.reputation)
-	bar.add_theme_stylebox_override("fill", fill)
-	standing.add_child(bar)
-	var breathing := Control.new()
-	breathing.custom_minimum_size = Vector2(24, 0)
-	standing.add_child(breathing)
-	return tile
+## One button on the title screen. Wider than a footer button and all of them the same
+## width, because a stack of buttons that each fit their own word reads as a list of
+## different things rather than one menu.
+func _title_button(text: String, on_press: Callable) -> Button:
+	var button := Button.new()
+	button.name = "Title_%s" % text.replace(" ", "")
+	button.text = text
+	button.custom_minimum_size = Vector2(TITLE_BUTTON_WIDTH, UiTheme.BUTTON_HEIGHT)
+	button.pressed.connect(on_press)
+	_make_live(button)
+	return button
 
 
-## The lessons, as a tile beside the career.
-func _lesson_tile() -> Button:
-	var tile := Button.new()
-	tile.name = "LessonTile"
-	tile.custom_minimum_size = Vector2(0, 208)
-	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tile.size_flags_stretch_ratio = 1.0
-	_dress_tile(tile, UiTheme.ACCENT.darkened(0.35), 10)
-	tile.pressed.connect(func() -> void: teaching_requested.emit())
-
-	var words := VBoxContainer.new()
-	words.set_anchors_preset(Control.PRESET_FULL_RECT)
-	words.offset_left = 40
-	words.offset_right = -24
-	words.alignment = BoxContainer.ALIGNMENT_CENTER
-	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	words.add_theme_constant_override("separation", 8)
-	tile.add_child(words)
-	var big := UiTheme.label("HOW TO REFEREE", UiTheme.TITLE, UiTheme.CHALK, UiTheme.display())
-	big.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	big.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	big.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	words.add_child(big)
-	var small := UiTheme.label("The rules you are judging, and the keys.", UiTheme.SMALL,
-		UiTheme.MUTED)
-	small.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	small.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	small.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	words.add_child(small)
-	return tile
-
-
-## A tile's plate: charcoal with a thick bar down the leading edge, lit gold all round on
-## hover so the pointer always shows which tile it is over.
-func _dress_tile(tile: Button, edge: Color, edge_width: int) -> void:
-	var face := StyleBoxFlat.new()
-	face.bg_color = Color(UiTheme.CARD.r, UiTheme.CARD.g, UiTheme.CARD.b, 0.94)
-	face.border_width_left = edge_width
-	face.border_color = edge
-	face.set_content_margin_all(0)
-	tile.add_theme_stylebox_override("normal", face)
-	var lit := face.duplicate()
-	lit.bg_color = UiTheme.RAISED
-	lit.set_border_width_all(4)
-	lit.border_width_left = edge_width
-	lit.border_color = UiTheme.ACCENT
-	tile.add_theme_stylebox_override("hover", lit)
-	tile.add_theme_stylebox_override("focus", lit)
-	var pressed := lit.duplicate()
-	pressed.bg_color = UiTheme.INK
-	tile.add_theme_stylebox_override("pressed", pressed)
-
-
-## The play triangle on the career tile, drawn rather than typed: no font has one that sits
-## where a broadcast would put it.
-class PlayMark extends Control:
-	func _draw() -> void:
-		draw_rect(Rect2(Vector2.ZERO, size), Color(0.0, 0.0, 0.0, 0.28))
-		var middle := size * 0.5
-		var r := minf(size.x, size.y) * 0.24
-		draw_colored_polygon(PackedVector2Array([
-			middle + Vector2(-r * 0.7, -r), middle + Vector2(r, 0.0),
-			middle + Vector2(-r * 0.7, r)]), Color.WHITE)
+## Empty space that takes whatever is left over.
+func _stretch() -> Control:
+	var space := Control.new()
+	space.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	space.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return space
 
 
 # --- choosing a sport -----------------------------------------------------------
@@ -695,6 +733,7 @@ func show_format_menu(sport: StringName) -> void:
 	_format_column.add_child(_gap(20))
 	_format_column.add_child(_menu_footer(AT_FORMAT))
 	_format_menu.visible = true
+	_focus_first(_format_menu)
 
 
 func hide_format_menu() -> void:
@@ -715,6 +754,11 @@ func _sport_card(sport: Dictionary, yours := false) -> Button:
 		card.pressed.connect(func() -> void:
 			_main_menu.visible = false
 			sport_chosen.emit(sport["id"]))
+		# A card already draws `hover` and `focus` the same way, so all it needs is for
+		# the pointer to move the focus — otherwise the card under the mouse and the card
+		# holding the keyboard are lit at once, which is the fault Luqman caught on the
+		# title screen.
+		card.mouse_entered.connect(func() -> void: card.grab_focus())
 
 	var face := StyleBoxFlat.new()
 	face.bg_color = Color(0.110, 0.118, 0.141, 0.96)
@@ -824,10 +868,12 @@ func show_sport_menu() -> void:
 	if _hud != null:
 		_hud.visible = false
 	_sport_menu.visible = true
+	_focus_first(_sport_menu)
 
 
 func hide_sport_menu() -> void:
 	_sport_menu.visible = false
+	_release_focus()
 
 
 # --- the review ------------------------------------------------------------------
@@ -1569,6 +1615,7 @@ func show_teaching(sport := Career.BADMINTON) -> void:
 	_lesson = 0
 	_draw_lesson()
 	_teaching.visible = true
+	_focus_first(_teaching)
 
 
 func hide_teaching() -> void:
@@ -1811,6 +1858,7 @@ func show_settings(settings: Settings, over_a_match := false) -> void:
 		_hud.visible = false
 	_build_settings_menu(settings)
 	_settings_menu.visible = true
+	_focus_first(_settings_menu)
 
 
 func hide_settings() -> void:
@@ -1878,6 +1926,7 @@ func show_pause_menu(can_leave_freely := false) -> void:
 		_leave_button.visible = can_leave_freely
 		_leave_note.visible = can_leave_freely
 	_pause_menu.visible = true
+	_focus_first(_pause_menu)
 
 
 
@@ -2422,6 +2471,7 @@ func clear_messages() -> void:
 
 
 func hide_pause_menu() -> void:
+	_release_focus()
 	_pause_menu.visible = false
 	# Back to whatever the umpire was still reading when they paused. The shout is not
 	# put back with it: a bubble is somebody speaking at a moment, and that moment has
@@ -2491,6 +2541,7 @@ func show_history(career: Career) -> void:
 	_history_column.add_child(_gap(18))
 	_history_column.add_child(_menu_footer(AT_HISTORY))
 	_history_panel.visible = true
+	_focus_first(_history_panel)
 
 
 ## One match. The cost is what it did to your name, which is the only number here that
@@ -2579,6 +2630,7 @@ func show_career(career: Career) -> void:
 		)))
 		_career_column.add_child(_gap(16))
 		_career_column.add_child(_menu_footer(AT_CAREER))
+		_focus_first(_career_panel)
 		return
 
 	_career_column.add_child(_make_label("YOUR CAREER", TITLE_SIZE - 4, Color(0.95, 0.95, 0.93)))
@@ -2642,20 +2694,10 @@ func show_career(career: Career) -> void:
 	var go := _make_wide_button("REFEREE THIS MATCH", func() -> void:
 		match_requested.emit()
 	)
+	# Gold when selected, and it is what `show_career()` selects — the same rule as PLAY
+	# on the title screen. It used to be gold in its resting state, which meant it went on
+	# looking chosen while you were pointing at something else.
 	go.custom_minimum_size.x = 380
-	go.add_theme_color_override("font_color", UiTheme.INK)
-	go.add_theme_color_override("font_hover_color", UiTheme.INK)
-	go.add_theme_color_override("font_focus_color", UiTheme.INK)
-	var gold := UiTheme.slant(UiTheme.ACCENT)
-	gold.content_margin_top = 14
-	gold.content_margin_bottom = 14
-	go.add_theme_stylebox_override("normal", gold)
-	var lit := UiTheme.slant(UiTheme.ACCENT.lightened(0.25))
-	lit.content_margin_top = 14
-	lit.content_margin_bottom = 14
-	go.add_theme_stylebox_override("hover", lit)
-	go.add_theme_stylebox_override("focus", lit)
-	go.add_theme_stylebox_override("pressed", lit)
 	actions.add_child(go)
 	# And a way back to the rules of whichever sport this is.
 	#
@@ -2713,6 +2755,7 @@ func show_career(career: Career) -> void:
 	# player who opened it to look at the ladder had to referee a match to leave.
 	_career_column.add_child(_gap(8))
 	_career_column.add_child(_menu_footer(AT_CAREER))
+	_focus_first(_career_panel)
 
 
 ## All five ladders at once, under the one you are standing on.
@@ -2799,7 +2842,20 @@ func show_hud(shown: bool) -> void:
 		_hud.visible = shown
 
 
+## The title screen alone, without disturbing the HUD or anything else.
+##
+## `hide_menus()` is the wrong tool for this: it also makes the match HUD visible, which
+## is right on the way into a rally and wrong when the boot sequence wants the hall bare
+## behind its title card. Focus goes with it, because a focused button would eat the very
+## key press that card is waiting for.
+func hide_main_menu() -> void:
+	if _main_menu != null:
+		_main_menu.visible = false
+	_release_focus()
+
+
 func hide_menus() -> void:
+	_release_focus()
 	_reason_paused = ""
 	if _hud != null:
 		_hud.visible = true
@@ -2931,6 +2987,7 @@ func _footer_button(text: String, on_press: Callable) -> Button:
 	button.text = text
 	button.custom_minimum_size = Vector2(FOOTER_BUTTON_WIDTH, UiTheme.BUTTON_HEIGHT)
 	button.pressed.connect(on_press)
+	_make_live(button)
 	return button
 
 
@@ -2939,8 +2996,8 @@ func _make_wide_button(text: String, on_press: Callable) -> Button:
 	button.text = text
 	button.custom_minimum_size = Vector2(UiTheme.BUTTON_WIDTH, UiTheme.BUTTON_HEIGHT)
 	button.pressed.connect(on_press)
-	var row := button
-	return row
+	_make_live(button)
+	return button
 
 
 # --- the reason ----------------------------------------------------------------
@@ -3020,10 +3077,12 @@ func show_briefing(pressure: Pressure) -> void:
 		Sides.colour(pressure.wants) if pressure.wants != Sides.Team.NONE
 		else Color(0.95, 0.90, 0.60))
 	_briefing.visible = true
+	_focus_first(_briefing)
 
 
 func hide_briefing() -> void:
 	_briefing.visible = false
+	_release_focus()
 
 
 ## The match starts the moment the briefing is dismissed, or straight away when there
@@ -3597,6 +3656,7 @@ func show_ending(headline: String, detail: String, tint := Color(0.96, 0.42, 0.3
 	_ending_headline.add_theme_color_override("font_color", tint)
 	_ending_detail.text = detail
 	_ending.visible = true
+	_focus_first(_ending)
 
 
 

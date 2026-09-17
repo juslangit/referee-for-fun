@@ -368,7 +368,8 @@ func start_rally() -> void:
 
 	# The receiving pair read the serve and one of them goes to meet it.
 	var receiver := nearest_of(Sides.opponent(serving), target)
-	receiver.chase(target)
+	receiver.chase(target, "vb_dig")
+	expect_touch(receiver, "vb_dig")
 	_partner(Sides.opponent(serving), receiver).chase(
 		_set_point(Sides.opponent(serving)))
 	_phase = Phase.IN_PLAY
@@ -461,8 +462,18 @@ func _physics_process(delta: float) -> void:
 	if _beat == Beat.ATTACK:
 		return
 	if not ball_has_arrived(REACH, 2.6):
+		# Not yet — but the hands that are going to play it start moving now, so that
+		# they are on the ball when it gets here rather than a third of a clip behind it.
+		start_the_touch_when_due(REACH, 2.6)
 		return
 	_take_the_next_contact()
+
+
+## The set, leaving the setter's fingers rather than the point it was aimed from. There is
+## not always a setter — a rally can reach the second touch with nobody free — and then it
+## goes from where it always did.
+func _out_of_the_setters_hands(from: Vector3) -> Vector3:
+	return _setter.struck_from(from) if _setter != null else from
 
 
 func _take_the_next_contact() -> void:
@@ -479,8 +490,11 @@ func _take_the_next_contact() -> void:
 			_digger.dig()
 			sound.strike(here, false)
 			var to_the_setter := _set_point(_possession)
-			_setter.chase(to_the_setter)
-			send(Vector3(here.x, DIG_HEIGHT, here.z), to_the_setter, DIG_ANGLE)
+			_setter.chase(to_the_setter, "vb_set")
+			expect_touch(_setter, "vb_set")
+			# Off the digger's platform rather than out of the air beside them.
+			send(_digger.struck_from(Vector3(here.x, DIG_HEIGHT, here.z)),
+				to_the_setter, DIG_ANGLE)
 		Beat.DIG:
 			rally.contacts = 2
 			_beat = Beat.SET
@@ -490,8 +504,10 @@ func _take_the_next_contact() -> void:
 			sound.strike(here, false)
 			var to_the_hitter := _attack_point(_possession)
 			if _digger != null:
-				_digger.chase(to_the_hitter)
-			send(Vector3(here.x, SET_HEIGHT, here.z), to_the_hitter, SET_ANGLE)
+				_digger.chase(to_the_hitter, "vb_spike")
+				expect_touch(_digger, "vb_spike")
+			send(_out_of_the_setters_hands(Vector3(here.x, SET_HEIGHT, here.z)),
+				to_the_hitter, SET_ANGLE)
 		Beat.SET:
 			rally.contacts = 3
 			_beat = Beat.ATTACK
@@ -562,7 +578,10 @@ func _attack(from: Vector3) -> void:
 	# The one contact in the rally that the back of the stand can hear.
 	sound.strike(from, true)
 	_meet_the_attack(against, from, target)
-	send_over(from, target, [ATTACK_ANGLE, 6.0, 16.0, 28.0])
+	# Off the hitting hand. Everything above is aimed from the nominal attack height, and
+	# this is the same point moved the last few centimetres onto the hand that hits it.
+	send_over(_digger.struck_from(from) if _digger != null else from,
+		target, [ATTACK_ANGLE, 6.0, 16.0, 28.0])
 
 
 ## The bounces after the landing. The landing itself is heard in _on_ball_landed, with
