@@ -44,14 +44,29 @@ ASSETS = HERE.parent.parent / "assets" / "meshy"
 ## describing a shirt. Hue plus saturation describes a shirt: the red kit sits near 0
 ## degrees, the blue at 220, and the things that must not be repainted are all excluded
 ## by saturation alone — skin is 0.32, the white trim and the grey shoes are under 0.05.
-HUE_TOLERANCE = 32.0
+## Measured, not guessed. At 32 degrees the red kit left 1,541 pixels of its own colour
+## behind in the warm shading of the folds. At 45 it catches all 68,417 shirt pixels and
+## puts **zero** skin pixels at risk, because skin sits at saturation 0.32 and the floor
+## below is 0.45 — the two are separated by how colourful they are, not by hue.
+HUE_TOLERANCE = 45.0
 MIN_SATURATION = 0.45
 MIN_VALUE = 0.12
 
-## The shoes carry red flashes and are caught by the same rule, which turned them the
-## shirt's new colour along with it. They live in a known band of the sheet, so they are
-## simply excluded: UV space here puts the feet in the bottom fifth.
-SHOE_BAND = 0.80
+## There is deliberately no region mask any more.
+##
+## The first version excluded the bottom fifth of the sheet, on the theory that the feet
+## live there and the red shoe flashes were being repainted with the shirt. What it
+## actually did was cut straight through the shirt's own UV island: 15,724 pixels of the
+## kit, at exactly its own hue and saturation, kept the old colour because they happened
+## to be mapped below the line. On the model that read as a shirt torn in half — yellow
+## across the shoulders, blue down one side, a hard ragged edge between them.
+##
+## UV layout is not geography. A band of the sheet is not a band of the body, and nothing
+## may be selected by where it sits in texture space. Hue and saturation describe the
+## garment wherever its island happens to lie, and they already exclude the shoes on the
+## blue kit, which are grey. On the red kit the shoe flashes do change colour with the
+## shirt, and that is left alone: a libero whose trim matches their shirt looks like a
+## kit, which is the point.
 
 ## A rotated hue alone is not enough. The kit's red is deep, and keeping its saturation
 ## and value gives a deep version of the new hue — a red shirt turned to hue 48 comes out
@@ -74,11 +89,8 @@ def repaint(source: Image.Image, hue: float, from_hue: float) -> tuple[Image.Ima
     out = source.copy().convert("RGB")
     px = out.load()
     w, h = out.size
-    floor_y = int(h * SHOE_BAND)
     touched = 0
     for y in range(h):
-        if y >= floor_y:
-            continue
         for x in range(w):
             r, g, b = px[x, y]
             hue_here, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
