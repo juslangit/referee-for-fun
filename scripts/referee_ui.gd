@@ -71,6 +71,9 @@ const BUBBLE_HOLD := 2.4
 ## How wide each of the two footer buttons is.
 const FOOTER_BUTTON_WIDTH := 300
 
+## Every button on the title screen is this wide, whatever its word is.
+const TITLE_BUTTON_WIDTH := 420
+
 const REASON_WIDTH := 380
 const REASON_INSET := 44
 
@@ -379,17 +382,30 @@ func _build_main_menu() -> void:
 	frame.add_child(_main_menu_column)
 
 
-## The title screen. Whether there is a career to go back to decides what the big tile
-## says.
+## The title screen: the logo, and five things you can do.
 ##
-## For a while the title screen said nothing about the career at all, on the grounds that
-## it made the front of the game read as a save-game manager. Luqman chose this layout on
-## 2026-09-15: a sports game's home screen, where carrying on is the largest thing on it
-## and starting something else is one click along the bottom — which is the opposite
-## problem solved the other way, by making the sports as easy to reach as the save.
+## This screen has now been all three ways round. It began saying nothing about the
+## career at all, on the grounds that it made the front of the game read as a save-game
+## manager. On 2026-09-15 Luqman chose the opposite — a sports game's home screen, with a
+## large CONTINUE CAREER tile, a lesson tile beside it and all six sports in a row along
+## the bottom. On 2026-09-17 he asked for the sports to come off it: *"i think it is best
+## the sports selection should be in other menu, not the same as main menu"*, and picked
+## a plain title screen over keeping the tiles.
 ##
-## The score bug goes away with it. It is a broadcast graphic for a match in progress,
-## and leaving it up over the title read as though a game were already running.
+## What that revealed is that the sport menu was already built and already finished —
+## `_build_sport_menu()` draws "WHICH SPORT?" with all six cards and a working footer —
+## and nothing had ever linked to it going forwards. `play_requested` was emitted only by
+## `_open()`, which is the *back* navigation, so the only way to reach that screen was to
+## already have been past it. The six tiles here were doing its job in its place. So this
+## change is not a new screen; it is one button restored to an orphaned one.
+##
+## What is deliberately lost: the old tile said CONTINUE CAREER, START YOUR CAREER or
+## CAREER OVER depending on the save, and showed the venue and reputation. The career
+## screen behind this button says all of it and says it better. A title screen that
+## reports your standing before you have asked is the save-game manager problem again.
+##
+## The score bug goes away with this screen. It is a broadcast graphic for a match in
+## progress, and leaving it up over the title read as though a game were already running.
 func show_main_menu(career: Career) -> void:
 	_arrive(AT_MAIN)
 	if _hud != null:
@@ -397,14 +413,15 @@ func show_main_menu(career: Career) -> void:
 	for child in _main_menu_column.get_children():
 		child.queue_free()
 
-	# --- the top line: the logo, and the two ways off the screen that are not a match.
-	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 16)
-	_main_menu_column.add_child(top)
+	# The shade behind this screen is dark top and bottom and clear through the middle,
+	# where the hall is. Pushing from both ends keeps the type in the dark and leaves the
+	# court visible between the logo and the buttons.
+	_main_menu_column.add_child(_stretch())
 
+	# --- the title.
 	var title := VBoxContainer.new()
 	title.add_theme_constant_override("separation", 6)
-	top.add_child(title)
+	_main_menu_column.add_child(_centred(title))
 	var logo := TextureRect.new()
 	logo.name = "TitleLogo"
 	logo.texture = load(TITLE_LOGO)
@@ -415,192 +432,75 @@ func show_main_menu(career: Career) -> void:
 	var tagline := _make_label(
 		"You are the umpire. The game knows the truth. You do not have to tell it.",
 		UiTheme.SMALL, UiTheme.MUTED)
-	tagline.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	tagline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_child(tagline)
 
-	var push := Control.new()
-	push.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(push)
-	for corner in [["SETTINGS", settings_requested], ["QUIT", quit_requested]]:
-		var button := Button.new()
-		button.text = corner[0]
-		button.custom_minimum_size = Vector2(190, UiTheme.BUTTON_HEIGHT)
-		button.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		var fire: Signal = corner[1]
-		button.pressed.connect(func() -> void: fire.emit())
-		top.add_child(button)
+	_main_menu_column.add_child(_stretch())
 
-	# --- the middle: the career, large, and the lessons beside it.
-	var middle := HBoxContainer.new()
-	middle.add_theme_constant_override("separation", 22)
-	_main_menu_column.add_child(middle)
-	middle.add_child(_career_tile(career))
-	middle.add_child(_lesson_tile())
+	# --- the five things you can do, in the order you are likely to want them.
+	#
+	# PLAY goes to WHICH SPORT?, which is what `play_requested` has always meant; the
+	# screen it opens simply had nothing pointing at it until now.
+	var stack := VBoxContainer.new()
+	stack.name = "TitleButtons"
+	stack.add_theme_constant_override("separation", 12)
+	_main_menu_column.add_child(_centred(stack))
 
-	# --- the bottom: every sport, one click each.
-	var heading := _make_label("REFEREE A SPORT", UiTheme.SMALL, UiTheme.ACCENT)
-	heading.add_theme_font_override("font", UiTheme.heavy())
-	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_main_menu_column.add_child(heading)
+	var play := _title_button("PLAY", func() -> void:
+		_main_menu.visible = false
+		play_requested.emit())
+	# The one gold button on the screen, the same way REFEREE THIS MATCH is the one gold
+	# button on the career screen: whatever else is offered, this is the way in.
+	play.add_theme_color_override("font_color", UiTheme.INK)
+	play.add_theme_color_override("font_hover_color", UiTheme.INK)
+	play.add_theme_color_override("font_focus_color", UiTheme.INK)
+	var gold := UiTheme.slant(UiTheme.ACCENT)
+	gold.content_margin_top = 14
+	gold.content_margin_bottom = 14
+	play.add_theme_stylebox_override("normal", gold)
+	var lit := UiTheme.slant(UiTheme.ACCENT.lightened(0.25))
+	lit.content_margin_top = 14
+	lit.content_margin_bottom = 14
+	for state in ["hover", "focus", "pressed"]:
+		play.add_theme_stylebox_override(state, lit)
+	stack.add_child(play)
 
-	var row := HBoxContainer.new()
-	row.name = "SportTiles"
-	row.add_theme_constant_override("separation", 18)
-	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_main_menu_column.add_child(row)
-	for sport in SPORTS:
-		var tile := _sport_card(sport, sport["id"] == career.sport and career.matches_refereed > 0)
-		tile.custom_minimum_size = Vector2(150, 220)
-		tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(tile)
+	# CAREER has to put this screen away itself. PLAY and HOW TO REFEREE are answered by
+	# handlers that call `hide_menus()`, but `_on_career_screen_requested()` only raises
+	# the career panel — the old career tile hid the menu for exactly this reason.
+	stack.add_child(_title_button("CAREER", func() -> void:
+		_main_menu.visible = false
+		career_screen_requested.emit()))
+	stack.add_child(_title_button("HOW TO REFEREE", func() -> void:
+		teaching_requested.emit()))
+	stack.add_child(_title_button("SETTINGS", func() -> void:
+		settings_requested.emit()))
+	stack.add_child(_title_button("QUIT", func() -> void:
+		quit_requested.emit()))
+
+	_main_menu_column.add_child(_stretch())
 
 	_main_menu.visible = true
 
 
-## The big tile: carry on with the career, start one, or face the fact that it is over.
-## All three go to the same place — the sport the career is in — and that screen already
-## knows what to offer in each case.
-func _career_tile(career: Career) -> Button:
-	var tile := Button.new()
-	tile.name = "CareerTile"
-	tile.custom_minimum_size = Vector2(0, 208)
-	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tile.size_flags_stretch_ratio = 2.3
-	_dress_tile(tile, UiTheme.ACCENT, 10)
-	tile.pressed.connect(func() -> void:
-		_main_menu.visible = false
-		sport_chosen.emit(career.sport))
-
-	var inside := HBoxContainer.new()
-	inside.set_anchors_preset(Control.PRESET_FULL_RECT)
-	inside.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	inside.add_theme_constant_override("separation", 30)
-	tile.add_child(inside)
-
-	var mark := PlayMark.new()
-	mark.custom_minimum_size = Vector2(180, 0)
-	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	inside.add_child(mark)
-
-	var words := VBoxContainer.new()
-	words.alignment = BoxContainer.ALIGNMENT_CENTER
-	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	words.add_theme_constant_override("separation", 6)
-	inside.add_child(words)
-
-	var headline := "CONTINUE CAREER"
-	var detail := "%s  •  %s" % [
-		Career.name_of(career.sport).to_upper(), String(career.venue()["name"]).to_upper()]
-	if career.is_over:
-		headline = "CAREER OVER"
-		detail = "%d MATCHES  •  THROWN OFF %d" % [career.matches_refereed, career.times_removed]
-	elif career.matches_refereed == 0:
-		headline = "START YOUR CAREER"
-
-	var big := UiTheme.label(headline, UiTheme.HUGE - 8, UiTheme.CHALK, UiTheme.display())
-	big.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	big.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	words.add_child(big)
-	var where := UiTheme.label(detail, UiTheme.HEADING, UiTheme.MUTED, UiTheme.heavy())
-	where.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	where.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	words.add_child(where)
-
-	var standing := HBoxContainer.new()
-	standing.add_theme_constant_override("separation", 18)
-	standing.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	words.add_child(standing)
-	var out_of_100 := roundi(career.reputation * 100.0)
-	var number := UiTheme.label("REPUTATION  %d / 100" % out_of_100, UiTheme.SMALL,
-		UiTheme.CHALK, UiTheme.strong())
-	number.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	standing.add_child(number)
-	var bar := ProgressBar.new()
-	bar.min_value = 0.0
-	bar.max_value = 100.0
-	bar.value = out_of_100
-	bar.show_percentage = false
-	bar.custom_minimum_size = Vector2(0, 14)
-	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var track := StyleBoxFlat.new()
-	track.bg_color = UiTheme.INK
-	bar.add_theme_stylebox_override("background", track)
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = _meter_colour(career.reputation)
-	bar.add_theme_stylebox_override("fill", fill)
-	standing.add_child(bar)
-	var breathing := Control.new()
-	breathing.custom_minimum_size = Vector2(24, 0)
-	standing.add_child(breathing)
-	return tile
+## One button on the title screen. Wider than a footer button and all of them the same
+## width, because a stack of buttons that each fit their own word reads as a list of
+## different things rather than one menu.
+func _title_button(text: String, on_press: Callable) -> Button:
+	var button := Button.new()
+	button.name = "Title_%s" % text.replace(" ", "")
+	button.text = text
+	button.custom_minimum_size = Vector2(TITLE_BUTTON_WIDTH, UiTheme.BUTTON_HEIGHT)
+	button.pressed.connect(on_press)
+	return button
 
 
-## The lessons, as a tile beside the career.
-func _lesson_tile() -> Button:
-	var tile := Button.new()
-	tile.name = "LessonTile"
-	tile.custom_minimum_size = Vector2(0, 208)
-	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tile.size_flags_stretch_ratio = 1.0
-	_dress_tile(tile, UiTheme.ACCENT.darkened(0.35), 10)
-	tile.pressed.connect(func() -> void: teaching_requested.emit())
-
-	var words := VBoxContainer.new()
-	words.set_anchors_preset(Control.PRESET_FULL_RECT)
-	words.offset_left = 40
-	words.offset_right = -24
-	words.alignment = BoxContainer.ALIGNMENT_CENTER
-	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	words.add_theme_constant_override("separation", 8)
-	tile.add_child(words)
-	var big := UiTheme.label("HOW TO REFEREE", UiTheme.TITLE, UiTheme.CHALK, UiTheme.display())
-	big.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	big.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	big.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	words.add_child(big)
-	var small := UiTheme.label("The rules you are judging, and the keys.", UiTheme.SMALL,
-		UiTheme.MUTED)
-	small.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	small.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	small.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	words.add_child(small)
-	return tile
-
-
-## A tile's plate: charcoal with a thick bar down the leading edge, lit gold all round on
-## hover so the pointer always shows which tile it is over.
-func _dress_tile(tile: Button, edge: Color, edge_width: int) -> void:
-	var face := StyleBoxFlat.new()
-	face.bg_color = Color(UiTheme.CARD.r, UiTheme.CARD.g, UiTheme.CARD.b, 0.94)
-	face.border_width_left = edge_width
-	face.border_color = edge
-	face.set_content_margin_all(0)
-	tile.add_theme_stylebox_override("normal", face)
-	var lit := face.duplicate()
-	lit.bg_color = UiTheme.RAISED
-	lit.set_border_width_all(4)
-	lit.border_width_left = edge_width
-	lit.border_color = UiTheme.ACCENT
-	tile.add_theme_stylebox_override("hover", lit)
-	tile.add_theme_stylebox_override("focus", lit)
-	var pressed := lit.duplicate()
-	pressed.bg_color = UiTheme.INK
-	tile.add_theme_stylebox_override("pressed", pressed)
-
-
-## The play triangle on the career tile, drawn rather than typed: no font has one that sits
-## where a broadcast would put it.
-class PlayMark extends Control:
-	func _draw() -> void:
-		draw_rect(Rect2(Vector2.ZERO, size), Color(0.0, 0.0, 0.0, 0.28))
-		var middle := size * 0.5
-		var r := minf(size.x, size.y) * 0.24
-		draw_colored_polygon(PackedVector2Array([
-			middle + Vector2(-r * 0.7, -r), middle + Vector2(r, 0.0),
-			middle + Vector2(-r * 0.7, r)]), Color.WHITE)
+## Empty space that takes whatever is left over.
+func _stretch() -> Control:
+	var space := Control.new()
+	space.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	space.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return space
 
 
 # --- choosing a sport -----------------------------------------------------------
