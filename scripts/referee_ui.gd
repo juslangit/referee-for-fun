@@ -337,6 +337,73 @@ func _is_dying(node: Node, root: Node) -> bool:
 	return false
 
 
+## How long a button takes to light up or go out. Short enough to feel like a response
+## rather than an effect — a menu you are arrowing down quickly must not lag behind you.
+const LIGHT_TIME := 0.11
+
+
+## Make a button light up as the selected one, and make hovering it the same act as
+## focusing it.
+##
+## Two separate faults were visible in the same screenshot on 2026-09-17, and they have
+## the same cause. PLAY was gold in its *resting* stylebox, so it looked like the chosen
+## item whatever else was chosen; and Godot draws `hover` and `focus` from different
+## stylebox slots, so pointing at one button while another held the keyboard lit **both**
+## of them. Luqman: "when i hover at a button, only that button is hover".
+##
+## Both go away by refusing the distinction. One StyleBoxFlat per button fills every state
+## slot, so Godot cannot draw two different looks no matter which states it thinks are
+## true, and `mouse_entered` grabs focus, so the pointer and the arrow keys move the same
+## single highlight. Nothing is "the gold button" any more: **gold is what selected looks
+## like**, and it travels. PLAY is still gold when the title screen opens, because PLAY is
+## what is selected when the title screen opens.
+##
+## The look is tweened rather than swapped so that moving from the mouse to the keyboard
+## and back reads as one highlight sliding about, which is what was asked for. The
+## resting plate is not touched: dark, with the thin bar down its leading edge.
+func _make_live(button: Button) -> void:
+	var box := UiTheme.live_button_style()
+	# Every state, deliberately. `disabled` is left alone — a button that cannot be
+	# pressed should not be able to look selected.
+	for state in ["normal", "hover", "focus", "pressed"]:
+		button.add_theme_stylebox_override(state, box)
+	_paint_live(button, box, 0.0)
+
+	var running := {"tween": null}
+	var light := func(towards: float) -> void:
+		var old = running["tween"]
+		if old != null and (old as Tween).is_valid():
+			(old as Tween).kill()
+		var from: float = button.get_meta(&"lit", 0.0)
+		if is_equal_approx(from, towards):
+			return
+		var tween := button.create_tween()
+		tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_method(func(t: float) -> void: _paint_live(button, box, t),
+			from, towards, LIGHT_TIME)
+		running["tween"] = tween
+
+	# Pointing at a button *is* selecting it. This is the line that makes going from the
+	# mouse to the keyboard seamless: there is only ever one selected button, and both
+	# ways of moving move the same one.
+	button.mouse_entered.connect(func() -> void:
+		if not button.disabled:
+			button.grab_focus())
+	button.focus_entered.connect(func() -> void: light.call(1.0))
+	button.focus_exited.connect(func() -> void: light.call(0.0))
+
+
+## `t` from 0 (resting) to 1 (selected), written into the one stylebox this button owns.
+## The label has to travel with it: gold plate, dark type.
+func _paint_live(button: Button, box: StyleBoxFlat, t: float) -> void:
+	button.set_meta(&"lit", t)
+	box.bg_color = UiTheme.RAISED.lerp(UiTheme.ACCENT, t)
+	box.border_color = UiTheme.ACCENT.darkened(0.45).lerp(UiTheme.ACCENT, t)
+	var type := UiTheme.CHALK.lerp(UiTheme.INK, t)
+	for slot in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color"]:
+		button.add_theme_color_override(slot, type)
+
+
 ## Let go, so that no button is listening when the match wants the keyboard back.
 func _release_focus() -> void:
 	var viewport := get_viewport()
@@ -527,24 +594,12 @@ func show_main_menu(career: Career) -> void:
 	stack.add_theme_constant_override("separation", 12)
 	_main_menu_column.add_child(_centred(stack))
 
-	var play := _title_button("PLAY", func() -> void:
+	# PLAY is not painted gold. It is gold because it is the button selected when this
+	# screen opens, and it goes dark the moment the selection moves off it — see
+	# `_make_live()`. Gold means "this one", not "this is PLAY".
+	stack.add_child(_title_button("PLAY", func() -> void:
 		_main_menu.visible = false
-		play_requested.emit())
-	# The one gold button on the screen, the same way REFEREE THIS MATCH is the one gold
-	# button on the career screen: whatever else is offered, this is the way in.
-	play.add_theme_color_override("font_color", UiTheme.INK)
-	play.add_theme_color_override("font_hover_color", UiTheme.INK)
-	play.add_theme_color_override("font_focus_color", UiTheme.INK)
-	var gold := UiTheme.slant(UiTheme.ACCENT)
-	gold.content_margin_top = 14
-	gold.content_margin_bottom = 14
-	play.add_theme_stylebox_override("normal", gold)
-	var lit := UiTheme.slant(UiTheme.ACCENT.lightened(0.25))
-	lit.content_margin_top = 14
-	lit.content_margin_bottom = 14
-	for state in ["hover", "focus", "pressed"]:
-		play.add_theme_stylebox_override(state, lit)
-	stack.add_child(play)
+		play_requested.emit()))
 
 	# CAREER has to put this screen away itself. PLAY and HOW TO REFEREE are answered by
 	# handlers that call `hide_menus()`, but `_on_career_screen_requested()` only raises
@@ -574,6 +629,7 @@ func _title_button(text: String, on_press: Callable) -> Button:
 	button.text = text
 	button.custom_minimum_size = Vector2(TITLE_BUTTON_WIDTH, UiTheme.BUTTON_HEIGHT)
 	button.pressed.connect(on_press)
+	_make_live(button)
 	return button
 
 
@@ -698,6 +754,11 @@ func _sport_card(sport: Dictionary, yours := false) -> Button:
 		card.pressed.connect(func() -> void:
 			_main_menu.visible = false
 			sport_chosen.emit(sport["id"]))
+		# A card already draws `hover` and `focus` the same way, so all it needs is for
+		# the pointer to move the focus — otherwise the card under the mouse and the card
+		# holding the keyboard are lit at once, which is the fault Luqman caught on the
+		# title screen.
+		card.mouse_entered.connect(func() -> void: card.grab_focus())
 
 	var face := StyleBoxFlat.new()
 	face.bg_color = Color(0.110, 0.118, 0.141, 0.96)
@@ -2633,20 +2694,10 @@ func show_career(career: Career) -> void:
 	var go := _make_wide_button("REFEREE THIS MATCH", func() -> void:
 		match_requested.emit()
 	)
+	# Gold when selected, and it is what `show_career()` selects — the same rule as PLAY
+	# on the title screen. It used to be gold in its resting state, which meant it went on
+	# looking chosen while you were pointing at something else.
 	go.custom_minimum_size.x = 380
-	go.add_theme_color_override("font_color", UiTheme.INK)
-	go.add_theme_color_override("font_hover_color", UiTheme.INK)
-	go.add_theme_color_override("font_focus_color", UiTheme.INK)
-	var gold := UiTheme.slant(UiTheme.ACCENT)
-	gold.content_margin_top = 14
-	gold.content_margin_bottom = 14
-	go.add_theme_stylebox_override("normal", gold)
-	var lit := UiTheme.slant(UiTheme.ACCENT.lightened(0.25))
-	lit.content_margin_top = 14
-	lit.content_margin_bottom = 14
-	go.add_theme_stylebox_override("hover", lit)
-	go.add_theme_stylebox_override("focus", lit)
-	go.add_theme_stylebox_override("pressed", lit)
 	actions.add_child(go)
 	# And a way back to the rules of whichever sport this is.
 	#
@@ -2924,6 +2975,7 @@ func _footer_button(text: String, on_press: Callable) -> Button:
 	button.text = text
 	button.custom_minimum_size = Vector2(FOOTER_BUTTON_WIDTH, UiTheme.BUTTON_HEIGHT)
 	button.pressed.connect(on_press)
+	_make_live(button)
 	return button
 
 
@@ -2932,8 +2984,8 @@ func _make_wide_button(text: String, on_press: Callable) -> Button:
 	button.text = text
 	button.custom_minimum_size = Vector2(UiTheme.BUTTON_WIDTH, UiTheme.BUTTON_HEIGHT)
 	button.pressed.connect(on_press)
-	var row := button
-	return row
+	_make_live(button)
+	return button
 
 
 # --- the reason ----------------------------------------------------------------
