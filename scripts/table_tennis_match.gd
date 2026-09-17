@@ -591,8 +591,23 @@ func _physics_process(delta: float) -> void:
 
 	var here := _ball.global_position
 	if _ball.linear_velocity.y > 0.0 or here.y > STRIKE_CEILING:
+		_see_the_stroke_coming()
 		return
 	_take_the_stroke(here)
+
+
+## Starts the stroke before the ball gets to it. See TennisMatch for why, which is the same
+## reason: the bat reaches the ball a quarter of the way into the clip and not at the start
+## of it, so the stroke has to begin before the contact rather than on it.
+func _see_the_stroke_coming() -> void:
+	var player := _player(side_defending(_ball.global_position.z))
+	if player == null:
+		return
+	var due := seconds_until_it_drops_under(STRIKE_CEILING, Player.CONTACT_AT["forehand"])
+	if float(due[0]) < 0.0:
+		return
+	player.begin_stroke(maxf(float(due[0]), 0.01),
+		float(due[1]) > TableTennisSpec.HEIGHT + 0.35)
 
 
 func _take_the_stroke(here: Vector3) -> void:
@@ -621,7 +636,9 @@ func _take_the_stroke(here: Vector3) -> void:
 			Vector3(target.x, 0.0, target.z + signf(target.z) * 0.55),
 			Sides.opponent(hitter)))
 
-	send_over(Vector3(here.x, maxf(here.y, STRIKE_HEIGHT), here.z), target, RALLY_ANGLES)
+	# Off the rubber rather than out of the air beside it.
+	send_over(_striker.struck_from(Vector3(here.x, maxf(here.y, STRIKE_HEIGHT), here.z)),
+		target, RALLY_ANGLES)
 
 
 ## A ball hit safely onto the far half, which the other player will reach and return.

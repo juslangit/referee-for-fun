@@ -662,8 +662,30 @@ func _physics_process(delta: float) -> void:
 	# Struck off the bounce, on the way down, at about waist height.
 	var here := _ball.global_position
 	if _ball.linear_velocity.y > 0.0 or here.y > STRIKE_CEILING:
+		_see_the_stroke_coming()
 		return
 	_take_the_stroke(here)
+
+
+## Starts the stroke before the ball gets to it.
+##
+## A tennis stroke is keyed with contact six frames into sixteen — a quarter of a second —
+## and it used to be started on the frame the ball was struck, so the ball left while the
+## racket was still going back. The ball's drop is flown forward with the same drag it is
+## flying with, and the swing begins a quarter of a second before it will be playable.
+func _see_the_stroke_coming() -> void:
+	var player := _player(side_defending(_ball.global_position.z), _ball.global_position)
+	if player == null:
+		return
+	var due := seconds_until_it_drops_under(STRIKE_CEILING, Player.CONTACT_AT["forehand"])
+	if float(due[0]) < 0.0:
+		return
+	player.begin_stroke(maxf(float(due[0]), 0.01), float(due[1]) > OVERHEAD_HEIGHT)
+
+
+## The height above which a stroke is played as a smash rather than off the ground. Only
+## reachable on a ball that has barely bounced, which is exactly when a player would.
+const OVERHEAD_HEIGHT := 1.6
 
 
 ## The next groundstroke. Whoever the ball is on the side of plays it.
@@ -687,7 +709,7 @@ func _take_the_stroke(here: Vector3) -> void:
 	# does it here — on their way to a shot, at the net, where both happen.
 	_stage_any_incident()
 
-	_striker.swing(here.y > 1.6)
+	_striker.swing(here.y > OVERHEAD_HEIGHT)
 	sound.strike(here, going_for_it)
 
 	# A ball hit at a line is a winner: the point ends where it lands, and the player it
@@ -702,7 +724,9 @@ func _take_the_stroke(here: Vector3) -> void:
 	else:
 		_defender.chase(target)
 
-	send_over(Vector3(here.x, STRIKE_HEIGHT, here.z), target, RALLY_ANGLES)
+	# Off the strings rather than out of the air beside them: the head of the racket is
+	# where the swing has put it, and the ball is brought the last few centimetres onto it.
+	send_over(_striker.struck_from(Vector3(here.x, STRIKE_HEIGHT, here.z)), target, RALLY_ANGLES)
 
 
 ## A ball hit safely inside, which the other player will reach and return.

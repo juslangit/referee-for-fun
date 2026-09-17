@@ -229,6 +229,9 @@ func build_the_players() -> void:
 			player.volleyball = true
 			player.speed = COURT_SPEED
 			player.reach = 1.35
+			# Before the body is built, because it decides which character file is
+			# loaded rather than what is put on one afterwards.
+			player.is_libero = (i == who.libero)
 			add_child(player)
 			# A first position each, rather than all six on one spot. They are put in
 			# their real rotational places by stand_in_position the moment the match
@@ -245,12 +248,19 @@ func build_the_players() -> void:
 ## The libero's shirt. Nothing else in either sport identifies a player at a glance, and
 ## the whole reason the rule exists is that the referee has to be able to.
 func _dress_the_libero(team: Sides.Team) -> void:
-	var who: Rotation = rota[team]
-	if who.libero < 0:
-		return
-	var wearing := _player(team, who.libero)
-	if wearing != null:
-		Models.wear_bib(wearing, Color(0.95, 0.82, 0.20))
+	# Nothing to do any more, and that is the point.
+	#
+	# This used to strap a BoxMesh to the libero's chest, which Luqman photographed on
+	# 2026-09-17: "change to different cloth, dont put block like that". The replacement
+	# was a material swapped onto the built figure, and that silently does not draw —
+	# verified against the right node, the right texture, the right layer, with no
+	# competing override, applied late, forced to a garish colour, and with every other
+	# player hidden to be sure nobody was standing in front. It came back blue every time.
+	#
+	# So the libero now *loads* a different character file, chosen in `_build_team` before
+	# the body exists. Kept as a function because the rotation calls it, and because a
+	# libero substituted in mid-match is the case that will need it again.
+	pass
 
 
 func _player(team: Sides.Team, index: int) -> Player:
@@ -435,6 +445,7 @@ func start_rally() -> void:
 
 	var receiver := nearest_of(Sides.opponent(serving), target)
 	receiver.chase(target)
+	expect_touch(receiver, "vb_dig")
 	_phase = Phase.IN_PLAY
 	sound.whistle()
 	ui.set_prompt("watch it")
@@ -501,8 +512,18 @@ func _physics_process(delta: float) -> void:
 	if _beat == Beat.ATTACK:
 		return
 	if not ball_has_arrived(REACH, 2.8):
+		# Not yet — but the hands that are going to play it start moving now, so that
+		# they are on the ball when it gets here rather than a third of a clip behind it.
+		start_the_touch_when_due(REACH, 2.8)
 		return
 	_take_the_next_contact()
+
+
+## The set, leaving the setter's fingers rather than the point it was aimed from. There is
+## not always a setter — a rally can reach the second touch with nobody free — and then it
+## goes from where it always did.
+func _out_of_the_setters_hands(from: Vector3) -> Vector3:
+	return _setter.struck_from(from) if _setter != null else from
 
 
 func _take_the_next_contact() -> void:
@@ -518,7 +539,10 @@ func _take_the_next_contact() -> void:
 			sound.strike(here, false)
 			var to_the_setter := _set_point(_possession)
 			_setter.chase(to_the_setter)
-			send(Vector3(here.x, DIG_HEIGHT, here.z), to_the_setter, DIG_ANGLE)
+			expect_touch(_setter, "vb_set")
+			# Off the digger's platform rather than out of the air beside them.
+			send(_digger.struck_from(Vector3(here.x, DIG_HEIGHT, here.z)),
+				to_the_setter, DIG_ANGLE)
 		Beat.DIG:
 			rally.contacts = 2
 			_beat = Beat.SET
@@ -533,7 +557,9 @@ func _take_the_next_contact() -> void:
 			var to_the_hitter := _attack_point(_possession, _attacker_is_back_row, illegal)
 			_digger = hitter
 			hitter.chase(to_the_hitter)
-			send(Vector3(here.x, SET_HEIGHT, here.z), to_the_hitter, SET_ANGLE)
+			expect_touch(hitter, "vb_spike")
+			send(_out_of_the_setters_hands(Vector3(here.x, SET_HEIGHT, here.z)),
+				to_the_hitter, SET_ANGLE)
 		Beat.SET:
 			rally.contacts = 3
 			_beat = Beat.ATTACK
@@ -609,7 +635,10 @@ func _attack(from: Vector3) -> void:
 	# The one contact in the rally that the back of the stand can hear.
 	sound.strike(from, true)
 	_meet_the_attack(against, from, target)
-	send_over(from, target, [ATTACK_ANGLE, 6.0, 16.0, 28.0])
+	# Off the hitting hand. Everything above is aimed from the nominal attack height, and
+	# this is the same point moved the last few centimetres onto the hand that hits it.
+	send_over(_digger.struck_from(from) if _digger != null else from,
+		target, [ATTACK_ANGLE, 6.0, 16.0, 28.0])
 
 
 ## Two blockers to the net, the rest back to dig.

@@ -12,6 +12,11 @@
       "refine": "01a07ced-7287-7160-8d96-1b4a0e384cdb",
       "rig": "01a07cf6-0a1f-77d6-9eb7-3c4c6a7c2e88"
     },
+    "official_new": {
+      "preview": "01a0ae59-fad1-709a-bdad-0de849064404",
+      "refine": "01a0ae5a-8faf-72a8-bbc3-6de4248cc714",
+      "rig": "01a0ae5b-4132-742a-8872-b49f61b1578b"
+    },
     "player_blue": {
       "anim_smash": "01a09b8c-5ca2-715e-b951-179f673d25d5",
       "preview": "01a07ccf-c624-737e-9be8-f4e0775d4f77",
@@ -37,5 +42,5 @@
       "task": "01a09b8b-d467-74e9-ad4e-e06d4c6d15d5"
     }
   },
-  "spent": 192
+  "spent": 227
 }
