@@ -47,14 +47,14 @@ The ones worth keeping in mind:
 | `_lessonback` | Can a player read the rules again, in every sport? Checks the ladder offers HOW TO REFEREE, that it opens that sport's lesson, and that GOT IT comes back to the ladder. |
 | `_endings` | Can a match in each sport actually finish, and how many rallies does the shortest one take? Every other harness stops after a fixed count, so the ending screen and the career fold-in had never been reached in either volleyball. Asks both volleyballs and sepak takraw, whose sets are set up to 17 at 14-14. |
 | `_faultkey` | Does F open the fault panel and complete a call, in both volleyballs and sepak takraw? Written after both prompts turned out to advertise a key nothing was listening to. |
-| `_indoorbugs` | Three reported faults at the venue a new career actually starts on: are there line judges, are the six in position before the first serve, and does a rally follow every whistle? |
+| `_indoorbugs` | Three reported faults at the venue a new career actually starts on: are there line judges, are the six in position before the first serve, and does a rally follow every whistle? Ends in PASS or FAIL. |
 | `_cover` | Do the volleyball and sepak takraw line judges actually give an official cover? Prices the same wrong call three ways — nobody spoke, the judge agreed, the judge disagreed. Found the verdict-enum mismatch. |
 | `_sets` | Is the last set shorter than the rest? Drives each sport's match to its decider and prints what every set was played to. Sepak takraw is driven on its own board, which has no shorter decider. |
 | `_tennislook` | The tennis court empty, from the chair and from above: do the two sets of sidelines read as one court, and does the net look like it sags? |
 | `_tennisscore` | Does tennis count the way tennis counts? A game, deuce and advantage, a set won by two, a tiebreak at six-all, and a match. Arithmetic, checked before anything was built on it. |
 | `_rotate` | Does the rotation rotate the way volleyball rotates? Six turns, who serves, and whether the legality test catches the arrangements it should. Pure arithmetic, checked before anything was built on it. |
 | `_indoorrules` | The four positional calls, made, missed and invented, one at a time. Waiting for a rotation fault to come up on its own takes forty rallies; this builds each by hand. |
-| `_indoorplay` | Indoor's fair-play check. `WATCHING=no` gives a referee who judges the ball perfectly and never looks at the lineup. |
+| `_indoorplay` | Indoor's fair-play check. Ends in PASS or FAIL: no call scored WRONG and suspicion never reaching the warning. `WATCHING=no` gives a referee who judges the ball perfectly and never looks at the lineup, and is exempt from the verdict — he is meant to be caught. |
 | `_indoorshot` | Twelve players, two liberos and the attack lines, from the stand. |
 | `_beachreview` | Does the beach challenge fire, on what, and what does being caught cost? An honest referee must never be punished by it and a liar must be afraid of it. |
 | `_beachteach` | The beach lesson, and a review on screen. |
