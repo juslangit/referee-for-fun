@@ -43,10 +43,11 @@ func _ready() -> void:
 	await _every_menu_starts_focused(hall, ui)
 	await _arrows_move_between_buttons(hall, ui)
 	await _the_keyboard_goes_back_to_the_match(hall, ui)
+	await _only_one_button_is_ever_lit(hall, ui)
 
 	print("")
 	if _failures.is_empty():
-		print("PASS  every menu opens with a button focused, and lets go on the way out")
+		print("PASS  one selected button, moved by the keyboard or the pointer alike")
 	else:
 		for failure in _failures:
 			print("FAIL  " + failure)
@@ -108,6 +109,64 @@ func _arrows_move_between_buttons(hall: Node, ui: RefereeUI) -> void:
 	print("   down the title screen: %s" % " -> ".join(seen))
 	_expect(seen.size() == 5, "down reaches all five title buttons (reached %d)" % seen.size())
 	_expect(seen[seen.size() - 1] == "QUIT", "and ends on QUIT (ended on %s)" % seen[seen.size() - 1])
+
+
+## Pointing at a button has to *be* selecting it, or the pointer and the keyboard each
+## light one and the screen shows two selected buttons. That is what Luqman caught on
+## 2026-09-17: "when i hover at a button, only that button is hover".
+func _only_one_button_is_ever_lit(hall: Node, ui: RefereeUI) -> void:
+	print("=== only one button is lit, whichever way you move")
+	ui.hide_menus()
+	ui.show_main_menu(hall.career)
+	await _settled()
+	_expect(_lit(ui) == ["PLAY"], "the title screen opens with PLAY alone lit (%s)" % _lit(ui))
+
+	# Down two on the keyboard.
+	var here := get_viewport().gui_get_focus_owner() as Button
+	for step in 2:
+		var next := here.find_valid_focus_neighbor(SIDE_BOTTOM)
+		if next == null:
+			break
+		next.grab_focus()
+		await _settled()
+		here = get_viewport().gui_get_focus_owner() as Button
+	_expect(_lit(ui) == ["HOW TO REFEREE"],
+		"arrowing down moves the light rather than adding to it (%s)" % _lit(ui))
+
+	# And now the pointer, onto a different button from the one the keyboard is on. This
+	# is the exact state that used to light two.
+	var quit := _named(ui, "QUIT")
+	_expect(quit != null, "there is a QUIT button to point at")
+	if quit == null:
+		return
+	quit.mouse_entered.emit()
+	await _settled()
+	_expect(_lit(ui) == ["QUIT"],
+		"pointing at another button takes the light with it (%s)" % _lit(ui))
+	_expect(get_viewport().gui_get_focus_owner() == quit,
+		"and the keyboard is now on the one being pointed at, so the two agree")
+
+
+## Every button that is not fully at rest. `lit` is the 0-to-1 the tween writes.
+func _lit(ui: RefereeUI) -> Array[String]:
+	var on: Array[String] = []
+	for node in ui._main_menu.find_children("*", "Button", true, false):
+		var button := node as Button
+		if float(button.get_meta(&"lit", 0.0)) > 0.01:
+			on.append(button.text)
+	return on
+
+
+func _named(ui: RefereeUI, text: String) -> Button:
+	for node in ui._main_menu.find_children("*", "Button", true, false):
+		if (node as Button).text == text:
+			return node as Button
+	return null
+
+
+## Past the end of the fade, so nothing is read mid-tween.
+func _settled() -> void:
+	await get_tree().create_timer(0.4).timeout
 
 
 ## The important half. A button still holding focus behind a match would eat the serve.
