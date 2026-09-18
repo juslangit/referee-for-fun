@@ -44,6 +44,13 @@ extends Node3D
 
 ## How high the truss hangs as a fraction of the hall, and how far the two runs of it
 ## stand either side of the centre line as a multiple of the court's half width.
+## What the energy is multiplied by now the cone is wider. A spotlight is measured by
+## what lands on what it points at, so opening the cone from 34 to 52 degrees spreads the
+## same energy over roughly 1.4 times the floor — without this the middle of the court
+## floods and the white lines blow out.
+const WIDER_CONE_KEEPS_ITS_BRIGHTNESS := 0.72
+
+
 const TRUSS_HEIGHT_OF_HALL := 0.90
 const TRUSS_SPREAD_OF_HALF_WIDTH := 1.443
 
@@ -194,13 +201,26 @@ func _build_lamps(spec: Dictionary) -> void:
 		beam.name = "Beam"
 		beam.position = where
 		beam.look_at_from_position(where, Vector3(0.0, 0.0, along * aim), Vector3.UP)
-		beam.light_energy = energy * brighter
+		beam.light_energy = energy * brighter * WIDER_CONE_KEEPS_ITS_BRIGHTNESS
 		beam.light_color = Color(1.0, 0.98, 0.94)
 		# The throw has to clear the drop from the truss to the floor, which is longer in
 		# a volleyball hall than a takraw one, or the far corner of the pool goes out.
-		beam.spot_range = height * 2.2
-		beam.spot_angle = 34.0
-		beam.spot_angle_attenuation = 0.8
+		beam.spot_range = height * 2.8
+		# A wider cone, asked for on 2026-09-18: "the light radius at court in the game is
+		# too small, make it bigger."
+		#
+		# At 34 degrees a lamp hung at 8.1 m throws a pool about 5.5 m across, so four of
+		# them lit a stripe down the middle and left the tramlines and the corners in the
+		# dark — on a court 13.4 m long for takraw and 18 m for volleyball. Judging a
+		# landing in a corner you cannot see is not a difficulty, it is a broken game.
+		# At 52 the same lamp covers about 8.5 m and the pools meet.
+		#
+		# The energy comes down as the cone opens. A spotlight's brightness is per unit of
+		# what it hits, so widening the cone without touching the energy floods the middle
+		# of the court and blows the white lines out. The 0.72 is the ratio of the areas,
+		# so the court keeps the light it had and simply spreads it further.
+		beam.spot_angle = 52.0
+		beam.spot_angle_attenuation = 0.7
 		# One facing pair casts shadows, for the reason in REAL_LAMP_PAIRS.
 		beam.shadow_enabled = i == lit[0] or i == lit[1]
 		lights.add_child(beam)
