@@ -1053,29 +1053,28 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if ui.is_fault_panel_open():
-		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		if event.is_action_pressed(&"ref_pause"):
 			close_the_fault_panel()
 		return
 
-	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+	if event.is_action_pressed(&"ref_pause"):
 		pause_the_match()
 		return
 
-	if event is InputEventKey and event.pressed and event.keycode == KEY_F:
+	if event.is_action_pressed(&"ref_faults"):
 		open_the_fault_panel()
 		return
 
 	match _phase:
 		Phase.READY:
-			if event is InputEventKey and event.pressed and event.keycode == KEY_SPACE:
+			if event.is_action_pressed(&"ref_serve"):
 				start_rally()
 		Phase.AWAITING_CALL:
-			if event is InputEventMouseButton and event.pressed:
-				if event.button_index == MOUSE_BUTTON_LEFT:
-					make_call(&"in")
-				elif event.button_index == MOUSE_BUTTON_RIGHT:
-					make_call(&"out")
-			elif event is InputEventKey and event.pressed and event.keycode == KEY_L:
+			if event.is_action_pressed(&"ref_call_in"):
+				make_call(&"in")
+			elif event.is_action_pressed(&"ref_call_out"):
+				make_call(&"out")
+			elif event.is_action_pressed(&"ref_let"):
 				make_call(&"let", serving)
 
 

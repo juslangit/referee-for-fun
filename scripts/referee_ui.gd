@@ -265,6 +265,15 @@ func _ready() -> void:
 	clicks.name = "UiSound"
 	add_child(clicks)
 
+	# The game's verbs, installed before anything can be pressed.
+	#
+	# Here rather than in `project.godot` because rebinding has to happen at run time
+	# anyway, and because every check in `dev/checks` loads a match scene directly rather
+	# than booting the game — an action that lived only in the project settings would be
+	# there for a player and missing for the ninety-odd scenes that drive the game without
+	# one. Every sport builds a RefereeUI, so this is the one place they all pass through.
+	Controls.ensure()
+
 
 # --- keyboard ---------------------------------------------------------------------
 #
@@ -415,11 +424,20 @@ func _release_focus() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# A settings row waiting for a key takes precedence over everything, including the
+	# pause menu's Escape — otherwise pressing Escape to cancel a rebind would also
+	# resume the match behind it.
+	if _listening_for != &"":
+		if event is InputEventKey and event.pressed and not event.echo:
+			_caught_input = event
+			get_viewport().set_input_as_handled()
+		return
+
 	# Escape closes the pause menu. It has to be handled here rather than in the
 	# match, because the match is paused and is not being given input at all.
 	if not _pause_menu.visible:
 		return
-	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+	if event.is_action_pressed(&"ref_pause"):
 		resume_requested.emit()
 		get_viewport().set_input_as_handled()
 
@@ -1789,6 +1807,9 @@ func _build_settings_menu(settings: Settings) -> void:
 		settings.save())
 	column.add_child(_centred(window))
 
+	column.add_child(_gap(20))
+	column.add_child(_controls_section(settings))
+
 	column.add_child(_gap(22))
 	if _settings_over_a_match:
 		# Opened from the pause menu, so there is one way out and it is back to the
@@ -1800,6 +1821,109 @@ func _build_settings_menu(settings: Settings) -> void:
 		# opening the settings from the career screen quietly threw the career screen
 		# away. BACK now means the screen you came from.
 		column.add_child(_menu_footer(AT_SETTINGS))
+
+
+## The keys, and a way to change them.
+##
+## Until 2026-09-18 there were none to change: every sport compared `event.keycode`
+## against a hard-coded constant, so the game's verbs were spelled out separately in six
+## files and could not be moved. `Controls` turns them into actions; this is where a
+## player moves them.
+##
+## Press a row, then press the key you want. Escape cancels rather than binding, because
+## Escape is the one verb here that is deliberately not rebindable — a player who has
+## moved every other key still needs one that is certain to get them out.
+func _controls_section(settings: Settings) -> Control:
+	var column := VBoxContainer.new()
+	column.name = "Controls"
+	column.add_theme_constant_override("separation", 6)
+	column.add_child(_make_label("KEYS", UiTheme.HEADING, UiTheme.ACCENT))
+	column.add_child(_make_label(
+		"Click a key, then press the one you want. Escape cancels.",
+		UiTheme.SMALL, UiTheme.MUTED))
+	column.add_child(_gap(8))
+
+	# Two columns of verbs rather than seven rows of one.
+	#
+	# The card this sits on is centred and grows in both directions with no bound, so a
+	# tall panel simply runs off the top and the bottom of the screen — which is what
+	# seven full-width rows did: the first volume slider was cut off above and the reset
+	# button below. Two columns halve the height and it fits on a laptop, which is the
+	# same problem the career screen's ladder solved the same way.
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 6)
+	column.add_child(_centred(grid))
+
+	for action in Controls.ORDER:
+		var what := _make_label(str(Controls.DEFAULTS[action]["label"]),
+			UiTheme.SMALL, UiTheme.CHALK)
+		what.custom_minimum_size.x = 170
+		what.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		grid.add_child(what)
+
+		var key := Button.new()
+		key.name = "Bind_%s" % action
+		key.text = Controls.spelling(settings, action)
+		key.custom_minimum_size = Vector2(180, UiTheme.BUTTON_HEIGHT - 20)
+		key.add_theme_font_size_override("font_size", UiTheme.BODY)
+		_make_live(key)
+		key.pressed.connect(func() -> void: _listen_for_key(settings, action, key))
+		grid.add_child(key)
+
+	column.add_child(_gap(10))
+	column.add_child(_centred(_footer_button("PUT THE KEYS BACK", func() -> void:
+		Controls.reset(settings)
+		show_settings(settings, _settings_over_a_match))))
+	return column
+
+
+## Waits for one key press and gives it to `action`.
+##
+## The button says so while it waits, because a control that is listening and a control
+## that is broken look identical otherwise.
+func _listen_for_key(settings: Settings, action: StringName, key: Button) -> void:
+	if _listening_for != &"":
+		return
+	_listening_for = action
+	key.text = "press a key"
+	var pressed := await _next_key()
+	_listening_for = &""
+	if pressed == KEY_ESCAPE or pressed == KEY_NONE:
+		key.text = Controls.spelling(settings, action)
+		return
+	var displaced := Controls.rebind(settings, action, pressed)
+	# Redrawn rather than patched, because a rebind can change two rows: the one that was
+	# pressed and whichever verb has just lost that key.
+	show_settings(settings, _settings_over_a_match)
+	if displaced != &"":
+		show_banner("%s now has no key — give it one" % Controls.DEFAULTS[displaced]["label"], 4.0)
+
+
+## Which verb is waiting for a key, if any. One at a time.
+var _listening_for := &""
+
+
+func _next_key() -> Key:
+	while true:
+		var event: InputEvent = await _any_input()
+		if event is InputEventKey and event.pressed and not event.echo:
+			return (event as InputEventKey).keycode
+	return KEY_NONE
+
+
+func _any_input() -> InputEvent:
+	var caught: Array[InputEvent] = []
+	while caught.is_empty():
+		await get_tree().process_frame
+		if _caught_input != null:
+			caught.append(_caught_input)
+			_caught_input = null
+	return caught[0]
+
+
+var _caught_input: InputEvent = null
 
 
 ## One labelled slider, with the value written out beside it. The number matters: a bare

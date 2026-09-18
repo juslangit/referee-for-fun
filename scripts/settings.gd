@@ -60,6 +60,12 @@ var taught_tennis := false
 var taught_table_tennis := false
 var taught_takraw := false
 
+## Which key each verb has been moved to, as action name -> keycode. Empty means the
+## game's own defaults, which live in `Controls.DEFAULTS` rather than here: a binding
+## only appears in this dictionary once somebody has deliberately changed it, so a
+## default that is improved later reaches everybody who never touched it.
+var bindings := {}
+
 
 static func load_or_default() -> Settings:
 	var settings := Settings.new()
@@ -83,6 +89,7 @@ static func load_or_default() -> Settings:
 	settings.effects = file.get_value("audio", "effects", settings.effects)
 	settings.sensitivity = file.get_value("look", "sensitivity", settings.sensitivity)
 	settings.fullscreen = file.get_value("window", "fullscreen", settings.fullscreen)
+	settings.bindings = file.get_value("controls", "bindings", {})
 	settings.taught = file.get_value("player", "taught", settings.taught)
 	settings.taught_beach = file.get_value("player", "taught_beach", settings.taught_beach)
 	settings.taught_indoor = file.get_value(
@@ -108,12 +115,15 @@ func save() -> void:
 	file.set_value("player", "taught_table_tennis", taught_table_tennis)
 	file.set_value("player", "taught_tennis", taught_tennis)
 	file.set_value("player", "taught_takraw", taught_takraw)
+	file.set_value("controls", "bindings", bindings)
 	file.save(path())
 
 
 ## Makes the world match these settings. Safe to call as often as you like.
 func apply() -> void:
 	ensure_buses()
+	# The verbs, and whatever the player has moved them to.
+	Controls.ensure(self)
 	_set_bus("Master", master)
 	_set_bus(CROWD_BUS, crowd)
 	_set_bus(EFFECTS_BUS, effects)
