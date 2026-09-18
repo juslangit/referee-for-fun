@@ -401,7 +401,15 @@ func _build_umpire_chair() -> void:
 		real.position = Vector3(0.28, 0.0, 0.0)
 		# Turned to face the court, so the umpire sits looking across it rather than
 		# down the length of the hall.
-		real.rotation.y = -PI * 0.5
+		#
+		# The sign was wrong from the day the model went in, and nothing caught it for a
+		# reason worth writing down: the chair is on `CHAIR_LAYER`, which the umpire's own
+		# camera leaves out — the player is *sitting* in it, so it is never once in their
+		# view during a match. It is only ever seen in a cutscene, where the seat and the
+		# backrest faced the back wall and the ladder stood on the far side, so the umpire
+		# who climbed it would have been looking away from the court. Luqman, 2026-09-18:
+		# "in cutscenes, fix the umpire chair, it facing backwards".
+		real.rotation.y = PI * 0.5
 		chair.add_child(real)
 		_set_layer(real, CHAIR_LAYER)
 		return

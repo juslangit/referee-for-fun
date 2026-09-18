@@ -181,6 +181,82 @@ def steal_animation(name, suffix, clip_name, rig, frames=None, drop=(0, 1)):
 
 # --- writing the badminton clips ------------------------------------------------
 
+## An upper arm and the bone that hangs off it, so the arm's rest direction can be
+## measured rather than assumed.
+ARM_CHAIN = {"LeftArm": "LeftForeArm", "RightArm": "RightForeArm"}
+
+## How far off sideways an arm may rest and still count as a T-pose.
+##
+## 20, and the number is load-bearing. The two characters the clips were authored on rest
+## 12 to 13 degrees off sideways — they are T-posed by eye but not to the axis — and the
+## one that needed correcting rests 54. A threshold of 12 caught all three, which made
+## every rig agree exactly and **changed the two characters Luqman has already played**:
+## their posed arms moved about twelve degrees. Correctness that rewrites what somebody
+## has accepted is not obviously correctness, so the shipped pair are left alone and only
+## a rig that is plainly in some other pose is brought into line.
+LEAVE_ALONE_WITHIN = 20.0
+
+## Worked out once per character, because it depends on the rig and not on the clip.
+_LIFTS = {}
+
+
+def lift_to_t_pose(rig, bone_name):
+    """The rotation that takes an arm from where it rests to straight out sideways.
+
+    Every arm angle in `badminton_clips.py` and its neighbours is written as a departure
+    from a T-pose — "straight out sideways", as the header there says — because that is
+    how Meshy generated the two athletes the clips were authored on. Measured, their
+    upper arms rest 3 to 5 degrees below level, which is a T-pose.
+
+    A character generated later came back in an **A-pose**: arms resting 53 degrees below
+    level. `pose_bone` turns a world rotation into a local one *relative to the bone's
+    rest*, so every arm angle in all 33 clips landed about 53 degrees short — the figure
+    stood with its arms pinned to its chest and its hands inside its torso through the
+    whole set, while the same clips on the older characters were fine. Nothing errored and
+    nothing was missing; the clips simply measured from somewhere else.
+
+    So the difference is measured off the rig and taken out. The direction comes from the
+    forearm's head rather than the bone's own tail, because glTF does not store tails and
+    Blender invents them — every bone in this skeleton came in over a thousand units long
+    pointing somewhere nobody chose.
+
+    A rig that is already in a T-pose gets a rotation of about zero, so this is applied to
+    every character rather than to the ones known to need it: one code path, and the next
+    character Meshy hands back in some third pose is handled without anybody noticing it
+    needed to be.
+    """
+    child = ARM_CHAIN.get(bone_name)
+    if child is None or child not in rig.data.bones or bone_name not in rig.data.bones:
+        return Matrix.Identity(3)
+    key = (rig.name, bone_name)
+    if key in _LIFTS:
+        return _LIFTS[key]
+    along = rig.data.bones[child].head_local - rig.data.bones[bone_name].head_local
+    if along.length < 1e-6:
+        _LIFTS[key] = Matrix.Identity(3)
+        return _LIFTS[key]
+    along.normalize()
+    # Straight out sideways: +X for their left arm, -X for their right, exactly as the
+    # header of `badminton_clips.py` defines a T-pose.
+    #
+    # Levelling alone is not enough, and measuring said so. The first version rotated the
+    # arm onto its own horizontal projection, which fixed the drop and left the splay: the
+    # posed arm came out 9.7 degrees below level against the reference rig's 9.8 — right —
+    # while pointing a quarter of the way forward, because an A-pose carries the arms
+    # forward as well as down. `point` still folded across the chest.
+    sideways = Vector((1.0 if along.x >= 0.0 else -1.0, 0.0, 0.0))
+    apart = math.degrees(along.angle(sideways))
+    if apart < LEAVE_ALONE_WITHIN:
+        # Already a T-pose. Left untouched rather than nudged onto an exact axis, so the
+        # two characters the clips were authored on export byte for byte as before and a
+        # fix for a new rig cannot quietly restate an old one.
+        _LIFTS[key] = Matrix.Identity(3)
+        return _LIFTS[key]
+    print("  %s rests %.0f deg off sideways — levelling it before posing" % (bone_name, apart))
+    _LIFTS[key] = along.rotation_difference(sideways).to_matrix()
+    return _LIFTS[key]
+
+
 def pose_bone(rig, bone_name, degrees):
     """Rotates one bone by three angles about the world axes rather than its own.
 
@@ -189,6 +265,10 @@ def pose_bone(rig, bone_name, degrees):
     pointing in a direction nobody chose. Euler angles in a bone's own space are
     therefore meaningless here. These are turned into whatever local rotation produces
     the requested world rotation, so a pose can be written the way it looks.
+
+    The arm is brought level before the clip's own rotation is applied, so that "straight
+    out sideways" means the same thing on a character that rests in an A-pose as on the
+    two it was written for. See `lift_to_t_pose`.
     """
     posed = rig.pose.bones[bone_name]
     rest = posed.bone.matrix_local.to_3x3()
@@ -197,6 +277,7 @@ def pose_bone(rig, bone_name, degrees):
     for axis, angle in zip("XYZ", degrees):
         if angle:
             wanted = Matrix.Rotation(math.radians(angle), 3, axis) @ wanted
+    wanted = wanted @ lift_to_t_pose(rig, bone_name)
 
     posed.rotation_mode = "QUATERNION"
     posed.rotation_quaternion = (rest.inverted() @ wanted @ rest).to_quaternion()
