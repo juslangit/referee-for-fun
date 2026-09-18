@@ -91,7 +91,16 @@ const SHUTTLE_LENGTH := 0.085
 ## `libero` picks the third character file — the same body in the repainted shirt. It is
 ## a model choice made before the figure is built rather than a material put on afterwards,
 ## because the material route does not draw (see `tools/meshy/bake_kit.py`).
-static func player(team: Sides.Team, libero := false) -> Node3D:
+## `clear` picks the high-contrast kit. Read from the settings by whoever builds the
+## player, rather than reached for here, so this stays a lookup and the decision stays
+## where the settings are known.
+static func player(team: Sides.Team, libero := false, clear := false) -> Node3D:
+	if clear and not libero:
+		var plain := _load_ready(str(CLEAR_MODELS.get(team, "")))
+		if plain != null:
+			plain.set_meta("kitted", true)
+			return plain
+		push_warning("no clear kit for %s — falling back" % Sides.label(team))
 	if libero:
 		var kitted := _load_ready(str(LIBERO_MODELS.get(team, "")))
 		if kitted != null:
@@ -417,6 +426,16 @@ static func wear_libero_kit(figure: Node3D, sheet_path: String, fallback: Color)
 
 ## The libero's own character file, wearing the repainted kit. A third model beside the
 ## two teams, not a material swapped onto one of them — see `tools/meshy/bake_kit.py`.
+## The same two teams in kits that separate by brightness as well as hue, for players
+## who turn on "Clearer team colours". A third and fourth character file rather than a
+## tint, for the same reason the libero has its own: a material put onto a built figure
+## does not draw.
+const CLEAR_MODELS := {
+	Sides.Team.RED: "res://assets/meshy/player_red_clear/player_red_clear_animated.glb",
+	Sides.Team.BLUE: "res://assets/meshy/player_blue_clear/player_blue_clear_animated.glb",
+}
+
+
 const LIBERO_MODELS := {
 	Sides.Team.RED: "res://assets/meshy/player_red_libero/player_red_libero_animated.glb",
 	Sides.Team.BLUE: "res://assets/meshy/player_blue_libero/player_blue_libero_animated.glb",

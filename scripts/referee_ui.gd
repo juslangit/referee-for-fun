@@ -1807,6 +1807,22 @@ func _build_settings_menu(settings: Settings) -> void:
 		settings.save())
 	column.add_child(_centred(window))
 
+	column.add_child(_gap(10))
+	var kits := CheckButton.new()
+	kits.name = "ClearKits"
+	kits.text = "Clearer team colours"
+	kits.button_pressed = settings.clear_kits
+	kits.tooltip_text = ("Kits that differ in brightness as well as colour, so the two "
+		+ "sides can be told apart without relying on hue.")
+	kits.toggled.connect(func(pressed: bool) -> void:
+		settings.clear_kits = pressed
+		settings.save())
+	column.add_child(_centred(kits))
+	column.add_child(_make_label(
+		"Takes effect on the next match. Red and blue currently differ by 11 of 255 in "
+		+ "brightness; with this on, 53.",
+		UiTheme.SMALL, UiTheme.MUTED))
+
 	column.add_child(_gap(20))
 	column.add_child(_controls_section(settings))
 

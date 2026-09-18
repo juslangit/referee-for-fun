@@ -659,6 +659,9 @@ func build_the_players() -> void:
 	for i in spots.size():
 		var home: Vector3 = spots[i]
 		var player := Player.new()
+		# From the settings, before the body is built: the kit is a choice of
+		# character file, not a recolour applied to one afterwards.
+		player.clear_kit = settings.clear_kits
 		player.name = "Player%d" % i
 		# Badminton left this at the default 4 m/s while everybody could run at the same
 		# speed in every direction. They cannot any more — a backpedal costs nearly a
