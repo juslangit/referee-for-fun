@@ -66,6 +66,17 @@ var taught_takraw := false
 ## default that is improved later reaches everybody who never touched it.
 var bindings := {}
 
+## Kits that separate by brightness as well as by hue.
+##
+## Measured on 2026-09-18: the red kit has a luminance of 88 out of 255 and the blue 77.
+## Eleven apart, so hue is the only thing telling the sides apart and a colour-blind
+## player is watching two teams in the same shirt — in a game whose entire subject is
+## deciding which side a rally went to. Turning this on swaps both teams for kits that
+## are 53 apart, which survives having the colour taken out of them.
+##
+## Off by default. The kits are as they were for everybody who does not need this.
+var clear_kits := false
+
 
 static func load_or_default() -> Settings:
 	var settings := Settings.new()
@@ -90,6 +101,7 @@ static func load_or_default() -> Settings:
 	settings.sensitivity = file.get_value("look", "sensitivity", settings.sensitivity)
 	settings.fullscreen = file.get_value("window", "fullscreen", settings.fullscreen)
 	settings.bindings = file.get_value("controls", "bindings", {})
+	settings.clear_kits = file.get_value("player", "clear_kits", settings.clear_kits)
 	settings.taught = file.get_value("player", "taught", settings.taught)
 	settings.taught_beach = file.get_value("player", "taught_beach", settings.taught_beach)
 	settings.taught_indoor = file.get_value(
@@ -116,6 +128,7 @@ func save() -> void:
 	file.set_value("player", "taught_tennis", taught_tennis)
 	file.set_value("player", "taught_takraw", taught_takraw)
 	file.set_value("controls", "bindings", bindings)
+	file.set_value("player", "clear_kits", clear_kits)
 	file.save(path())
 
 

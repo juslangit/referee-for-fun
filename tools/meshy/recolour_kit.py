@@ -78,6 +78,18 @@ LIFT_TO_VALUE = 0.92
 LIFT_TO_SATURATION = 0.88
 LIFT = 0.6
 
+## Telling the teams apart without colour.
+##
+## Measured on 2026-09-18: the red kit has a luminance of 88.3 out of 255 and the blue
+## kit 77.4. Eleven apart. Hue is the only thing separating them, so to a colour-blind
+## player — and in a photograph printed in black and white, and on a bad projector —
+## the two sides are wearing the same shirt. The whole game is deciding which side a
+## rally went to, so that is not a cosmetic problem.
+##
+## Passing a target value lifts or drops the kit's brightness while leaving its hue
+## alone, so red stays red and blue stays blue and the two separate by how light they
+## are. `LIFT` applies here too, so the folds keep their relative shading.
+
 
 def _apart(a: float, b: float) -> float:
     """Degrees between two hues, the short way round the wheel."""
@@ -85,7 +97,8 @@ def _apart(a: float, b: float) -> float:
     return min(gap, 360.0 - gap)
 
 
-def repaint(source: Image.Image, hue: float, from_hue: float) -> tuple[Image.Image, int]:
+def repaint(source: Image.Image, hue: float, from_hue: float,
+            value: float = -1.0) -> tuple[Image.Image, int]:
     out = source.copy().convert("RGB")
     px = out.load()
     w, h = out.size
@@ -100,8 +113,13 @@ def repaint(source: Image.Image, hue: float, from_hue: float) -> tuple[Image.Ima
                 continue
             # Towards a kit colour, not merely rotated. The lerp keeps the difference
             # between a lit fold and a shadowed one, so the fabric still reads as fabric.
-            s = s + (LIFT_TO_SATURATION - s) * LIFT
-            v = v + (LIFT_TO_VALUE - v) * LIFT
+            if value >= 0.0:
+                # Brightness is the point of this pass; saturation is left alone so the
+                # kit stays the colour it was rather than washing out.
+                v = v + (value - v) * LIFT
+            else:
+                s = s + (LIFT_TO_SATURATION - s) * LIFT
+                v = v + (LIFT_TO_VALUE - v) * LIFT
             nr, ng, nb = colorsys.hsv_to_rgb(hue, min(1.0, s), min(1.0, v))
             px[x, y] = (int(nr * 255), int(ng * 255), int(nb * 255))
             touched += 1
@@ -114,6 +132,8 @@ def main() -> None:
     name, label, degrees = sys.argv[1], sys.argv[2], float(sys.argv[3])
     # Which kit is being repainted. Red sits at 0, the blue kit at 220.
     from_hue = float(sys.argv[4]) if len(sys.argv) > 4 else 0.0
+    # Optional fifth argument: the brightness to move the kit towards, 0 to 1.
+    value = float(sys.argv[5]) if len(sys.argv) > 5 else -1.0
     source = ASSETS / name / f"{name}_animated_texture_0.png"
     if not source.exists():
         sys.exit(f"no texture at {source}")
@@ -122,7 +142,7 @@ def main() -> None:
     target = out_dir / f"{name}_{label}_texture.png"
 
     image = Image.open(source)
-    painted, touched = repaint(image, degrees / 360.0, from_hue)
+    painted, touched = repaint(image, degrees / 360.0, from_hue, value)
     painted.save(target)
     share = 100.0 * touched / (image.size[0] * image.size[1])
     print(f"repainted {touched} pixels ({share:.1f}% of the sheet) to hue {degrees:.0f}")

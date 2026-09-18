@@ -225,6 +225,9 @@ func build_the_players() -> void:
 		who.reset(4)
 		for i in Rotation.POSITIONS:
 			var player := Player.new()
+			# From the settings, before the body is built: the kit is a choice of
+			# character file, not a recolour applied to one afterwards.
+			player.clear_kit = settings.clear_kits
 			player.name = "%s%d" % [Sides.label(team), i]
 			player.volleyball = true
 			player.speed = COURT_SPEED

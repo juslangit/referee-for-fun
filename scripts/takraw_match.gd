@@ -208,6 +208,9 @@ func build_the_players() -> void:
 		var side := Sides.half_sign(team)
 		for i in per_side:
 			var player := Player.new()
+			# From the settings, before the body is built: the kit is a choice of
+			# character file, not a recolour applied to one afterwards.
+			player.clear_kit = settings.clear_kits
 			player.name = "%s%d" % [Sides.label(team), i]
 			player.volleyball = true
 			# Played with the feet, which is what decides where the ball leaves from: the

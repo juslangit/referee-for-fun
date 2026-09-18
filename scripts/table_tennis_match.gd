@@ -360,6 +360,9 @@ func _home_of(team: Sides.Team) -> Vector3:
 func build_the_players() -> void:
 	for team in [Sides.Team.RED, Sides.Team.BLUE]:
 		var player := Player.new()
+		# From the settings, before the body is built: the kit is a choice of
+		# character file, not a recolour applied to one afterwards.
+		player.clear_kit = settings.clear_kits
 		player.name = Sides.label(team)
 		player.volleyball = false
 		player.racket_kind = &"bat"

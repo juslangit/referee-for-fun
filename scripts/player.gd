@@ -1201,12 +1201,16 @@ func distance_to(point: Vector3) -> float:
 ## figure does not draw — the whole reason `tools/meshy/bake_kit.py` exists.
 var is_libero := false
 
+## Set alongside `is_libero`, from the settings, before the body is built. Like the
+## libero's kit it chooses a character file rather than recolouring one.
+var clear_kit := false
+
 
 func _build_body() -> void:
 	# A real athlete if the downloaded assets are there, and the boxes in figure.gd
 	# if they are not. The fallback is not decoration: a game that will not start
 	# because a model is missing is worse than a game with a box in it.
-	var model := Models.player(team, is_libero)
+	var model := Models.player(team, is_libero, clear_kit)
 	if model != null:
 		add_child(model)
 		_figure = model
