@@ -80,6 +80,17 @@ func _every_menu_starts_focused(hall: Node, ui: RefereeUI) -> void:
 		if on_it:
 			_expect(not (held as Button).disabled and (held as Button).is_visible_in_tree(),
 				"%s focuses one that can actually be pressed" % name)
+			# And not the way out, unless leaving is genuinely all the screen offers.
+			# On the lesson this was BACK on page 1 of 7, so a player on a keyboard who
+			# pressed the obvious key left before reading anything.
+			var others := 0
+			for node in _panel_of(ui, name).find_children("*", "Button", true, false):
+				var button := node as Button
+				if button.visible and not button.disabled and not button.text in RefereeUI.WAYS_OUT:
+					others += 1
+			if others > 0:
+				_expect(not (held as Button).text in RefereeUI.WAYS_OUT,
+					"%s does not start on the way out (%d other buttons on it)" % [name, others])
 
 
 ## And the arrow keys have to reach the others. Godot works the neighbours out from the
@@ -109,6 +120,20 @@ func _arrows_move_between_buttons(hall: Node, ui: RefereeUI) -> void:
 	print("   down the title screen: %s" % " -> ".join(seen))
 	_expect(seen.size() == 5, "down reaches all five title buttons (reached %d)" % seen.size())
 	_expect(seen[seen.size() - 1] == "QUIT", "and ends on QUIT (ended on %s)" % seen[seen.size() - 1])
+
+
+## The panel a named screen lives in, so its buttons can be counted.
+func _panel_of(ui: RefereeUI, name: String) -> Control:
+	match name:
+		"the title screen": return ui._main_menu
+		"WHICH SPORT?": return ui._sport_menu
+		"one a side or two": return ui._format_menu
+		"the career screen": return ui._career_panel
+		"every match so far": return ui._history_panel
+		"the lesson": return ui._teaching
+		"the settings": return ui._settings_menu
+		"the pause menu": return ui._pause_menu
+	return ui._main_menu
 
 
 ## Pointing at a button has to *be* selecting it, or the pointer and the keyboard each

@@ -74,6 +74,10 @@ const FOOTER_BUTTON_WIDTH := 300
 ## Every button on the title screen is this wide, whatever its word is.
 const TITLE_BUTTON_WIDTH := 420
 
+## Buttons whose job is to leave the screen. `_focus_first` takes them last, so arriving
+## somewhere never starts with the cursor on the way out.
+const WAYS_OUT := ["BACK", "MAIN MENU", "QUIT", "BACK TO THE MATCH"]
+
 const REASON_WIDTH := 380
 const REASON_INSET := 44
 
@@ -324,14 +328,31 @@ func _ready() -> void:
 func _focus_first(root: Node) -> void:
 	if root == null:
 		return
+	# The way onward, not the way out.
+	#
+	# Tree order alone is not enough, and a first-run pass on 2026-09-18 found why: on the
+	# lesson, page 1 of 7, the focused button was BACK — so a player on a keyboard or a pad
+	# who pressed the obvious key left the lesson before reading it. The history screen did
+	# the same. The footer is built before the page's own buttons on those screens, and the
+	# footer is where the exits live.
+	#
+	# So the exits are taken last. Anything else on the screen is a better default than a
+	# button whose job is to leave it, and a screen that has nothing but exits still gets
+	# one focused.
+	var exits: Array[Button] = []
 	for node in root.find_children("*", "Button", true, false):
 		var button := node as Button
 		if button.disabled or not button.is_visible_in_tree():
 			continue
 		if _is_dying(button, root):
 			continue
+		if button.text in WAYS_OUT:
+			exits.append(button)
+			continue
 		button.grab_focus()
 		return
+	if not exits.is_empty():
+		exits[0].grab_focus()
 
 
 ## Is this node, or anything it hangs from up to `root`, already on its way out?
