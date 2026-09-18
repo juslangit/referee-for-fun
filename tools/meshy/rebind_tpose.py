@@ -1,6 +1,7 @@
 """Re-binds a character that Meshy returned in an A-pose so its rest pose is a T.
 
     blender --background --python tools/meshy/rebind_tpose.py -- official_new
+    blender --background --python tools/meshy/rebind_tpose.py -- official_new reweight
 
 Reads  assets/meshy/<name>/<name>_rigged.glb
 Writes assets/meshy/<name>/<name>_rigged.glb   (in place, after a .apose.glb backup)
@@ -36,6 +37,18 @@ between a character that can use the project's 33 clips and one that cannot.
 After this, `rig_clips.py` sees a rig within its `LEAVE_ALONE_WITHIN` threshold and applies
 no correction at all — which is the right outcome. The correction in that file stays for
 any future character that arrives in some third pose.
+
+`reweight` — and why the pose alone was not the fault
+-----------------------------------------------------
+Rebuilding the bind pose took the rest from 54 degrees off sideways to 0 and made the
+figure **worse**: the shoulders ballooned further and an arm the skeleton said was straight
+out still read as folded across the chest. A bind pose that is right and a figure that is
+wrong leaves one candidate — the weights themselves.
+
+So `reweight` discards the vertex groups Meshy produced and has Blender paint its own from
+the bone envelopes, on the T-posed rig, where automatic weighting has the best chance of
+being sensible. It costs nothing, which is the whole argument for trying it before paying
+Meshy 5 credits to rig the same mesh again and quite possibly return the same weights.
 """
 
 import math
@@ -70,6 +83,7 @@ def main():
     if not argv:
         raise SystemExit(__doc__)
     name = argv[0]
+    reweight = "reweight" in argv[1:]
     source = ASSETS / name / f"{name}_rigged.glb"
     if not source.exists():
         raise SystemExit(f"missing {source}")
@@ -120,6 +134,22 @@ def main():
     bpy.ops.pose.armature_apply(selected=False)
     bpy.ops.object.mode_set(mode="OBJECT")
     bpy.context.view_layer.update()
+
+    # 5. Optionally, weights painted from the bones rather than the ones Meshy shipped.
+    if reweight:
+        for mesh in meshes:
+            for modifier in list(mesh.modifiers):
+                if modifier.type == "ARMATURE":
+                    mesh.modifiers.remove(modifier)
+            mesh.vertex_groups.clear()
+            bpy.ops.object.select_all(action="DESELECT")
+            mesh.select_set(True)
+            rig.select_set(True)
+            bpy.context.view_layer.objects.active = rig
+            bpy.ops.object.parent_set(type="ARMATURE_AUTO")
+            print(f"  repainted {mesh.name}'s weights from the bones "
+                  f"({len(mesh.vertex_groups)} groups)")
+        bpy.ops.object.select_all(action="DESELECT")
 
     after = {b: arm_offset(rig, b)[0] for b in ARM_CHAIN}
     print("  now rests off sideways: " + ", ".join(f"{b} {d:.0f} deg" for b, d in after.items()))
