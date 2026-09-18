@@ -251,11 +251,15 @@ func _build_lamps(spec: Dictionary) -> void:
 		beam.name = "Beam"
 		beam.position = where
 		beam.look_at_from_position(where, Vector3(0.0, 0.0, along * 3.0), Vector3.UP)
-		beam.light_energy = energy * brighter
+		beam.light_energy = energy * brighter * HallLight.WIDER_CONE_KEEPS_ITS_BRIGHTNESS
 		beam.light_color = Color(1.0, 0.98, 0.94)
-		beam.spot_range = 18.0
-		beam.spot_angle = 34.0
-		beam.spot_angle_attenuation = 0.8
+		beam.spot_range = 23.0
+		# Widened with `HallLight`'s on 2026-09-18, and kept in step with it deliberately:
+		# badminton keeping a narrow pool while every other sport got a wide one would be
+		# the "lit like in badminton" complaint of 2026-09-16 in reverse. See the note in
+		# `HallLight` for why the energy drops as the cone opens.
+		beam.spot_angle = 52.0
+		beam.spot_angle_attenuation = 0.7
 		# One facing pair casts shadows. Twelve shadow-casting spotlights on a hall full of
 		# people costs more than the rest of the game together, and the court already has
 		# the sun's shadow on it.

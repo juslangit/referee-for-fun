@@ -283,7 +283,9 @@ func build_the_players() -> void:
 			var player := Player.new()
 			# From the settings, before the body is built: the kit is a choice of
 			# character file, not a recolour applied to one afterwards.
-			player.clear_kit = settings.clear_kits
+			# `settings` is null in the looks that build a court without a match
+			# around it, and a kit choice is not worth crashing a screenshot over.
+			player.clear_kit = settings != null and settings.clear_kits
 			player.name = "%s%d" % [Sides.label(team), i]
 			player.volleyball = true
 			player.speed = SAND_SPEED

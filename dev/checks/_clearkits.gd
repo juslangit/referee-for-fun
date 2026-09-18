@@ -56,9 +56,16 @@ func _ready() -> void:
 	for path in ["res://scripts/match.gd", "res://scripts/beach_match.gd",
 			"res://scripts/volley_match.gd", "res://scripts/tennis_match.gd",
 			"res://scripts/table_tennis_match.gd", "res://scripts/takraw_match.gd"]:
+		# Matched loosely on purpose. The first version looked for one exact line, and
+		# broke the moment that line grew a null guard for the looks that build a court
+		# with no match around it — the behaviour was untouched and the check failed. A
+		# check pinned to the spelling of a line is a check that fails on refactors and
+		# says nothing about the game.
 		var source := FileAccess.get_file_as_string(path)
-		if source.contains("player.clear_kit = settings.clear_kits"):
-			sports += 1
+		for line in source.split("\n"):
+			if line.contains("player.clear_kit") and line.contains("clear_kits"):
+				sports += 1
+				break
 	_expect(sports == 6, "all six sports pass the setting to their players (%d do)" % sports)
 
 	print("")
