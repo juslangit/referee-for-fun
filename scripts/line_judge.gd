@@ -74,6 +74,17 @@ var _arms := {"right": -1, "left": -1}
 var _animator: AnimationPlayer
 var _signalling := 0.0
 
+## The idle clip, remembered by name and by where it had got to.
+##
+## It has to be remembered rather than read back, because `AnimationPlayer.current_animation`
+## is an empty string whenever nothing is playing — and a paused player counts as nothing
+## playing. Asking a paused player what it was playing, in order to start it again, returns
+## "" and starts nothing. The judge is then left holding a skeleton that no animation is
+## driving, frozen on the last pose that was set by hand, which is how the arms ended up
+## staying out after the call.
+var _idle_clip := ""
+var _idle_at := 0.0
+
 
 func _ready() -> void:
 	_build_body()
@@ -120,9 +131,18 @@ func _pose_arms(amount: float) -> void:
 func _drop_the_arms() -> void:
 	_signalling = 0.0
 	_pose_arms(0.0)
-	if _animator != null and not _animator.current_animation.is_empty():
-		# Back to whatever they were doing, which is standing there.
-		_animator.play(_animator.current_animation)
+	if _animator == null:
+		return
+	if _idle_clip.is_empty():
+		# Whatever it played last, which is the idle unless something else took it over.
+		_idle_clip = _animator.assigned_animation
+	if _idle_clip.is_empty():
+		return
+	# Back to whatever they were doing, picked up where it was paused rather than restarted
+	# from the top: a seated idle that jumps back to frame zero is a jolt at the end of
+	# every single call.
+	_animator.play(_idle_clip)
+	_animator.seek(_idle_at, true)
 
 
 ## A line judge on their feet, which is what both volleyballs use.
@@ -191,6 +211,10 @@ func signal_out() -> void:
 	if _skeleton == null or (_arms["right"] < 0 and _arms["left"] < 0):
 		return
 	if _animator != null:
+		# Read before the pause, never after it. See _idle_clip.
+		if not _animator.current_animation.is_empty():
+			_idle_clip = _animator.current_animation
+			_idle_at = _animator.current_animation_position
 		_animator.pause()
 	_signalling = SIGNAL_SECONDS
 
