@@ -51,6 +51,9 @@ header.top .wrap{display:flex;align-items:center;gap:20px;min-height:58px}
 header.top nav{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
 header.top nav a{font:600 13px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-decoration:none;padding:9px 11px}
 header.top nav a:hover{color:var(--caption)}
+header.top nav a.get{background:var(--caption);color:var(--caption-ink);padding:10px 16px;border-radius:2px}
+header.top nav a.get:hover{background:#ffd45e;color:var(--caption-ink)}
+@media (max-width:760px){header.top nav a:not(.get){display:none}}
 
 /* ---- hero ---- */
 .hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
@@ -153,6 +156,31 @@ figcaption{margin-top:10px;font:500 12px/1.5 var(--mono);letter-spacing:.06em;te
 .sheet dd{margin:0;font-size:16.5px}
 .sheet dd .mono{font-family:var(--mono);font-size:14.5px}
 
+/* ---- download ---- */
+#get{background:var(--panel);border-block:1px solid var(--line)}
+.plats{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:34px}
+@media (max-width:800px){.plats{grid-template-columns:1fr}}
+.plat{background:var(--hall);border:1px solid var(--line);padding:28px;display:flex;flex-direction:column;position:relative}
+.plat.you{border-color:var(--caption);box-shadow:0 0 0 1px var(--caption) inset}
+.plat .yours{position:absolute;top:-1px;right:-1px;background:var(--caption);color:var(--caption-ink);font:600 10.5px/1 var(--mono);letter-spacing:.11em;text-transform:uppercase;padding:7px 11px}
+.plat .os{display:flex;align-items:center;gap:11px}
+.plat .os svg{width:26px;height:26px;fill:var(--chalk);flex:none}
+.plat h3{margin:0;font:800 26px/1 var(--display);text-transform:uppercase;letter-spacing:.02em}
+.plat .file{font:500 12.5px/1.5 var(--mono);color:var(--muted);margin:12px 0 0;word-break:break-all}
+.plat .note{margin:10px 0 0;color:var(--muted);font-size:15px;line-height:1.55}
+.plat .dl{margin-top:auto;padding-top:18px}
+.plat .btn{width:100%;justify-content:center}
+.reqs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+@media (max-width:800px){.reqs{grid-template-columns:1fr}}
+.req{background:var(--hall);border:1px solid var(--line);padding:22px}
+.req h4{margin:0 0 12px;font:600 12px/1 var(--mono);letter-spacing:.11em;text-transform:uppercase;color:var(--caption)}
+.req dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:7px 16px;font-size:15px}
+.req dt{color:var(--muted);font:500 12px/1.65 var(--mono);text-transform:uppercase;letter-spacing:.05em}
+.req dd{margin:0}
+.warn{margin-top:14px;background:rgba(255,194,46,.07);border:1px solid rgba(255,194,46,.32);border-left:4px solid var(--caption);padding:18px 20px}
+.warn p{margin:0;font-size:15.5px;color:#D3DEE9;line-height:1.6}
+.warn b{color:var(--chalk)}
+
 footer{border-top:1px solid var(--line);background:#080d14;padding-block:46px 56px;margin-top:20px}
 footer .cols{display:flex;gap:30px;flex-wrap:wrap;justify-content:space-between;align-items:flex-start}
 footer p{margin:0;color:var(--muted);font-size:14.5px;max-width:52ch}
@@ -171,23 +199,24 @@ footer .links a:hover{color:var(--caption)}
       <a href="#sports">Six sports</a>
       <a href="#job">The job</a>
       <a href="#details">Details</a>
+      <a class="get" href="#get">Download</a>
     </nav>
   </div>
 </header>
 
 <div class="hero" id="top">
-  <img class="hero-img" src="img/shot-rally.jpg" alt="A badminton rally seen from the umpire's chair">
+  <img class="hero-img" src="img/key-art.jpg" alt="An umpire alone in the raised chair under a spotlight, a packed arena in darkness behind">
   <div class="hero-veil"></div>
   <div class="wrap">
     <img class="hero-logo" src="img/logo.png" alt="Referee For Fun">
     <p class="tag">You are the umpire, <em>not the athlete</em>.</p>
     <p class="sub">The match is played in front of you with real physics, so the game already knows exactly where the shuttle landed, to the millimetre. It is never going to tell you. Your job is to say what happened — and nothing in the game requires that to be true.</p>
     <div class="cta">
-      <a class="btn" href="#call">Make a call</a>
-      <a class="btn ghost" href="#sports">See the six sports</a>
+      <a class="btn" href="#get">Download free</a>
+      <a class="btn ghost" href="#call">Make a call</a>
     </div>
     <div class="pills">
-      <span>In testing</span><span>Godot 4.7.2</span><span>macOS &amp; Windows</span><span>Keyboard &amp; mouse</span><span>Single player</span>
+      <span>In testing</span><span>Godot 4.7.2</span><span>macOS &amp; Windows</span><span>Keyboard, mouse &amp; gamepad</span><span>Single player</span><span>Free</span>
     </div>
   </div>
 </div>
@@ -353,6 +382,67 @@ footer .links a:hover{color:var(--caption)}
   </div>
 </section>
 
+<!-- ============ DOWNLOAD ============ -->
+<section id="get">
+  <div class="wrap">
+    <p class="hud"><b>Download</b><span>Free · no account · no installer</span></p>
+    <h2>Pick your platform</h2>
+    <div class="slab"></div>
+    <p class="lede">Referee For Fun is free. There is no launcher, no account and no telemetry — you download one file and run it. Both builds come straight from the project's GitHub releases.</p>
+
+    <div class="plats" id="plats">
+      <div class="plat" id="plat-mac">
+        <span class="yours" hidden>Your system</span>
+        <div class="os">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.365 1.43c0 1.14-.47 2.22-1.23 3.01-.82.85-2.16 1.5-3.28 1.41-.13-1.1.44-2.25 1.18-3.02.83-.86 2.27-1.48 3.33-1.4zM20.9 17.13c-.55 1.27-.81 1.83-1.52 2.95-.99 1.56-2.38 3.5-4.11 3.51-1.53.02-1.93-1-4.01-.99-2.08.01-2.51 1.01-4.05.99-1.72-.02-3.04-1.77-4.03-3.32C.41 15.92-.1 10.83 1.83 8.06c1.09-1.58 2.81-2.5 4.43-2.5 1.65 0 2.68.91 4.05.91 1.32 0 2.13-.91 4.03-.91 1.44 0 2.96.78 4.05 2.14-3.56 1.95-2.98 7.03.51 8.43z"/></svg>
+          <h3>macOS</h3>
+        </div>
+        <p class="file">Referee.For.Fun.dmg · 355 MB · universal</p>
+        <p class="note">Open the disk image and drag <b>Referee For Fun</b> to Applications. The build is unsigned, so the first time you open it, <b>right-click the app and choose Open</b>, then confirm — a normal double-click will be blocked by Gatekeeper.</p>
+        <div class="dl"><a class="btn" href="https://github.com/juslangit/referee-for-fun/releases/latest/download/Referee.For.Fun.dmg">Download for macOS</a></div>
+      </div>
+
+      <div class="plat" id="plat-win">
+        <span class="yours" hidden>Your system</span>
+        <div class="os">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
+          <h3>Windows</h3>
+        </div>
+        <p class="file">Referee.For.Fun.exe · 397 MB · 64-bit</p>
+        <p class="note">One file, no installer — put it in a folder and run it. SmartScreen will warn you because the build is unsigned: choose <b>More info</b>, then <b>Run anyway</b>.</p>
+        <div class="dl"><a class="btn" href="https://github.com/juslangit/referee-for-fun/releases/latest/download/Referee.For.Fun.exe">Download for Windows</a></div>
+      </div>
+    </div>
+
+    <div class="reqs">
+      <div class="req">
+        <h4>What you need</h4>
+        <dl>
+          <dt>macOS</dt><dd>11 Big Sur or later. Apple Silicon or Intel.</dd>
+          <dt>Windows</dt><dd>10 or 11, 64-bit.</dd>
+          <dt>Graphics</dt><dd>Anything with Vulkan or Metal from the last decade.</dd>
+          <dt>Disk</dt><dd>About 1 GB once unpacked.</dd>
+          <dt>Input</dt><dd>Keyboard and mouse, or any gamepad. Every key rebindable.</dd>
+        </dl>
+      </div>
+      <div class="req">
+        <h4>Honestly, before you download</h4>
+        <dl>
+          <dt>Version</dt><dd>v0.1.0 — the first public build.</dd>
+          <dt>State</dt><dd>All six sports are in it and playable, with a career ladder each.</dd>
+          <dt>Caveat</dt><dd>It has been played, but not widely. Tennis and table tennis are still flatly lit.</dd>
+          <dt>Save</dt><dd>Local only. Your reputation never leaves your machine.</dd>
+          <dt>Cost</dt><dd>Free, and there is nothing to buy.</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="warn">
+      <p><b>Both builds are unsigned.</b> Luqman is one person making games, not a company with an Apple Developer certificate and a Microsoft code-signing key, so macOS and Windows will both tell you they cannot verify the publisher. The steps above get past it. The source is on <a href="https://github.com/juslangit/referee-for-fun">GitHub</a> if you would rather read it and build it yourself.</p>
+    </div>
+  </div>
+</section>
+
 <section id="details">
   <div class="wrap">
     <p class="hud"><b>Details</b><span>What it is, honestly</span></p>
@@ -376,7 +466,9 @@ footer .links a:hover{color:var(--caption)}
   <div class="wrap cols">
     <p>Referee For Fun is a single-player game made in Godot by Luqman Hakeem. The shuttle cam on this page runs the same idea as the game: a real landing position, measured in millimetres, that you are never shown until after you have committed.</p>
     <div class="links">
-      <a href="https://github.com/juslangit/referee-for-fun">GitHub — private repo</a>
+      <a href="https://github.com/juslangit/referee-for-fun">Source on GitHub</a>
+      <a href="https://github.com/juslangit/referee-for-fun/releases">All releases</a>
+      <a href="https://juslangit.github.io/red-card/">Red Card</a>
       <a href="#top">Back to the top</a>
     </div>
   </div>
@@ -532,6 +624,23 @@ footer .links a:hover{color:var(--caption)}
   el.cam.addEventListener('contextmenu', function(e){ e.preventDefault(); judge('OUT'); });
 
   newRally();
+})();
+</script>
+
+<script>
+/* Highlight the platform the visitor is actually on, and put it first. */
+(function(){
+  var p = navigator.platform || '';
+  var ua = navigator.userAgent || '';
+  var isMac = /Mac/i.test(p) || (/Mac/i.test(ua) && !/iPhone|iPad/i.test(ua));
+  var isWin = /Win/i.test(p) || /Windows/i.test(ua);
+  if (!isMac && !isWin) return;                 // Linux, mobile, unknown: leave it alone
+  var card = document.getElementById(isMac ? 'plat-mac' : 'plat-win');
+  if (!card) return;
+  card.classList.add('you');
+  var badge = card.querySelector('.yours');
+  if (badge) badge.hidden = false;
+  document.getElementById('plats').prepend(card);
 })();
 </script>
 </body>
