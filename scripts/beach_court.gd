@@ -88,6 +88,8 @@ func _build_materials() -> void:
 	_sand_material = _make_material(Color(0.90, 0.80, 0.61))
 	_line_material = _make_material(Color(0.96, 0.96, 0.94))
 	_net_material = _make_material(Color(0.13, 0.14, 0.16))
+	# Corded, at beach volleyball — the same net as indoor's own gauge. See `NetCord`.
+	NetCord.dress(_net_material, BeachSpec.HALF_WIDTH * 2.0, BeachSpec.NET_DEPTH, NetCord.VOLLEYBALL)
 	_post_material = _make_material(Color(0.72, 0.73, 0.76))
 	# The net's top band has its own material, even though it starts the colour of the lines,
 	# because the top event paints it and the lines must stay white.

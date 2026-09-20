@@ -87,6 +87,8 @@ func _build_materials() -> void:
 	_surround_material = _make_material(Color(0.50, 0.51, 0.53))
 	_line_material = _make_material(Color(0.96, 0.96, 0.94))
 	_net_material = _make_material(Color(0.08, 0.08, 0.10))
+	# Corded, at sepak takraw's own gauge. See `NetCord`.
+	NetCord.dress(_net_material, TakrawSpec.HALF_WIDTH * 2.0, TakrawSpec.NET_DEPTH, NetCord.TAKRAW)
 	_tape_material = _make_material(Color(0.96, 0.96, 0.94))
 	_post_material = _make_material(Color(0.72, 0.73, 0.76))
 	_hall_material = _make_material(Color(0.28, 0.29, 0.34))

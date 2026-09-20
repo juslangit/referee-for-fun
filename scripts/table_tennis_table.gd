@@ -65,6 +65,10 @@ func _build_materials() -> void:
 	_top_material.roughness = 0.98
 	_line_material = _make_material(Color(0.95, 0.95, 0.93))
 	_net_material = _make_material(Color(0.10, 0.12, 0.16))
+	# Corded, at table tennis's own gauge. See `NetCord`.
+	NetCord.dress(_net_material,
+		(TableTennisSpec.HALF_WIDTH + TableTennisSpec.NET_OVERHANG) * 2.0,
+		TableTennisSpec.NET_HEIGHT, NetCord.TABLE_TENNIS)
 	_frame_material = _make_material(Color(0.20, 0.21, 0.24))
 
 

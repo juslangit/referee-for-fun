@@ -67,6 +67,8 @@ func _build_materials() -> void:
 	_floor_material = _make_material(Color(0.86, 0.71, 0.48))
 	_line_material = _make_material(Color(0.96, 0.96, 0.94))
 	_net_material = _make_material(Color(0.13, 0.14, 0.16))
+	# Corded, at indoor volleyball's own gauge. See `NetCord`.
+	NetCord.dress(_net_material, VolleySpec.HALF_WIDTH * 2.0, VolleySpec.NET_DEPTH, NetCord.VOLLEYBALL)
 	_post_material = _make_material(Color(0.72, 0.73, 0.76))
 	_hall_material = _make_material(Color(0.28, 0.29, 0.34))
 

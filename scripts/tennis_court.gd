@@ -52,6 +52,8 @@ func _build_materials() -> void:
 	_surface_material = _make_material(Color(0.22, 0.42, 0.58))
 	_line_material = _make_material(Color(0.96, 0.96, 0.94))
 	_net_material = _make_material(Color(0.11, 0.12, 0.14))
+	# Corded, at tennis's own gauge. See `NetCord`.
+	NetCord.dress(_net_material, TennisSpec.HALF_WIDTH_DOUBLES * 2.0, TennisSpec.NET_HEIGHT_POST, NetCord.TENNIS)
 	_post_material = _make_material(Color(0.28, 0.30, 0.33))
 
 

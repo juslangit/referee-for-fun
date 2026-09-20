@@ -120,6 +120,8 @@ func _build_materials() -> void:
 	_ceiling_material = _make_material(Color(0.14, 0.15, 0.18))
 
 	_net_material = _make_material(Color(0.08, 0.08, 0.09))
+	# Corded, at badminton's own gauge. See `NetCord`.
+	NetCord.dress(_net_material, CourtSpec.HALF_WIDTH_DOUBLES * 2.0, CourtSpec.NET_DEPTH, NetCord.BADMINTON)
 	_net_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_net_material.albedo_color.a = 0.55
 	_net_material.cull_mode = BaseMaterial3D.CULL_DISABLED
