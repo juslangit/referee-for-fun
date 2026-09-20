@@ -11,6 +11,12 @@ extends Node
 ## Both are the kind of fault that is obvious to a player in five seconds and invisible
 ## to every other check in this project, because nothing here has ever pressed a button.
 ## This one presses them.
+##
+## It counted its problems from the day it was written and never said whether it had any,
+## so a clean run and a broken one read the same to anyone skimming. On 2026-09-18 a
+## first-run pass found the lesson screen opening with BACK selected — a player on a
+## keyboard would have left the tutorial before reading it — and this check was walking
+## that exact screen all day without a word. Counting is not reporting.
 
 ## Every screen the player can walk to, and how to open it. The title screen is not on
 ## the list — it is the one screen that is allowed to have no way back.
@@ -43,9 +49,9 @@ func _ready() -> void:
 
 	print("")
 	if bad == 0:
-		print("every menu can be left, forwards and backwards")
+		print("PASS  every menu can be left, forwards and backwards")
 	else:
-		print("%d PROBLEM(S)" % bad)
+		print("FAIL  %d menu(s) cannot be left, or BACK lands somewhere else" % bad)
 	get_tree().quit()
 
 

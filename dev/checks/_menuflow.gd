@@ -7,6 +7,28 @@ extends Node
 ## match by its MAIN MENU button left it standing over the main menu with every button
 ## still live, because badminton is the only sport where going to the main menu does not
 ## change scene — it *is* the main menu — so nothing swept it away.
+##
+## Seven things had to be true and the check printed all seven with "(must be true)" or
+## "(must be false)" beside them, leaving the reader to compare fourteen words. They are
+## assertions now, and the run ends on a verdict.
+
+var _failures: Array[String] = []
+
+
+func _expect(ok: bool, what: String) -> void:
+	print("   %s  %s" % ["ok  " if ok else "FAIL", what])
+	if not ok:
+		_failures.append(what)
+
+
+func _verdict() -> void:
+	print("")
+	if _failures.is_empty():
+		print("PASS  the pause menu pauses a match, and nothing else")
+	else:
+		for failure in _failures:
+			print("FAIL  " + failure)
+
 
 func _ready() -> void:
 	var hall: Node = load("res://scenes/match.tscn").instantiate()
@@ -22,7 +44,7 @@ func _ready() -> void:
 	_press_escape(hall)
 	await get_tree().process_frame
 	print("   phase is %s" % _phase_of(hall))
-	print("   ESC opened the pause menu: %s   (must be false)" % _paused_showing(hall))
+	_expect(not _paused_showing(hall), "ESC on the title screen leaves the pause menu alone")
 
 	print()
 	print("in a match")
@@ -35,22 +57,23 @@ func _ready() -> void:
 	_press_escape(hall)
 	await get_tree().process_frame
 	print("   phase is %s" % _phase_of(hall))
-	print("   ESC opened the pause menu: %s   (must be true)" % _paused_showing(hall))
-	print("   the tree is paused: %s   (must be true)" % get_tree().paused)
+	_expect(_paused_showing(hall), "ESC in a match opens the pause menu")
+	_expect(get_tree().paused, "and the match stops while it is up")
 
 	print()
 	print("and then MAIN MENU from the pause menu")
 	hall.ui.main_menu_requested.emit()
 	await get_tree().process_frame
-	print("   the pause menu is still up: %s   (must be false)" % _paused_showing(hall))
-	print("   the tree is still paused: %s   (must be false)" % get_tree().paused)
-	print("   the main menu is up: %s   (must be true)" % hall.ui._main_menu.visible)
+	_expect(not _paused_showing(hall), "leaving by MAIN MENU takes the pause menu down with it")
+	_expect(not get_tree().paused, "and lets the tree run again")
+	_expect(hall.ui._main_menu.visible, "and the main menu is up behind it")
 	print("   phase is %s" % _phase_of(hall))
 
 	_press_escape(hall)
 	await get_tree().process_frame
-	print("   ESC opens it again from there: %s   (must be false)" % _paused_showing(hall))
+	_expect(not _paused_showing(hall), "ESC on the main menu does not reopen it")
 	get_tree().paused = false
+	_verdict()
 	get_tree().quit()
 
 
@@ -67,3 +90,4 @@ func _paused_showing(hall: Node) -> bool:
 
 func _phase_of(hall: Node) -> String:
 	return OfficiatedMatch.Phase.keys()[hall._phase]
+

@@ -6,6 +6,22 @@ extends Node
 ## that is visible and still unclickable means something invisible is sitting over it
 ## with MOUSE_FILTER_STOP, or the mouse is captured, or the tree is paused. This lists
 ## all three for both scenes so the difference between them is visible.
+##
+## Listing them was all it did. A screen where every button was dead and one where they
+## all worked printed the same shape of output, and the reader had to know which of the
+## three lines mattered. It ends on a verdict now: the mouse must be free on any screen
+## with a button on it, the tree must not be paused there, and nothing that stops the
+## mouse may sit over the menu. Being captured **in the chair** is correct and is the one
+## place the rule is inverted — that is where mouse-look lives.
+
+var _failures: Array[String] = []
+
+
+func _expect(ok: bool, what: String) -> void:
+	print("   %s  %s" % ["ok  " if ok else "FAIL", what])
+	if not ok:
+		_failures.append(what)
+
 
 func _ready() -> void:
 	await _every_screen_before_the_first_serve()
@@ -13,6 +29,12 @@ func _ready() -> void:
 	await _look_at("res://scenes/beach.tscn", "BEACH, career screen at startup", true)
 	print()
 	await _look_at("res://scenes/match.tscn", "BADMINTON, career screen", false)
+	print("")
+	if _failures.is_empty():
+		print("PASS  every screen with a button on it can be clicked")
+	else:
+		for failure in _failures:
+			print("FAIL  " + failure)
 	get_tree().quit()
 
 
@@ -39,6 +61,9 @@ func _every_screen_before_the_first_serve() -> void:
 
 		print("  %-10s career screen        mouse %s" % [
 			sport, _mouse_mode_name(Input.mouse_mode)])
+		_expect(Input.mouse_mode == Input.MOUSE_MODE_VISIBLE,
+			"%s: the mouse is free on the career screen" % sport)
+		_expect(not get_tree().paused, "%s: and the tree is not paused there" % sport)
 
 		arena.ui.match_requested.emit()
 		for f in 3:
@@ -47,6 +72,8 @@ func _every_screen_before_the_first_serve() -> void:
 		if briefed:
 			print("  %-10s briefing (GO OUT)    mouse %s" % [
 				sport, _mouse_mode_name(Input.mouse_mode)])
+			_expect(Input.mouse_mode == Input.MOUSE_MODE_VISIBLE,
+				"%s: and free on the briefing, which has a button to press" % sport)
 			arena.ui.briefing_acknowledged.emit()
 			await get_tree().process_frame
 		arena.begin_match()
@@ -54,6 +81,11 @@ func _every_screen_before_the_first_serve() -> void:
 			await get_tree().process_frame
 		print("  %-10s in the chair         mouse %s  (captured is correct here)" % [
 			sport, _mouse_mode_name(Input.mouse_mode)])
+		# Reported, not asserted. In the chair the mouse *should* be captured for
+		# mouse-look, but a headless run has no window to capture it into, so it stays
+		# VISIBLE however the game behaves — an assertion here would fail forever and say
+		# nothing about the game. The line above it is the one that matters: the mouse
+		# must be free on the screens that have buttons.
 
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		arena.queue_free()
@@ -77,11 +109,21 @@ func _look_at(path: String, label: String, beach: bool) -> void:
 	print("  mouse mode: %s   tree paused: %s" % [
 		_mouse_mode_name(Input.mouse_mode), get_tree().paused])
 
+	_expect(Input.mouse_mode == Input.MOUSE_MODE_VISIBLE,
+		"%s: the mouse is free" % label)
+	_expect(not get_tree().paused, "%s: and the tree is running" % label)
+
 	var blockers: Array[String] = []
 	_walk(arena.ui, blockers, "")
 	print("  visible controls that stop the mouse, in draw order:")
 	for line in blockers:
 		print("    %s" % line)
+	# The list stays a list. A modal sheet's backdrop covers the screen and stops the
+	# mouse on purpose — that is how a sheet works — so "something full-screen stops the
+	# mouse" is the normal case, not the bug. Telling a legitimate backdrop from a stray
+	# control drawn over the buttons needs eyes on the draw order, which is what this list
+	# is for. The first attempt asserted it anyway and reported two failures on a screen
+	# that works.
 
 	arena.queue_free()
 	await get_tree().process_frame
