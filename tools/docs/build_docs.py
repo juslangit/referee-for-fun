@@ -188,6 +188,15 @@ GALLERIES = [
         ("dev/shots/_shot_net_tt.png", "Table tennis, 12.5 mm and 15 cm tall: the finest net and the smallest."),
         ("assets/ui/net_cord.png", "The whole texture: one 128\u00d7128 square of cord, 3% of the cell, supersampled 4\u00d7 and blurred 0.4 px so the strands do not crawl. Everything above is this tiled."),
     ]),
+    ("screens-lighting", "Lighting the last two halls", "Until 2026-09-20 tennis and table tennis were lit by one directional light over a high ambient \u2014 a room with the strip lights on, which lights the back wall as brightly as the court. They were the last two on it, and only because nobody had complained about them. Both roof heights were found by rendering three each and looking, not by estimating: in both cases the value a sensible estimate picks lit the room evenly from lamps outside the frame, which is the flat rig again by another route.", [
+        ("dev/shots/hall_ttbefore_4.png", "Table tennis before: flat, one hard shadow, the drapes as bright as the table."),
+        ("dev/shots/hall_tt_4.png", "After, with the truss at 5.2 m: the room falls off to the corners and the rig runs across the top the way it does on television."),
+        ("dev/shots/hall_tt4.2_4.png", "The same room with the truss at 4.2 m, which crowds the top third of the picture. Rendered to be rejected."),
+        ("dev/shots/hall_tnbefore_4.png", "Tennis before, at the indoor final."),
+        ("dev/shots/hall_tn_4.png", "The first attempt, at 13.0 m with badminton\u0027s haze: a tennis arena has no walls in this game, so the fog has nothing to sit against and fills the void with grey. Worse than what it replaced, and only the side-by-side showed it."),
+        ("dev/shots/hall_tn11.0_4.png", "At 11.0 m with a third of the haze, which is what shipped."),
+        ("dev/shots/hall_tnout_0.png", "The club courts, still outdoors under a real sun \u2014 tennis is the only sport that changes climate as the career climbs, so its whole rig is built and thrown away as the venue changes."),
+    ]),
     ("packaging", "Packaging", "What a player sees before the game starts: the disk image the Mac build installs from, dressed on 2026-09-17, and the icon the app wears. Both are drawn by tools/build/make_art.py from the game's own colours and title logo.", [
         ("tools/build/dmg/background.tiff", "The disk image window, 640x420. Finder places the game at 168,236 and the Applications shortcut at 472,236 — either side of the net, with the arrow crossing it. The court is a real doubles court: 13.4 m by 6.1 m, service lines 1.98 m from the net. This is the artwork, not a photograph of the window: the machine this was built on has no Screen Recording permission, so the window itself cannot be photographed."),
         ("assets/icon.png", "The app icon, 1024 px: the whistle from the title logo on a tile in the court mat's green. It replaced Godot's robot, which every build wore until then because application/icon was empty in both export presets. Crisp at the sizes Finder and the Dock use; soft here, because the whistle is only 136 px in the logo and there is no larger original."),
