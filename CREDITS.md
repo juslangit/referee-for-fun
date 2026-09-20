@@ -112,8 +112,6 @@ Kept in the repository, credited anyway, and not in the shipped game.
 
 - **Athlete USSR** by emelyarules — CC Attribution
 
-- **Bleacher** by JanStano — CC Attribution
-
 - **Female Athlete USSR** by emelyarules — CC Attribution
 
 - **Low-poly Man** by Razvan Savescu — CC Attribution
@@ -129,8 +127,6 @@ Kept in the repository, credited anyway, and not in the shipped game.
 - **pro badminton player animation** by Sean_W — CC Attribution
 
 - **Random Guy** by Pawel — CC Attribution
-
-- **Seating | Bleacher** by Baskot — CC Attribution
 
 - **Simple Character** by Kit2K2 — CC Attribution
 

@@ -8,12 +8,21 @@ extends Node
 ## air**: every other line leaves a mark in the sand that both sides walk over and look
 ## at, and this one leaves nothing at all.
 
+var _failures: Array[String] = []
+
+
 func _ready() -> void:
 	_what_a_lie_costs()
 	print()
 	await _does_it_happen("beach", "res://scenes/beach.tscn", Career.BEACH)
 	print()
 	await _does_it_happen("indoor", "res://scenes/volleyball.tscn", Career.INDOOR)
+	print()
+	if _failures.is_empty():
+		print("PASS  both volleyballs put balls outside the antenna often enough to be judged")
+	else:
+		for failure in _failures:
+			print("FAIL  %s" % failure)
 	get_tree().quit()
 
 
@@ -96,7 +105,19 @@ func _does_it_happen(name: String, scene: String, sport: StringName) -> void:
 	var worst := 0.0
 	for m in margins:
 		worst = minf(worst, m)
+	var share := 100.0 * float(outside) / maxf(1.0, float(rallies))
 	print("%s: %d rallies, %d crossed outside an antenna (%.0f%%), furthest out %.2f m" % [
-		name, rallies, outside, 100.0 * float(outside) / maxf(1.0, float(rallies)), -worst])
+		name, rallies, outside, share, -worst])
+	# A verdict, added 2026-09-20. This counted for weeks without ever saying whether the
+	# numbers were good, which is the defect M-048 was about: counting is not reporting.
+	#
+	# The assertion is deliberately loose, because what is being checked is that the
+	# antenna call **can happen at all**. A hall where no rally ever crosses outside an
+	# antenna has a rule nobody will ever meet, and one where every rally does has a
+	# simulation aiming at the wrong place.
+	if rallies <= 0:
+		_failures.append("%s: no rallies to judge" % name)
+	elif outside == 0:
+		_failures.append("%s: not one rally crossed outside an antenna in %d" % [name, rallies])
 	arena.queue_free()
 	await get_tree().process_frame
