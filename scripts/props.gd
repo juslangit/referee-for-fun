@@ -70,8 +70,14 @@ static func node(path: String, height: float, correction := Transform3D.IDENTITY
 ## the floor. A model that was authored away from the origin — the arena chair sits sixteen
 ## units off its own — is otherwise placed sixteen units times the scale away from wherever
 ## it is asked for, which for a MultiMesh means three hundred seats in the car park.
+## `tint_only` names the materials that instance colour is allowed to touch. Empty means
+## all of them, which is the old behaviour and is right for a model whose whole surface is
+## one painted texture. It is wrong for a character built out of named materials: tinting a
+## spectator's shirt orange with instance colour tints their face and hair orange too, so
+## the colour can only ever be a shade. Naming the kit gives three hundred people three
+## hundred different shirts and leaves their skin alone.
 static func merged(path: String, height: float, correction := Transform3D.IDENTITY,
-		keep := 1.0, centre := false) -> Array:
+		keep := 1.0, centre := false, tint_only: Array = []) -> Array:
 	if not ResourceLoader.exists(path):
 		return []
 	var model: Node3D = load(path).instantiate()
@@ -104,7 +110,8 @@ static func merged(path: String, height: float, correction := Transform3D.IDENTI
 			# Instance colour is only allowed to touch the model's own paint if the
 			# material says so, and it is what turns one seat into a stand full of them.
 			var shaded: StandardMaterial3D = (paint as StandardMaterial3D).duplicate()
-			shaded.vertex_color_use_as_albedo = true
+			shaded.vertex_color_use_as_albedo = (
+				tint_only.is_empty() or _named(paint) in tint_only)
 			builder.set_material(shaded)
 		# Simplifying needs shared corners to know which triangles are neighbours, and
 		# a merged mesh comes out with every triangle owning its own three.
@@ -117,7 +124,12 @@ static func merged(path: String, height: float, correction := Transform3D.IDENTI
 	var box := mesh.get_aabb()
 	if box.size.y <= 0.0001:
 		return []
-	var fit := height / box.size.y
+	# A height of zero means "it is already the right size". Anything built by
+	# `tools/blender/character_forge.py` is authored at true scale — a 1.74 m spectator is
+	# 1.74 m in Blender and in the hall — and scaling one of those to a height would be
+	# wrong twice over for a seated figure, whose own height is not the height of the
+	# person. See `Stands.CROWD_MODELS`.
+	var fit := 1.0 if height <= 0.0 else height / box.size.y
 	var stand := Transform3D.IDENTITY.scaled(Vector3.ONE * fit)
 	stand.origin.y -= box.position.y * fit
 	if centre:
@@ -139,6 +151,19 @@ static func merged(path: String, height: float, correction := Transform3D.IDENTI
 ## that goes wrong along the way — a mesh with no data to read, a generator that found
 ## nothing to remove — hands back the original, because a seat drawn slowly is better
 ## than no seat.
+## What a material calls itself, with whatever the glTF importer appended stripped off.
+## Blender's exporter and Godot's importer both add suffixes to keep names unique, so a
+## material authored as "kit" can arrive as "kit", "kit.001" or "kit_0".
+static func _named(paint: Material) -> String:
+	if paint == null:
+		return ""
+	var name := paint.resource_name
+	var cut := name.find(".")
+	if cut > 0:
+		name = name.substr(0, cut)
+	return name
+
+
 static func simplified(mesh: ArrayMesh, keep: float) -> ArrayMesh:
 	var source := ImporterMesh.new()
 	for surface in mesh.get_surface_count():

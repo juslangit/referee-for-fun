@@ -74,15 +74,33 @@ const SHIRTS := [
 ## with a cube for a head. One turned out to be a close-up of a hand holding a phone.
 ## One was a man in his underwear. Two spectators who are actually dressed beat three
 ## where the third is wearing boxer shorts in the fourth row of an international final.
+## Two people, each baked twice: sitting in their seat, and on their feet with their arms
+## up. A MultiMesh draws one mesh many times and has no skeleton, so a spectator cannot be
+## posed — they have to arrive already in the pose, and standing up means being swapped for
+## a different mesh. `tools/blender/crowd_poses.py` bakes all six.
+##
+## The two are the forge's own spectator at two heights and two builds, which replaced two
+## unrelated downloaded models on 2026-09-20. That trade is worth naming: the downloaded
+## pair were genuinely different people and these two are the same person twice, but the
+## downloaded pair could only ever stand, and a hall of three hundred people standing to
+## attention through a rally is a worse lie than a hall where some of them have the same
+## face. `crowd_b` sits leaning forward rather than upright, so the two halves of the hall
+## still do not sit the same way.
+##
+## `height` is zero on purpose: these are authored at true scale and must not be fitted to
+## anything. A seated figure's own height is 1.2 m and the person is 1.74 m, so scaling by
+## height would make every seated spectator a giant. See `Props.merged`.
 const CROWD_MODELS := [
-	{"path": "res://assets/sketchfab/simple_low_poly_character/simple_low_poly_character.glb",
-		"stand": "none", "height": 1.75, "share": 0.55},
-	{"path": "res://assets/sketchfab/low_poly_woman/low_poly_woman.glb",
-		"stand": "down", "height": 1.66, "share": 0.45},
+	{"sitting": "res://assets/characters/crowd_a_sit.glb",
+		"standing": "res://assets/characters/crowd_a_stand.glb",
+		"height": 0.0, "share": 0.55},
+	{"sitting": "res://assets/characters/crowd_b_lean.glb",
+		"standing": "res://assets/characters/crowd_b_stand.glb",
+		"height": 0.0, "share": 0.45},
 ]
 
 ## Kept for the check that decides between painted people and the fallback boxes.
-const CROWD_MODEL := "res://assets/sketchfab/simple_low_poly_character/simple_low_poly_character.glb"
+const CROWD_MODEL := "res://assets/characters/crowd_a_sit.glb"
 
 ## How big a seat is, and how far in front of it its occupant stands.
 const SEAT_HEIGHT := 0.86
@@ -96,10 +114,20 @@ const SEAT_DEPTH := 0.34
 ## `Props.simplified`.
 const SEAT_DETAIL := 1.0
 
-## A yaw put on the crowd model so that it faces the way the seat is turned. Which
+## A yaw put on the seat model so that it faces the way the row is turned. Which
 ## direction a model calls forward is a decision its author made and did not write
 ## down, so this is set by looking at the hall rather than worked out.
 const CROWD_FACING := 180.0
+
+## The same, for the people. A separate number since 2026-09-20, because the crowd stopped
+## being downloaded models and became the forge's own spectator, which faces its own way.
+const PERSON_FACING := 0.0
+
+## The only part of a spectator that instance colour is allowed to touch. The shirt is
+## baked almost white so that the tint *is* the shirt; the face, hair and shoes keep what
+## the forge painted. Before this the colour covered the whole person at once, so it could
+## only ever produce light and shade and a hall of three hundred people came out grey.
+const TINTED := ["kit"]
 
 ## How far a spectator comes off their seat when the hall reacts, and how long the
 ## reaction takes to die down.
@@ -138,6 +166,15 @@ var _crowd_seats: Array = []
 var _crowd_shapes: Array[Transform3D] = []
 var _crowd_jumps: Array = []
 
+## The same people again, on their feet. Every spectator has a slot in both of these and
+## is drawn by exactly one of them at a time; the other holds a zero-sized transform,
+## which is how a MultiMesh hides an instance — there is no per-instance visibility.
+var _standers: Array[MultiMeshInstance3D] = []
+var _stander_shapes: Array[Transform3D] = []
+
+## How far clear of the chair somebody steps when they get to their feet.
+var _stand_forward := 0.0
+
 ## Which of the two reactions each seat is in the middle of. Parallel to `_crowd_jumps`,
 ## a flag per instance rather than a second timer, because a spectator is doing one or
 ## the other and never both.
@@ -175,6 +212,8 @@ func dress(which: Venue.Tier) -> void:
 	_heads = null
 	_crowds.clear()
 	_crowd_seats.clear()
+	_standers.clear()
+	_stander_shapes.clear()
 	_crowd_shapes.clear()
 	_crowd_jumps.clear()
 	_crowd_holds.clear()
@@ -254,6 +293,7 @@ func _react(share: float, seconds: float, standing: bool) -> void:
 		_crowd_jumps[group] = jumps
 		_crowd_holds[group] = holds
 	_cheering = not _crowds.is_empty()
+	_draw_the_risen(_cheering)
 
 
 func _process(delta: float) -> void:
@@ -262,16 +302,18 @@ func _process(delta: float) -> void:
 
 	var still_going := false
 	for group in _crowds.size():
-		var multi: MultiMesh = _crowds[group].multimesh
 		var jumps: PackedFloat32Array = _crowd_jumps[group]
 		var holds: PackedFloat32Array = _crowd_holds[group]
 		var seats: Array[Transform3D] = _crowd_seats[group]
-		var shape: Transform3D = _crowd_shapes[group]
 		for i in jumps.size():
 			if jumps[i] <= 0.0:
 				continue
 			jumps[i] = maxf(jumps[i] - delta, 0.0)
-			still_going = still_going or jumps[i] > 0.0
+			if jumps[i] <= 0.0:
+				# The reaction is over: back into the chair.
+				_sit_down(group, i, seats[i])
+				continue
+			still_going = true
 			var seat := seats[i]
 			if holds[i] > 0.5:
 				# On their feet: up quickly, held for as long as it lasts, and back
@@ -287,9 +329,61 @@ func _process(delta: float) -> void:
 				# One arc up and back down, so nobody lands before the shout is over.
 				var through := 1.0 - jumps[i] / CHEER_SECONDS
 				seat.origin.y += sin(through * PI) * CHEER_HEIGHT
-			multi.set_instance_transform(i, seat * shape)
+			_stand_up(group, i, seat)
 		_crowd_jumps[group] = jumps
+	if not still_going:
+		_draw_the_risen(false)
 	_cheering = still_going
+
+
+## Drawn sitting in the chair, and not drawn standing.
+##
+## A MultiMesh has no per-instance visibility, so the one that is not wanted is given a
+## transform with no size. It is still counted, still uploaded and still costs a slot —
+## it simply has no volume to rasterise.
+func _sit_down(group: int, i: int, seat: Transform3D) -> void:
+	if group < 0 or group >= _crowds.size() or group >= _standers.size():
+		return
+	var shape: Transform3D = _crowd_shapes[group]
+	_crowds[group].multimesh.set_instance_transform(i, seat * shape)
+	_standers[group].multimesh.set_instance_transform(i, _nowhere(seat))
+
+
+## Drawn on their feet, a step clear of the chair, and not drawn sitting.
+func _stand_up(group: int, i: int, seat: Transform3D) -> void:
+	if group < 0 or group >= _crowds.size() or group >= _standers.size():
+		return
+	var risen := seat
+	# Towards the court, which is the way they are facing — the other way walks them into
+	# the riser of the row behind.
+	risen.origin -= risen.basis.z.normalized() * _stand_forward
+	var shape: Transform3D = _stander_shapes[group]
+	_standers[group].multimesh.set_instance_transform(i, risen * shape)
+	_crowds[group].multimesh.set_instance_transform(i, _nowhere(seat))
+
+
+## Whether the standing copy of the hall is drawn at all.
+##
+## Every spectator occupies a slot in two MultiMeshes and the unused one is a zero-sized
+## transform. Those cost nothing to rasterise — a triangle with no area is thrown away —
+## but they are still transformed, and between reactions that is three hundred people's
+## worth of vertices for a hall where nobody is standing. A hall is seated most of the
+## time, so the standing copy is switched off entirely until somebody gets up.
+func _draw_the_risen(shown: bool) -> void:
+	for group in _standers.size():
+		var up: MultiMesh = _standers[group].multimesh
+		if not shown:
+			up.visible_instance_count = 0
+			continue
+		if group < _crowds.size():
+			up.visible_instance_count = _crowds[group].multimesh.visible_instance_count
+
+
+## The same place, with nothing there. Keeping the position rather than moving the
+## instance to the origin matters: a MultiMesh's bounding box is grown by every instance
+## it holds, and one parked at 0,0,0 stretches the box across the hall and back.
+func _nowhere(seat: Transform3D) -> Transform3D:
+	return Transform3D(Basis().scaled(Vector3.ZERO), seat.origin)
 
 
 ## How full the hall is, from empty to packed. A school hall has a handful of
@@ -301,6 +395,12 @@ func set_density(density: float) -> void:
 	for group in _crowds.size():
 		var multi: MultiMesh = _crowds[group].multimesh
 		multi.visible_instance_count = roundi(float(multi.instance_count) * part)
+		# Both halves of every spectator, or a thinned hall keeps the people who are on
+		# their feet and loses only the ones sitting down. Only while somebody is
+		# actually up — see `_draw_the_risen`.
+		if group < _standers.size():
+			var up: MultiMesh = _standers[group].multimesh
+			up.visible_instance_count = multi.visible_instance_count if _cheering else 0
 	if _heads != null:
 		_heads.multimesh.visible_instance_count = roundi(_total * part)
 
@@ -416,16 +516,11 @@ func _build_crowd() -> void:
 	# separate MultiMeshes, and if each picked its own colour every spectator would
 	# be wearing somebody else's head.
 	var shirts: Array[Color] = []
-	var textured := ResourceLoader.exists(CROWD_MODEL)
 	for i in _total:
-		if textured:
-			# The downloaded model is painted, and instance colour multiplies what is
-			# already there — so this is a gentle light-and-shade variation rather
-			# than three hundred people in three hundred different shirts.
-			var shade := randf_range(0.78, 1.18)
-			shirts.append(Color(shade, shade, shade * randf_range(0.95, 1.05)))
-		else:
-			shirts.append(SHIRTS[randi() % SHIRTS.size()])
+		# A real colour per person, not a shade of one. See TINTED.
+		var shirt: Color = SHIRTS[randi() % SHIRTS.size()]
+		var shade := randf_range(0.86, 1.14)
+		shirts.append(Color(shirt.r * shade, shirt.g * shade, shirt.b * shade))
 
 	# The head sits low enough to overlap the shoulders. Any higher and three hundred
 	# people appear to be balancing their heads an inch above their necks.
@@ -449,15 +544,15 @@ func _build_crowd() -> void:
 				var shade := randf_range(0.86, 1.14)
 				greys.append(Color(shade, shade, shade))
 			_make_crowd_mesh("Seats", chair[0], bolted, greys, 0.0, chair[1])
-			# The people move to the front edge of their seat, so they stand at it
-			# rather than inside it.
+			# How far forward somebody steps when they get out of the chair. A real
+			# tip-up seat folds up behind them; here they simply move clear of it, which
+			# from the court is the same picture.
 			stand_forward = SEAT_DEPTH
 
-	if stand_forward > 0.0:
-		for i in seats.size():
-			# Towards the court, which is the way they are facing — the other way walks
-			# them into the riser of the row behind.
-			seats[i].origin -= seats[i].basis.z.normalized() * stand_forward
+	# Nobody is moved off their seat any more. A spectator sits **in** the chair now, and
+	# the shift forward only applies to the moment they are on their feet — see
+	# `_stand_up`, which is where SEAT_DEPTH went.
+	_stand_forward = stand_forward
 	_seats = seats
 
 	# The hall is dealt out between the three bodies. Contiguous slices of an already
@@ -469,14 +564,12 @@ func _build_crowd() -> void:
 		var take := _total - dealt if which == CROWD_MODELS.size() - 1 else roundi(_total * float(kind["share"]))
 		if take <= 0:
 			continue
-		var correction := Props.turned(CROWD_FACING)
-		match String(kind["stand"]):
-			"up":
-				correction = correction * Props.z_up()
-			"down":
-				correction = correction * Props.z_down()
-		var built := Props.merged(kind["path"], kind["height"], correction)
-		if built.is_empty():
+		var correction := Props.turned(PERSON_FACING)
+		var sitting := Props.merged(String(kind["sitting"]), float(kind["height"]),
+			correction, 1.0, false, TINTED)
+		var standing := Props.merged(String(kind["standing"]), float(kind["height"]),
+			correction, 1.0, false, TINTED)
+		if sitting.is_empty() or standing.is_empty():
 			continue
 
 		var slice: Array[Transform3D] = []
@@ -486,11 +579,23 @@ func _build_crowd() -> void:
 			tint.append(shirts[i])
 		dealt += take
 
-		var shape: Transform3D = built[1]
-		var instance := _make_crowd_mesh("Crowd%d" % which, built[0], slice, tint, 0.0, shape)
+		var shape: Transform3D = sitting[1]
+		var instance := _make_crowd_mesh("Crowd%d" % which, sitting[0], slice, tint, 0.0, shape)
 		_crowds.append(instance)
 		_crowd_seats.append(slice)
 		_crowd_shapes.append(shape)
+
+		# The same people standing up, every one of them hidden to begin with. Built from
+		# the same slice so instance i is the same person in both.
+		var up_shape: Transform3D = standing[1]
+		var risen := _make_crowd_mesh("Crowd%dUp" % which, standing[0], slice, tint, 0.0, up_shape)
+		_standers.append(risen)
+		_stander_shapes.append(up_shape)
+		var group := _crowds.size() - 1
+		for i in slice.size():
+			_sit_down(group, i, slice[i])
+		risen.multimesh.visible_instance_count = 0
+
 		var jumps := PackedFloat32Array()
 		jumps.resize(slice.size())
 		_crowd_jumps.append(jumps)
