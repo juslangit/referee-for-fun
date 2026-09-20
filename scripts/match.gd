@@ -298,6 +298,7 @@ func _ready() -> void:
 	ui.new_career_requested.connect(_on_new_career_requested)
 	ui.career_screen_requested.connect(_on_career_screen_requested)
 	ui.history_requested.connect(func() -> void: ui.show_history(career))
+	ui.credits_requested.connect(func() -> void: ui.show_credits())
 	ui.resume_requested.connect(_on_resume_requested)
 	ui.walk_out_requested.connect(_on_walk_out_requested)
 	ui.quit_requested.connect(_on_quit_requested)

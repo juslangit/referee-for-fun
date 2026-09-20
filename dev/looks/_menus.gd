@@ -16,6 +16,10 @@ func _ready() -> void:
 	arena.ui.main_menu_requested.emit()
 	arena.ui.settings_requested.emit()
 	await _shot("res://dev/shots/_shot_menu_settings.png")
+
+	arena.ui.main_menu_requested.emit()
+	arena.ui.credits_requested.emit()
+	await _shot("res://dev/shots/_shot_menu_credits.png")
 	print("saved")
 	get_tree().quit()
 

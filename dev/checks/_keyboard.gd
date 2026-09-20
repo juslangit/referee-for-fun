@@ -105,9 +105,13 @@ func _arrows_move_between_buttons(hall: Node, ui: RefereeUI) -> void:
 	if first == null:
 		_expect(false, "something is focused to move from")
 		return
+	# Walked to the end rather than a counted number of steps. This asserted "five title
+	# buttons" until 2026-09-20, when CREDITS was added and a check about whether the
+	# keyboard reaches everything failed because it reached one thing too many.
+	var buttons := ui._main_menu.find_children("*", "Button", true, false)
 	var seen: Array[String] = [first.text]
 	var here := first
-	for step in 4:
+	while seen.size() <= buttons.size():
 		var next := here.find_valid_focus_neighbor(SIDE_BOTTOM)
 		if next == null:
 			break
@@ -118,7 +122,8 @@ func _arrows_move_between_buttons(hall: Node, ui: RefereeUI) -> void:
 			break
 		seen.append(here.text)
 	print("   down the title screen: %s" % " -> ".join(seen))
-	_expect(seen.size() == 5, "down reaches all five title buttons (reached %d)" % seen.size())
+	_expect(seen.size() == buttons.size(),
+		"down reaches all %d title buttons (reached %d)" % [buttons.size(), seen.size()])
 	_expect(seen[seen.size() - 1] == "QUIT", "and ends on QUIT (ended on %s)" % seen[seen.size() - 1])
 
 
