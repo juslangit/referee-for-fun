@@ -68,6 +68,7 @@ GALLERIES = [
         ("screen_career", "The career: the ladder as broadcast plates, and all six sports in a grid."),
         ("screen_faults", "The fault panel, with the sides in their colours."),
         ("screen_settings", "Settings, with the sliders and switch drawn in the theme."),
+        ("_shot_menu_credits", "The credits screen, added 2026-09-21. Every 3D model in this game is Creative Commons Attribution, where naming the author is a condition of the licence \u2014 and the game named nobody until this. The text is generated from the per-model attribution files, so a model that arrives credits itself."),
         ("screen_ending", "FULL TIME."),
     ]),
     ("screens-venues", "Real-event venues", "Every sport dressed as a real Malaysian event on 2026-09-15: sponsor boards, a big screen, TV cameras and their operators, photographers, flags in the crowd, and the people and furniture at the side of the court. Modelled on the real events; every name and sponsor is invented. The top rung of each ladder is shown before and after, then all three rungs.", [
