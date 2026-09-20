@@ -171,6 +171,15 @@ GALLERIES = [
         ("_shot_career_up", "The career screen after a promotion."),
         ("brief_grudge", "A grudge carried between matches: \"You know one of them\"."),
     ]),
+    ("screens-nets", "The nets", "Until 2026-09-20 every net was two solid boxes \u2014 a 2 cm slab of white at alpha 0.55 with a tape slab on top \u2014 which from the chair read as a white bar with nothing under it. They are now one generated cord texture tiled across the same quads with alpha scissor, at the spacing each sport\u0027s rules fix: four gauges covering six sports. Photographed from the umpire\u0027s side, which is where it matters.", [
+        ("dev/shots/_shot_net.png", "Badminton, 18 mm. The rules allow 15\u201320 mm, and sepak takraw uses the same gauge."),
+        ("dev/shots/_shot_net_tk.png", "Sepak takraw, sharing badminton\u0027s net."),
+        ("dev/shots/_shot_net_vb.png", "Indoor volleyball, 100 mm \u2014 the coarsest net in the game, and the only one you can read a rally through at a glance."),
+        ("dev/shots/_shot_netbeach.png", "Beach volleyball, sharing the volleyball gauge, over Pantai Cenang."),
+        ("dev/shots/_shot_net_tn.png", "Tennis, 40 mm, with the tape above it."),
+        ("dev/shots/_shot_net_tt.png", "Table tennis, 12.5 mm and 15 cm tall: the finest net and the smallest."),
+        ("assets/ui/net_cord.png", "The whole texture: one 128\u00d7128 square of cord, 3% of the cell, supersampled 4\u00d7 and blurred 0.4 px so the strands do not crawl. Everything above is this tiled."),
+    ]),
     ("packaging", "Packaging", "What a player sees before the game starts: the disk image the Mac build installs from, dressed on 2026-09-17, and the icon the app wears. Both are drawn by tools/build/make_art.py from the game's own colours and title logo.", [
         ("tools/build/dmg/background.tiff", "The disk image window, 640x420. Finder places the game at 168,236 and the Applications shortcut at 472,236 — either side of the net, with the arrow crossing it. The court is a real doubles court: 13.4 m by 6.1 m, service lines 1.98 m from the net. This is the artwork, not a photograph of the window: the machine this was built on has no Screen Recording permission, so the window itself cannot be photographed."),
         ("assets/icon.png", "The app icon, 1024 px: the whistle from the title logo on a tile in the court mat's green. It replaced Godot's robot, which every build wore until then because application/icon was empty in both export presets. Crisp at the sizes Finder and the Dock use; soft here, because the whistle is only 136 px in the logo and there is no larger original."),
