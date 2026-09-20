@@ -264,7 +264,8 @@ func build_the_venue() -> void:
 
 	build_the_players()
 	_build_camera()
-	_build_hall()
+	# The lighting lives on the table now, with the barriers and the drapes it is lighting.
+	# See TableTennisTable._build_hall_light.
 
 
 ## Table tennis's director. See TableTennisCutscene.
@@ -324,28 +325,6 @@ func _build_camera() -> void:
 	camera.cull_mask = camera.cull_mask & ~TableTennisTable.CHAIR_LAYER
 	camera.current = true
 	add_child(camera)
-
-
-## Indoors, under hall lights. There is no sky here: table tennis is played in a room,
-## and the lighting is written into the rules — 600 lux, evenly, no window behind the
-## table — because a ball this small is unplayable in a shadow.
-func _build_hall() -> void:
-	var key := DirectionalLight3D.new()
-	key.name = "HallLight"
-	key.rotation = Vector3(deg_to_rad(-72.0), deg_to_rad(-18.0), 0.0)
-	key.light_energy = 1.05
-	key.shadow_enabled = true
-	add_child(key)
-
-	var world := WorldEnvironment.new()
-	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.05, 0.05, 0.07)
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.62, 0.64, 0.70)
-	env.ambient_light_energy = 0.85
-	world.environment = env
-	add_child(world)
 
 
 ## Where a player stands between shots: on the middle of the end line, a little back.

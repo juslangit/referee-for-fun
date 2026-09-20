@@ -10,6 +10,16 @@ extends Node3D
 ## lower net than one up the line. It is built as a row of panels stepping down towards
 ## the middle, because a single box cannot droop.
 
+## How high the roof is at the rungs played indoors, for hanging the truss from. A tennis
+## court is 23.77 m end to end, nearly twice badminton's, and an indoor arena is built to
+## match: this is the room the lighting rig is measured against, not a wall the game draws.
+##
+## Found by rendering 13.0, 11.0 and 9.5 and looking at all three from the chair. At 13.0
+## the truss is above the frame and the cones are wide enough to light the court flatly,
+## which is the old rig again by another route. At 9.5 the truss crowds the top of the
+## picture. At 11.0 it runs across the top the way it does on television.
+const INDOOR_HALL_HEIGHT := 11.0
+
 const SURFACE_THICKNESS := 0.02
 const SURFACE_Y := SURFACE_THICKNESS
 const LINE_Y := SURFACE_Y + 0.003
@@ -26,6 +36,10 @@ const NET_PANELS := 24
 var stands: Stands
 ## The event round the court: see EventDressing.
 var event: EventDressing
+
+## The truss and lamps over the court, at the rungs that are played indoors. Null at the
+## club courts, which are outdoors under the sun and have no roof to hang anything from.
+var hall_light: HallLight
 
 var _net_parts: Array[MeshInstance3D] = []
 var _net_rest: Array[Vector3] = []
@@ -222,6 +236,48 @@ func dress(tier: Venue.Tier, density: float) -> void:
 	event.dress(tier)
 	event.apply_paint("surround", _surround_material)
 	event.apply_paint("court", _surface_material)
+	# Last, and after the paint: the rung decides whether there is a roof at all, how dark
+	# the hall goes and how hard the lamps burn.
+	_light_the_hall(tier)
+
+
+## Truss and lamps, but only where there is a roof to hang them from.
+##
+## Tennis is the only sport in the game that changes climate as the career climbs: the club
+## courts and the national event are outdoors under a real sun, and the top rung is an
+## indoor stadium, modelled on the ATP Malaysian Open at Putra Stadium. So the rig is built
+## and thrown away as the venue changes rather than built once.
+##
+## It has to be thrown away rather than hidden. `HallLight` carries its own
+## `WorldEnvironment`, the outdoor sky carries another, and two of them in one scene is a
+## coin toss over which one the renderer uses — the same trap `Venue.dress` and
+## `HallLight.light` both warn about.
+##
+## Until 2026-09-20 tennis had no rig at all, indoors or out: one directional light over a
+## high ambient, which is a room with the strip lights on. It was the last sport left on it
+## with table tennis, and only because nobody had complained about these two.
+func _light_the_hall(tier: Venue.Tier) -> void:
+	var indoors: bool = event != null and event.indoors()
+	if indoors and hall_light == null:
+		hall_light = HallLight.new()
+		hall_light.name = "HallLight"
+		hall_light.half_width = TennisSpec.HALF_WIDTH_DOUBLES
+		hall_light.half_length = TennisSpec.HALF_LENGTH
+		hall_light.hall_height = INDOOR_HALL_HEIGHT
+		# A blue hard court returns more of the beam than badminton's dark green mat, and
+		# less than volleyball's maple. See `court_light_scale`.
+		hall_light.court_light_scale = 0.70
+		# A tennis arena has no walls in this game — the stands stop and the rest is void —
+		# so badminton's haze has nothing to sit against and fills the emptiness with grey.
+		# See `haze`.
+		hall_light.haze = 0.30
+		add_child(hall_light)
+	elif not indoors and hall_light != null:
+		remove_child(hall_light)
+		hall_light.queue_free()
+		hall_light = null
+	if hall_light != null:
+		hall_light.light(tier)
 
 
 func cheer() -> void:

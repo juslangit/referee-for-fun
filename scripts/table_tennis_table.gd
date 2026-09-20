@@ -24,6 +24,17 @@ const BARRIER_Z := 5.4
 ## How high the dark surround goes behind the barriers.
 const DRAPE_HEIGHT := 3.2
 
+## How high the roof is, for hanging the truss from. Not a wall this room has — the drapes
+## stop at 3.2 m and everything above them is dark, which is exactly what a televised table
+## tennis hall looks like. It is here because the lighting rig measures everything as a
+## multiple of the room it is lighting.
+##
+## Found by rendering 7.0, 5.2 and 4.2 and looking at all three. At 7.0 the lamps are out
+## of frame and their cones are wide enough to light the room evenly, which is the flat rig
+## again by another route. At 4.2 the truss fills the top third of the picture. At 5.2 it
+## runs across the top the way it does on television and the floor falls off to the corners.
+const HALL_HEIGHT := 5.2
+
 ## Where the umpire sits: beside the net, level with the surface, close enough to hear
 ## the difference between wood and edge.
 const CHAIR_OFFSET := 2.1
@@ -33,6 +44,8 @@ const CHAIR_LAYER := 4
 var stands: Stands
 ## The event round the table: see EventDressing.
 var event: EventDressing
+## The truss and lamps over the playing area: see HallLight.
+var hall_light: HallLight
 
 var _top_material: StandardMaterial3D
 var _line_material: StandardMaterial3D
@@ -56,6 +69,7 @@ func _ready() -> void:
 	_build_barriers()
 	_build_chair()
 	_build_stands()
+	_build_hall_light()
 
 
 func _build_materials() -> void:
@@ -272,6 +286,39 @@ func dress(tier: Venue.Tier, density: float) -> void:
 	event.dress(tier)
 	event.apply_paint("floor", _floor_material)
 	event.apply_paint("barrier", _barrier_material)
+	# Last, and after the paint: the rung decides how dark the room goes and how hard the
+	# lamps burn, and the barriers it is darkening have only just been given their colour.
+	if hall_light != null:
+		hall_light.light(tier)
+
+
+## The lamps over the playing area, sized to the playing area rather than to the table.
+##
+## The table is 2.74 m by 1.525 m, and a truss measured against it would be a metre and a
+## half wide — a lighting rig for a dining room. What is being lit is the space the players
+## use, which the barriers pen in at 7.2 m by 10.8 m, so that is what the rig is measured
+## against. It is the only sport in the game where the playing surface and the playing area
+## are different objects.
+##
+## Table tennis kept the flat rig longer than any other sport because nobody complained
+## about it: Luqman asked for takraw and volleyball to be lit "like in badminton" on
+## 2026-09-16, badminton was unpicked on 2026-09-20, and these last two were simply never
+## mentioned. The flat rig is a directional light over a high ambient, which is a room with
+## the strip lights on — it lights the drapes as brightly as the table and leaves the eye
+## nothing to be drawn to.
+func _build_hall_light() -> void:
+	hall_light = HallLight.new()
+	hall_light.name = "HallLight"
+	hall_light.half_width = BARRIER_X
+	hall_light.half_length = BARRIER_Z
+	hall_light.hall_height = HALL_HEIGHT
+	# A purple sprung floor returns far more of the beam than badminton's dark green mat,
+	# and the room is a tenth of the volume, so the same lamps wash it out. See
+	# `court_light_scale` and `haze`.
+	hall_light.court_light_scale = 0.45
+	hall_light.haze = 0.35
+	add_child(hall_light)
+	hall_light.light(Venue.Tier.REGIONAL)
 
 
 func cheer() -> void:

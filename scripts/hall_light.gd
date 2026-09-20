@@ -87,6 +87,15 @@ var hall_height := 9.0
 ## every sport having to be the same colour.
 var court_light_scale := 1.0
 
+## How much haze there is, against badminton's.
+##
+## The fog is what the beams land on, and its numbers were measured in a 9 m badminton
+## hall and checked in an 18 m volleyball one. A table tennis room is 7.2 m by 10.8 m
+## behind drapes 3.2 m high, and the same fog fills it end to end: the drapes disappear
+## behind a grey veil and the room reads as smaller and flatter than it is. Haze is a
+## property of how much air there is, so a small room gets less of it.
+var haze := 1.0
+
 var tier := Venue.Tier.REGIONAL
 
 var _environment: WorldEnvironment
@@ -123,15 +132,17 @@ func _build_air(spec: Dictionary) -> void:
 	air.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	air.ambient_light_color = spec["ambient_tint"]
 	air.ambient_light_energy = spec["ambient"]
-	air.fog_enabled = true
+	air.fog_enabled = haze > 0.0
 	air.fog_light_color = Color(0.42, 0.48, 0.62)
-	air.fog_density = 0.005
+	air.fog_density = 0.005 * haze
 	air.fog_sky_affect = 0.0
 
-	air.volumetric_fog_enabled = true
-	air.volumetric_fog_density = 0.013
+	air.volumetric_fog_enabled = haze > 0.0
+	air.volumetric_fog_density = 0.013 * haze
 	air.volumetric_fog_albedo = Color(0.72, 0.78, 0.92)
-	air.volumetric_fog_length = 42.0
+	# The distance the volume is computed over. It has to reach the far end of the room
+	# and no further, or the fog is being solved for air that is not there.
+	air.volumetric_fog_length = maxf(12.0, half_length * 3.5)
 	_environment.environment = air
 	add_child(_environment)
 

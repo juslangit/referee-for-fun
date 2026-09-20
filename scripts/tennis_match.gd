@@ -92,6 +92,9 @@ const LOOSE_IS_OUT := 0.55
 var court: TennisCourt
 var _sun: DirectionalLight3D
 var _sky_environment: Environment
+## The node holding it, so it can be taken out of the tree when the court goes indoors.
+## Two WorldEnvironments in one scene is a coin toss over which one the renderer uses.
+var _sky_world: WorldEnvironment
 var rally: TennisRally
 
 var _beat := Beat.SERVE
@@ -275,28 +278,33 @@ func dress_the_venue(venue: Dictionary) -> void:
 
 
 ## The club courts are outdoors under the sun; the top of the ladder is an indoor stadium.
-## Same two lights either way — the sun becomes the roof lamps, steeper and whiter, and the
-## sky goes dark behind the walls — so going indoors costs nothing to draw.
+##
+## Outdoors the sky and the sun here are the whole of the lighting. Indoors they are not
+## wanted at all: `TennisCourt` hangs a real truss with real spotlights under it, and that
+## rig brings its own `WorldEnvironment` and its own barely-there sun. So this one steps
+## out of the way rather than being re-tuned — the sky is taken out of the tree and the sun
+## switched off, because two environments in one scene is a coin toss over which the
+## renderer uses, and a second full-strength sun would flatten everything the truss is
+## doing.
+##
+## Until 2026-09-20 the indoor branch here *was* the indoor lighting: one steeper, whiter
+## directional light over a raised ambient. It lit the back wall as brightly as the court.
 func _light_for_the_venue() -> void:
-	if _sky_environment == null or court.event == null:
+	if court.event == null:
 		return
 	var indoors := court.event.indoors()
+	_sun.visible = not indoors
 	if indoors:
-		_sky_environment.background_mode = Environment.BG_COLOR
-		_sky_environment.background_color = Color(0.03, 0.035, 0.05)
-		_sky_environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-		_sky_environment.ambient_light_color = Color(0.62, 0.66, 0.74)
-		_sky_environment.ambient_light_energy = 0.8
-		_sun.rotation = Vector3(deg_to_rad(-78.0), deg_to_rad(-20.0), 0.0)
-		_sun.light_color = Color(0.98, 0.98, 1.0)
-		_sun.light_energy = 1.3
-	else:
-		_sky_environment.background_mode = Environment.BG_SKY
-		_sky_environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-		_sky_environment.ambient_light_energy = 0.7
-		_sun.rotation = Vector3(deg_to_rad(-58.0), deg_to_rad(-26.0), 0.0)
-		_sun.light_color = Color(1, 1, 1)
-		_sun.light_energy = 1.15
+		_take_down_the_sky()
+		return
+	if _sky_world == null:
+		_build_sky_environment()
+	_sky_environment.background_mode = Environment.BG_SKY
+	_sky_environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	_sky_environment.ambient_light_energy = 0.7
+	_sun.rotation = Vector3(deg_to_rad(-58.0), deg_to_rad(-26.0), 0.0)
+	_sun.light_color = Color(1, 1, 1)
+	_sun.light_energy = 1.15
 
 
 func make_the_board(venue: Dictionary) -> Scoreboard:
@@ -348,7 +356,23 @@ func _build_sky() -> void:
 	sun.light_energy = 1.15
 	sun.shadow_enabled = true
 	add_child(sun)
+	_build_sky_environment()
 
+
+## Freed rather than hidden when the career reaches the indoor stadium, and built again if
+## it drops back out of it. A `WorldEnvironment` has no way to be switched off — setting its
+## environment to null leaves the node in the scene, and the node is what
+## `dev/checks/_lighting` counts and what the renderer picks between.
+func _take_down_the_sky() -> void:
+	if _sky_world == null:
+		return
+	remove_child(_sky_world)
+	_sky_world.queue_free()
+	_sky_world = null
+	_sky_environment = null
+
+
+func _build_sky_environment() -> void:
 	var world := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
@@ -365,6 +389,7 @@ func _build_sky() -> void:
 	world.environment = env
 	add_child(world)
 	_sky_environment = env
+	_sky_world = world
 
 
 ## Where a singles player stands when the ball is not in their half: on the middle of

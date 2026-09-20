@@ -31,16 +31,85 @@ extends Node
 ## ambient, which is a room with the strip lights on. That is the same complaint Luqman
 ## made about takraw and volleyball on 2026-09-16; nobody has made it about these two yet,
 ## so they were never changed. Recorded here rather than quietly asserted away.
+## Every hall is looked at **at the top of the ladder**, which is the rung this matters most
+## at and, for tennis, the only rung where the question has an answer at all: tennis is
+## outdoors at the club courts and the national event, and indoors only at the final. A
+## check that instantiated the scene and looked at it — which is what this did until
+## 2026-09-20 — was looking at an outdoor court and reporting, correctly and uselessly, that
+## it had no lamps.
 const HALLS := [
 	["badminton", "res://scenes/match.tscn", true],
 	["beach", "res://scenes/beach.tscn", false],
 	["indoor volleyball", "res://scenes/volleyball.tscn", true],
-	["tennis", "res://scenes/tennis.tscn", false],
-	["table tennis", "res://scenes/table_tennis.tscn", false],
+	["tennis", "res://scenes/tennis.tscn", true],
+	["table tennis", "res://scenes/table_tennis.tscn", true],
 	["sepak takraw", "res://scenes/sepak_takraw.tscn", true],
 ]
 
 var _failures: Array[String] = []
+
+
+## Tennis, up the ladder and back down it.
+##
+## It is the only sport that changes climate as the career climbs — outdoors at the club
+## courts and the national event, indoors at the final — so it is the only one where the
+## whole lighting rig is thrown away and rebuilt while the game is running. Both halves of
+## that swap free a `WorldEnvironment` and build another, and getting it wrong in either
+## direction leaves two in the scene, which is a coin toss over which the renderer uses.
+##
+## A career really does go both ways: a bad enough run is relegated.
+func _climb_and_fall() -> void:
+	var arena: Node = load("res://scenes/tennis.tscn").instantiate()
+	arena.print_truth_while_testing = false
+	add_child(arena)
+	for f in 8:
+		await get_tree().physics_frame
+	await _take_it_to_the_top(arena)
+
+	print("=== tennis, moving between venues")
+	# Driven through `dress_the_venue`, which is the way a career actually changes venue.
+	# Dressing the court on its own moves the truss and leaves the sky behind, and the
+	# first version of this check did exactly that and reported a hall with no light in it.
+	for rung in [0, 4, 2, 4, 0]:
+		arena.career.tier = rung
+		arena.dress_the_venue(arena.career.venue())
+		for f in 2:
+			await get_tree().physics_frame
+		var airs: Array[Node] = []
+		var spots: Array[Node] = []
+		var suns: Array[Node] = []
+		_gather(arena, airs, spots, suns)
+		var outdoors: bool = spots.is_empty()
+		print("   rung %d: %d environment, %d spot, %d sun  (%s)" % [
+			rung, airs.size(), spots.size(), suns.size(),
+			"outdoors" if outdoors else "indoors"])
+		_expect(airs.size() == 1,
+			"tennis at rung %d is lit by exactly one environment (%d)" % [rung, airs.size()])
+		_expect(suns.size() == 1,
+			"tennis at rung %d has exactly one sun lighting it (%d)" % [rung, suns.size()])
+	arena.queue_free()
+	await get_tree().process_frame
+
+
+## Dresses the venue for the final, past the lesson and the briefing. Without this the hall
+## is whatever a freshly instantiated scene happens to be, which for tennis is a club court
+## under the sun.
+func _take_it_to_the_top(arena: Node) -> void:
+	arena.career = Career.new()
+	arena.career.tier = 4
+	arena.settings.taught_beach = true
+	arena.settings.taught_indoor = true
+	arena.settings.taught_tennis = true
+	arena.settings.taught_table_tennis = true
+	arena.settings.taught_takraw = true
+	arena.ui.match_requested.emit()
+	await get_tree().process_frame
+	if arena.pressure.exists():
+		arena.ui.briefing_acknowledged.emit()
+		await get_tree().process_frame
+	arena.begin_match()
+	for f in 6:
+		await get_tree().physics_frame
 
 
 func _expect(ok: bool, what: String) -> void:
@@ -52,6 +121,7 @@ func _expect(ok: bool, what: String) -> void:
 func _ready() -> void:
 	for hall in HALLS:
 		await _look_at(hall[0], hall[1], hall[2])
+	await _climb_and_fall()
 
 	print("")
 	if _failures.is_empty():
@@ -68,6 +138,7 @@ func _look_at(sport: String, path: String, on_the_truss: bool) -> void:
 	add_child(arena)
 	for f in 8:
 		await get_tree().physics_frame
+	await _take_it_to_the_top(arena)
 
 	var airs: Array[Node] = []
 	var spots: Array[Node] = []
@@ -131,12 +202,17 @@ func _shortest(spots: Array[Node]) -> float:
 	return least
 
 
+## Only lights that are actually lighting something are counted. Tennis keeps its outdoor
+## sun in the scene and switches it off when the career reaches the indoor stadium, and a
+## light nobody can see is not a second sun — counting it as one would report a problem the
+## renderer does not have.
 func _gather(node: Node, airs: Array[Node], spots: Array[Node], suns: Array[Node]) -> void:
+	var lit: bool = not (node is Node3D) or (node as Node3D).is_visible_in_tree()
 	if node is WorldEnvironment:
 		airs.append(node)
-	elif node is SpotLight3D:
+	elif node is SpotLight3D and lit:
 		spots.append(node)
-	elif node is DirectionalLight3D:
+	elif node is DirectionalLight3D and lit:
 		suns.append(node)
 	for child in node.get_children():
 		_gather(child, airs, spots, suns)
