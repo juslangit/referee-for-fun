@@ -14,7 +14,11 @@ extends RefCounted
 ## people — a person is longest head to foot, so stand the longest axis up — is exactly
 ## wrong for a seat, which is deeper than it is tall.
 
-const SEAT := "res://assets/sketchfab/stadium_seat/stadium_seat.glb"
+## The seat every spectator sits on. A tip-up arena chair in **80 triangles** — it is
+## drawn 312 times in a full hall, so this is the one prop where the triangle count is
+## the whole specification. The model it replaced on 2026-09-20 was 7,404, had to be
+## thrown away down to 12% of itself to run, and at 12% it was a white lump.
+const SEAT := "res://assets/sketchfab/aggie_stadium_chair/aggie_stadium_chair.glb"
 const FOLDING_CHAIR := "res://assets/sketchfab/metal_folding_chair/metal_folding_chair.glb"
 const HIGH_CHAIR := "res://assets/sketchfab/lifeguard_chair/lifeguard_chair.glb"
 const TRUSS := "res://assets/sketchfab/rigging_truss_80cm_10meter_kolong/rigging_truss_80cm_10meter_kolong.glb"
@@ -62,8 +66,12 @@ static func node(path: String, height: float, correction := Transform3D.IDENTITY
 ##
 ## `keep` below one trades detail for speed — see `simplified`. The seats need it and the
 ## people do not.
+## `centre` moves the merged mesh over its own origin in X and Z as well as standing it on
+## the floor. A model that was authored away from the origin — the arena chair sits sixteen
+## units off its own — is otherwise placed sixteen units times the scale away from wherever
+## it is asked for, which for a MultiMesh means three hundred seats in the car park.
 static func merged(path: String, height: float, correction := Transform3D.IDENTITY,
-		keep := 1.0) -> Array:
+		keep := 1.0, centre := false) -> Array:
 	if not ResourceLoader.exists(path):
 		return []
 	var model: Node3D = load(path).instantiate()
@@ -112,6 +120,9 @@ static func merged(path: String, height: float, correction := Transform3D.IDENTI
 	var fit := height / box.size.y
 	var stand := Transform3D.IDENTITY.scaled(Vector3.ONE * fit)
 	stand.origin.y -= box.position.y * fit
+	if centre:
+		stand.origin.x -= box.get_center().x * fit
+		stand.origin.z -= box.get_center().z * fit
 	return [mesh, stand]
 
 

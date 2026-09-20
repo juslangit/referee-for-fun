@@ -49,6 +49,12 @@ this is the summary that belongs in the game itself.
 - https://sketchfab.com/3d-models/tv-camera-3795b3283e9447c391efdab9a4efe27a
 - Licence: CC Attribution
 
+## Aggie Stadium Chair
+- Used for: every seat in the stands
+- By: joshua.mckimmey
+- https://sketchfab.com/3d-models/aggie-stadium-chair-b0607a5e412043e399745703be24a33a
+- Licence: CC Attribution
+
 ## Plastic Chair
 - Used for: the players' and coaches' chairs at the side of the court
 - By: Jazavac

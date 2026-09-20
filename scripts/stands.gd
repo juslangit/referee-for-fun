@@ -88,10 +88,13 @@ const CROWD_MODEL := "res://assets/sketchfab/simple_low_poly_character/simple_lo
 const SEAT_HEIGHT := 0.86
 const SEAT_DEPTH := 0.34
 
-## How much of the downloaded seat's detail is kept. It is 7,404 triangles as it comes,
-## there are 312 of them, and they were most of the reason badminton ran at twenty-odd
-## frames a second. See `Props.simplified`.
-const SEAT_DETAIL := 0.12
+## How much of the downloaded seat's detail is kept. All of it, since 2026-09-20: the seat
+## is 80 triangles as it comes and there is nothing to save. The one before it was 7,404,
+## which at 312 seats a hall was most of the reason badminton ran at twenty-odd frames a
+## second, and had to be thrown away down to 12% of itself — at which point it was a white
+## lump with no seat and no back. Simplifying is still there for the next heavy prop; see
+## `Props.simplified`.
+const SEAT_DETAIL := 1.0
 
 ## A yaw put on the crowd model so that it faces the way the seat is turned. Which
 ## direction a model calls forward is a decision its author made and did not write
@@ -364,23 +367,47 @@ func _build_seating() -> void:
 
 
 func _build_crowd() -> void:
-	# Every seat, in a shuffled order. Shuffling matters: a half-empty hall is drawn
-	# by showing only the first so many instances, and unshuffled that would seat
-	# everybody in one solid block at one end.
 	var seats: Array[Transform3D] = []
+	# Where the chair is, as opposed to where the person in it is. A chair is bolted to
+	# the concrete: square to the row, evenly spaced, and identical to its neighbour. The
+	# slouch below belongs to the person and not to the furniture — while the seats were
+	# a white lump nobody could tell, and the moment they became recognisable chairs a
+	# stand full of them sitting at slightly different angles read as a badly built set.
+	var bolted: Array[Transform3D] = []
 	for side: float in SIDES:
 		for row in rows:
 			var height := row_rise * float(row + 1)
 			var x := _row_x(side, row)
 			var z := -half_length + seat_spacing * 0.5
 			while z < half_length:
+				var bolt := Transform3D.IDENTITY
+				bolt.basis = Basis(Vector3.UP, PI * 0.5 * side)
+				bolt.origin = Vector3(x, height, z)
+				bolted.append(bolt)
+
 				var seat := Transform3D.IDENTITY
 				# Turned to face the court, with a little slouch either way.
 				seat.basis = Basis(Vector3.UP, (PI * 0.5 * side) + randf_range(-0.18, 0.18))
 				seat.origin = Vector3(x + randf_range(-0.12, 0.12), height, z)
 				seats.append(seat)
 				z += seat_spacing
-	seats.shuffle()
+
+	# Shuffled as pairs. Shuffling matters: a half-empty hall is drawn by showing only the
+	# first so many instances, and unshuffled that would seat everybody in one solid block
+	# at one end. Shuffling the two lists separately would sit each person in somebody
+	# else's chair.
+	var order: Array[int] = []
+	for i in seats.size():
+		order.append(i)
+	order.shuffle()
+	var people: Array[Transform3D] = []
+	var chairs: Array[Transform3D] = []
+	for i in order:
+		people.append(seats[i])
+		chairs.append(bolted[i])
+	seats = people
+	bolted = chairs
+
 	_total = seats.size()
 	_seats = seats
 	_jump.resize(_total)
@@ -411,14 +438,17 @@ func _build_crowd() -> void:
 		# this model looks down its own +Z, and both stands turn it away from the court.
 		# The rows had their occupants right and their chairs backwards, which reads as
 		# a hall where everybody is standing in front of a seat facing the wrong way.
+		# No quarter turn: this model is authored standing up already, unlike the one it
+		# replaced. It is authored a long way from its own origin, though, which is what
+		# the last argument is for.
 		var chair := Props.merged(
-			Props.SEAT, SEAT_HEIGHT, Props.turned(CROWD_FACING) * Props.z_up(), SEAT_DETAIL)
+			Props.SEAT, SEAT_HEIGHT, Props.turned(CROWD_FACING), SEAT_DETAIL, true)
 		if not chair.is_empty():
 			var greys: Array[Color] = []
 			for i in _total:
 				var shade := randf_range(0.86, 1.14)
 				greys.append(Color(shade, shade, shade))
-			_make_crowd_mesh("Seats", chair[0], seats, greys, 0.0, chair[1])
+			_make_crowd_mesh("Seats", chair[0], bolted, greys, 0.0, chair[1])
 			# The people move to the front edge of their seat, so they stand at it
 			# rather than inside it.
 			stand_forward = SEAT_DEPTH

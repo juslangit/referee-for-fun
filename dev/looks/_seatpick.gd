@@ -55,7 +55,8 @@ func _ready() -> void:
 		world.add_child(label)
 
 		for w in WAYS_UP.size():
-			var correction := [Transform3D.IDENTITY, Props.z_up(), Props.z_down()][w]
+			var ways: Array[Transform3D] = [Transform3D.IDENTITY, Props.z_up(), Props.z_down()]
+			var correction: Transform3D = ways[w]
 			# Turned a little off square so the shape reads, rather than face on.
 			var seat := Props.node(String(CANDIDATES[c][1]), Stands.SEAT_HEIGHT,
 				Props.turned(-25.0) * correction)

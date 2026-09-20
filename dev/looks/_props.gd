@@ -4,8 +4,8 @@ extends Node
 ## rather than guessed. The white bars are one metre.
 
 var ROW := [
-	["stadium_seat, no correction", Props.SEAT, 0.88, false],
-	["stadium_seat, z-up fixed", Props.SEAT, 0.88, true],
+	["arena seat, no correction", Props.SEAT, 0.88, false],
+	["arena seat, z-up applied", Props.SEAT, 0.88, true],
 	["folding_chair", Props.FOLDING_CHAIR, 0.88, false],
 	["folding_chair z-up", Props.FOLDING_CHAIR, 0.88, true],
 	["high_chair", Props.HIGH_CHAIR, 2.60, false],
