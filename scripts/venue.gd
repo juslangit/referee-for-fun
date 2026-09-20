@@ -137,10 +137,7 @@ func dress(which: Tier) -> void:
 	_flash_left = PackedFloat32Array()
 
 	var spec: Dictionary = TIERS[tier]
-	_build_lighting(spec)
-	if spec["truss"]:
-		_build_truss()
-	_build_lamps(spec)
+	_light_the_hall()
 	_build_banners(spec)
 	_build_second_court(spec)
 	_build_corner_boards()
@@ -158,137 +155,42 @@ func dress(which: Tier) -> void:
 
 # --- light ----------------------------------------------------------------------
 
-## The hall light and the light on the court, which are two different things.
+## The hall lighting, which badminton no longer owns a copy of.
 ##
-## The court lamps are real spotlights aimed down at the middle. That matters for more
-## than looks: a lit court inside a dark bowl is what makes the players read as the
-## thing being watched, and it is the cheapest way to make a school hall and a final
-## feel like different places.
-func _build_lighting(spec: Dictionary) -> void:
-	_environment = WorldEnvironment.new()
-	_environment.name = "Air"
-	var air := Environment.new()
-	air.background_mode = Environment.BG_COLOR
-	air.background_color = spec["ambient_tint"] * 0.35
-	air.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	air.ambient_light_color = spec["ambient_tint"]
-	air.ambient_light_energy = spec["ambient"]
-	air.fog_enabled = true
-	# Enough haze for the beams to have something to land on, and no more. A hall you
-	# cannot see the far line through is a hall you cannot referee in.
-	air.fog_light_color = Color(0.42, 0.48, 0.62)
-	air.fog_density = 0.005
-	air.fog_sky_affect = 0.0
-
-	# The beams themselves. Without this the lamps light the floor and the air between
-	# them and the floor stays empty, which is the one thing that says "the hall is dark
-	# and the court is lit" rather than "somebody turned the brightness down".
-	air.volumetric_fog_enabled = true
-	air.volumetric_fog_density = 0.013
-	air.volumetric_fog_albedo = Color(0.72, 0.78, 0.92)
-	air.volumetric_fog_length = 42.0
-	_environment.environment = air
-	add_child(_environment)
-
-	_sun = DirectionalLight3D.new()
-	_sun.name = "HallLight"
-	_sun.rotation = Vector3(deg_to_rad(-58.0), deg_to_rad(34.0), 0.0)
-	# Barely there. It exists to put one clean shadow direction under the net and the
-	# posts so they sit on the floor rather than floating over it; the light the player
-	# actually reads by comes from the lamps on the truss.
-	_sun.light_energy = 0.22 if tier == Tier.SCHOOL else 0.14
-	_sun.shadow_enabled = true
-	add_child(_sun)
-
-
-# --- the roof -------------------------------------------------------------------
-
-func _build_truss() -> void:
-	var runs := Node3D.new()
-	runs.name = "Truss"
-	add_child(runs)
-
-	for side in [1.0, -1.0]:
-		for section in [-1.0, 0.0, 1.0]:
-			var piece := Props.node(Props.TRUSS, 0.80)
-			if piece == null:
-				return
-			piece.position = Vector3(side * TRUSS_SPREAD, TRUSS_HEIGHT, section * TRUSS_LENGTH)
-			# The truss model runs along its own X, and the hall is long along Z.
-			piece.rotation.y = PI * 0.5
-			runs.add_child(piece)
-
-
-## Lamps hanging under the truss, each with a real spotlight in it aimed at the middle
-## of the court. Fittings without light in them are stage dressing; these are what is
-## actually lighting the rally.
-func _build_lamps(spec: Dictionary) -> void:
-	var count: int = spec["lamps"]
-	if count <= 0:
-		return
-
-	_lights = Node3D.new()
-	_lights.name = "Lamps"
-	add_child(_lights)
-
-	var energy: float = spec["court_light"]
-	var lit := _lamps_with_light_in_them(count)
-	# The same light on the court in total, from fewer places.
-	var brighter := float(count) / float(lit.size())
-	for i in count:
-		var side := 1.0 if i % 2 == 0 else -1.0
-		var along := (float(i / 2) / maxf(1.0, float(count / 2 - 1)) - 0.5) * 2.0
-		var where := Vector3(side * TRUSS_SPREAD, TRUSS_HEIGHT - 0.45, along * 9.0)
-
-		var fitting := Props.node(Props.LAMP, 0.55)
-		if fitting != null:
-			fitting.position = where
-			_lights.add_child(fitting)
-
-		if not i in lit:
-			continue
-		var beam := SpotLight3D.new()
-		beam.name = "Beam"
-		beam.position = where
-		beam.look_at_from_position(where, Vector3(0.0, 0.0, along * 3.0), Vector3.UP)
-		beam.light_energy = energy * brighter * HallLight.WIDER_CONE_KEEPS_ITS_BRIGHTNESS
-		beam.light_color = Color(1.0, 0.98, 0.94)
-		beam.spot_range = 23.0
-		# Widened with `HallLight`'s on 2026-09-18, and kept in step with it deliberately:
-		# badminton keeping a narrow pool while every other sport got a wide one would be
-		# the "lit like in badminton" complaint of 2026-09-16 in reverse. See the note in
-		# `HallLight` for why the energy drops as the cone opens.
-		beam.spot_angle = 52.0
-		beam.spot_angle_attenuation = 0.7
-		# One facing pair casts shadows. Twelve shadow-casting spotlights on a hall full of
-		# people costs more than the rest of the game together, and the court already has
-		# the sun's shadow on it.
-		beam.shadow_enabled = i == lit[0] or i == lit[1]
-		_lights.add_child(beam)
-
-
-## Which fittings have a real light in them: two facing pairs, placed the same distance
-## either side of the net.
+## `HallLight` was written on 2026-09-16 when Luqman asked for sepak takraw and volleyball
+## to be lit "like in badminton", and its numbers were read straight off this file — a
+## 4.4 m truss spread over a 3.05 m half width, an 11.0 m run and lamps reaching 9.0 m
+## over a 6.70 m half length, hung at 8.1 m in a 9.0 m hall. It was left as a second copy
+## at the time because badminton was not what had been asked for.
 ##
-## Every fitting used to hold a spotlight — eight in a school hall, fourteen at a final —
-## and every one of them reached nearly every pixel of the screen. Measured on a MacBook
-## Air, the lamps alone were half of every frame: the top venue ran at 24 frames a second
-## with them and 50 without. Four real lights carrying the same total brightness light
-## the court in a way nobody can tell apart from the chair (`dev/shots/fps_four_lamps.png`
-## against `fps_everything_on.png`), and every fitting stays on the truss, so a promotion
-## still looks like a bigger rig.
-const REAL_LAMP_PAIRS := 2
+## Two copies of one rig is a bug waiting to happen, and on 2026-09-18 it happened: the
+## spotlight cone had to be widened and both files had to be edited by hand to keep the
+## sports looking like each other. So badminton uses the shared rig now.
+##
+## The swap is arithmetic rather than judgement. Feeding this court's own dimensions back
+## through the multiples reproduces the numbers that were hardcoded here to within
+## **1.9 mm** on a lamp nine metres away, which is the rounding in the ratios and nothing
+## else. The pictures are identical.
+##
+## One thing quietly lost: `dress()` used to build the truss only `if spec["truss"]`, and
+## `HallLight` always builds it. All three rungs of this ladder set that flag true and
+## always have, so the condition has never once been false — it described an intention
+## that was never exercised.
+func _light_the_hall() -> void:
+	var rig := HallLight.new()
+	rig.name = "HallLight"
+	rig.half_width = CourtSpec.HALF_WIDTH_DOUBLES
+	rig.half_length = CourtSpec.HALF_LENGTH
+	# The hall's real height, not a number repeated here. `TRUSS_HEIGHT` used to be the
+	# literal 8.1, which is this times the rig's 0.90 — the relationship was true and
+	# invisible.
+	rig.hall_height = Court.HALL_HEIGHT
+	# Badminton is the sport the rig was measured against, so its floor needs no
+	# correction — `court_light_scale` exists for the sports played on paler boards.
+	rig.court_light_scale = 1.0
+	add_child(rig)
+	rig.light(tier)
 
-func _lamps_with_light_in_them(count: int) -> Array:
-	var pairs := count / 2
-	if pairs <= REAL_LAMP_PAIRS:
-		return range(count)
-	var near := floori(float(pairs - 1) * 0.25 + 0.5)
-	var far := pairs - 1 - near
-	return [near * 2, near * 2 + 1, far * 2, far * 2 + 1]
-
-
-# --- the perimeter --------------------------------------------------------------
 
 ## Sponsor boards, standing in a ring at the edge of the run-off.
 ##
