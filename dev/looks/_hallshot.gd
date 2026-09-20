@@ -28,7 +28,9 @@ func _ready() -> void:
 		arena.ui.briefing_acknowledged.emit()
 		await get_tree().process_frame
 	arena.begin_match()
-	arena.ui.visible = false
+	# The interface is off by default: this look exists to judge the room. WITH_UI keeps it
+	# on, for the pictures that go on the website, where the score bug is half the point.
+	arena.ui.visible = OS.has_environment("WITH_UI")
 	for f in 30:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
