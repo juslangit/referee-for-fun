@@ -133,6 +133,10 @@ header.top nav a.get:hover{background:#ffd45e;color:var(--caption-ink)}
 .thesis blockquote{margin:0;font:800 clamp(28px,3.6vw,46px)/1.02 var(--display);text-transform:uppercase;text-wrap:balance}
 .thesis blockquote em{font-style:italic;color:var(--caption)}
 .thesis p{color:var(--muted);font-size:17.5px}
+figure.trailer{margin-top:32px}
+figure.trailer video{display:block;width:100%;height:auto;aspect-ratio:16/9;background:#05070a;border:1px solid var(--line);border-top:4px solid var(--caption)}
+figure.trailer figcaption a{color:var(--caption);text-decoration:none}
+figure.trailer figcaption a:hover{text-decoration:underline}
 figure{margin:0}
 figure img{border:1px solid var(--line)}
 figcaption{margin-top:10px;font:500 12px/1.5 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -197,6 +201,7 @@ footer .links a:hover{color:var(--caption)}
   <div class="wrap">
     <a class="mark" href="#top">REFEREE FOR <i>FUN</i></a>
     <nav>
+      <a href="#trailer">Trailer</a>
       <a href="#call">The call</a>
       <a href="#sports">Six sports</a>
       <a href="#job">The job</a>
@@ -215,13 +220,30 @@ footer .links a:hover{color:var(--caption)}
     <p class="sub">The match is played in front of you with real physics, so the game already knows exactly where the shuttle landed, to the millimetre. It is never going to tell you. Your job is to say what happened — and nothing in the game requires that to be true.</p>
     <div class="cta">
       <a class="btn" href="#get">Download free</a>
-      <a class="btn ghost" href="#call">Make a call</a>
+      <a class="btn ghost" href="#trailer">Watch the trailer</a>
     </div>
     <div class="pills">
       <span>In testing</span><span>Godot 4.7.2</span><span>macOS &amp; Windows</span><span>Keyboard, mouse &amp; gamepad</span><span>Single player</span><span>Free</span>
     </div>
   </div>
 </div>
+
+<section id="trailer" style="background:var(--panel);border-block:1px solid var(--line)">
+  <div class="wrap">
+    <p class="hud"><b>Trailer</b><span>Two minutes</span></p>
+    <h2>Recorded out of the running game.</h2>
+    <div class="slab"></div>
+    <p class="lede">Nothing in it is staged. Every rally, every call, every time the crowd gets out of its seat and every result screen is something the game did while it was being recorded.</p>
+    <figure class="trailer">
+      <video controls preload="none" playsinline poster="video/trailer-poster.jpg"
+             width="1920" height="1080">
+        <source src="video/trailer.mp4" type="video/mp4">
+        <p>Your browser will not play this video. <a href="video/trailer.mp4">Download it instead</a>.</p>
+      </video>
+      <figcaption>Two minutes &middot; 1280&times;720 &middot; <a href="https://github.com/juslangit/referee-for-fun/releases/download/v0.2.0/referee-for-fun-trailer.mp4">1080p60 original</a></figcaption>
+    </figure>
+  </div>
+</section>
 
 <section id="call">
   <div class="wrap">
