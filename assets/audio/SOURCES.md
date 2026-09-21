@@ -147,3 +147,12 @@ them if that changes.
 **The volleyball spike's ID was wrong here until 2026-09-10.** This file said 816991; the
 sound the game has always played is 813420 — the same author, also CC0, 2.55 s against
 816991's 1.02 s. Both were downloaded under the same filename and the second one won.
+
+## Trailer music
+
+- **Tension Rising Cinematic Drone by Mantice** — Freesound 854836, by `bassimat`, **CC0**.
+  300 s, 48 kHz wav. Used from 2:30 in, where it starts to build, under
+  `build/trailer/referee-for-fun-trailer.mp4`. Fetched with `sfx get 854836`.
+- **Wide Cinematic Ambiet for Tension Effect** — Freesound 493741, by `The-Sacha-Rush`,
+  **CC0**. Downloaded as the alternative and not used: it is a flat bed where the trailer
+  needed an arc.
