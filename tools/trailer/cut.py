@@ -47,20 +47,20 @@ EDIT = [
     ("card", "The rally is real.\nThe game knows exactly where it landed.", 5.0),
     ("shot", "brief", 4.8, 0.2),
     ("card", "Nobody asks you for a favour.\nThey tell you who they would like to win.", 5.5),
-    ("shot", "lie", 10.5, 0.3),
-    ("card", "Every close call is yours to bend.", 4.0),
-    ("card", "The hall is watching.", 4.0),
+    ("shot", "lie", 5.8, 0.2),
+    ("card", "Every close call is yours to bend.", 4.6),
+    ("card", "The hall is watching.", 4.6),
     ("shot", "career", 4.8, 0.2),
-    ("card", "Six sports.\nOne reputation.", 4.0),
+    ("card", "Six sports.\nOne reputation.", 4.6),
     ("shot", "tennis", 4.8, 0.3),
-    ("shot", "volley", 5.5, 0.4),
-    ("shot", "beach", 5.5, 0.4),
+    ("shot", "volley", 5.8, 0.4),
+    ("shot", "beach", 5.8, 0.4),
     ("shot", "tabletennis", 4.8, 0.3),
     ("shot", "takraw", 4.8, 0.3),
     # The tail of the ending shot, where the game replays the worst calls of the match
     # and says what each one really was. "YOU CALLED IN - IT WAS OUT BY 86 cm" is the
     # whole premise in one frame, and it is the last thing before the end card.
-    ("shot", "ending", 7.0, 9.6),
+    ("shot", "ending", 5.0, 9.8),
     ("card", "How long before\nsomebody notices?", 4.8),
     ("title", "REFEREE FOR FUN\nfree for macOS and Windows\njuslangit.github.io/referee-for-fun", 8.0),
 ]
