@@ -575,6 +575,11 @@ func review(asked: Sides.Team) -> bool:
 	var rally = current_rally()
 	if rally == null:
 		return false
+	# A match that is over has nothing left to challenge. This is the guard that matters,
+	# because `review` is what raises the card, and the card is a full-screen answer to a
+	# question nobody is still asking.
+	if _phase == Phase.REMOVED:
+		return false
 
 	_reviewing = true
 	var overturned: bool = rally.verdict() == Rally.Verdict.WRONG
@@ -1246,7 +1251,12 @@ func judge(call: CallType, against: Sides.Team) -> void:
 	# moment in these sports where the truth is put on a screen, and the official has to
 	# sit through it like everybody else.
 	var winner: Sides.Team = rally.point_goes_to()
-	if has_challenge:
+	# Not once the official has already been taken off. `price_the_call` above is what
+	# removes them, so by the time this line is reached the match may be over and the
+	# replay booth already running — and a review started then puts its card on top of
+	# the replay. The guard below this block catches the *other* order, where the review
+	# itself is what ends the match.
+	if has_challenge and _phase != Phase.REMOVED:
 		var asked := who_would_challenge()
 		if asked != Sides.Team.NONE:
 			var overturned := await review(asked)
