@@ -132,12 +132,17 @@ func _build_air(spec: Dictionary) -> void:
 	air.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	air.ambient_light_color = spec["ambient_tint"]
 	air.ambient_light_energy = spec["ambient"]
-	air.fog_enabled = haze > 0.0
+	# The haze is the first thing to go when the player asks for a lighter hall: it is
+	# what the beams hang in, which is scenery, and it is the single most expensive thing
+	# the rig draws. The lamps and the light on the court are untouched — a court you
+	# cannot see the far corner of is a broken game, not a fast one.
+	var hazy := haze > 0.0 and Settings.drawing == Settings.Quality.FULL
+	air.fog_enabled = hazy
 	air.fog_light_color = Color(0.42, 0.48, 0.62)
 	air.fog_density = 0.005 * haze
 	air.fog_sky_affect = 0.0
 
-	air.volumetric_fog_enabled = haze > 0.0
+	air.volumetric_fog_enabled = hazy
 	air.volumetric_fog_density = 0.013 * haze
 	air.volumetric_fog_albedo = Color(0.72, 0.78, 0.92)
 	# The distance the volume is computed over. It has to reach the far end of the room
@@ -233,7 +238,11 @@ func _build_lamps(spec: Dictionary) -> void:
 		beam.spot_angle = 52.0
 		beam.spot_angle_attenuation = 0.7
 		# One facing pair casts shadows, for the reason in REAL_LAMP_PAIRS.
-		beam.shadow_enabled = i == lit[0] or i == lit[1]
+		# One facing pair casts shadows, for the reason in REAL_LAMP_PAIRS — and none at
+		# all at the lightest setting, where the sun's single shadow still puts everybody
+		# on the floor.
+		beam.shadow_enabled = ((i == lit[0] or i == lit[1])
+			and Settings.drawing != Settings.Quality.LIGHTEST)
 		lights.add_child(beam)
 
 

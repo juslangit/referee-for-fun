@@ -1851,6 +1851,38 @@ func _build_settings_menu(settings: Settings) -> void:
 		+ "brightness; with this on, 53.",
 		UiTheme.SMALL, UiTheme.MUTED))
 
+	column.add_child(_gap(16))
+	column.add_child(_make_label("HOW MUCH TO DRAW", UiTheme.HEADING, UiTheme.ACCENT))
+	var picked := int(settings.quality)
+	var quality_note := _make_label(
+		Settings.QUALITY_NOTES[picked], UiTheme.SMALL, UiTheme.MUTED)
+	var rungs := HBoxContainer.new()
+	rungs.name = "Quality"
+	rungs.alignment = BoxContainer.ALIGNMENT_CENTER
+	rungs.add_theme_constant_override("separation", 10)
+	for rung in Settings.QUALITY_NAMES.size():
+		var choice := Button.new()
+		choice.name = "Quality%d" % rung
+		choice.text = Settings.QUALITY_NAMES[rung]
+		choice.toggle_mode = true
+		choice.button_pressed = rung == picked
+		_make_live(choice)
+		choice.pressed.connect(func() -> void:
+			settings.quality = rung
+			settings.apply()
+			settings.save()
+			quality_note.text = Settings.QUALITY_NOTES[rung]
+			for other in rungs.get_children():
+				(other as Button).button_pressed = other.name == "Quality%d" % rung)
+		rungs.add_child(choice)
+	column.add_child(_centred(rungs))
+	column.add_child(quality_note)
+	# Deliberately short. The first version of this line ran wider than the panel and was
+	# clipped at both ends, which the screenshot showed and the code did not.
+	column.add_child(_make_label(
+		"Takes effect on the next match. The court, the lines and the ball are never touched.",
+		UiTheme.SMALL, UiTheme.MUTED))
+
 	column.add_child(_gap(20))
 	column.add_child(_controls_section(settings))
 

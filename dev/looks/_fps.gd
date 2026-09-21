@@ -252,6 +252,11 @@ func _open(scene: String, sport: StringName, tier: int) -> OfficiatedMatch:
 	arena.career = Career.new()
 	arena.career.sport = sport
 	arena.career.tier = tier
+	# QUALITY forces one rung of the "how much to draw" setting, so the three can be
+	# measured against each other rather than against a claim.
+	if OS.has_environment("QUALITY"):
+		arena.settings.quality = int(OS.get_environment("QUALITY"))
+		arena.settings.apply()
 	arena.settings.taught = true
 	arena.settings.taught_beach = true
 	arena.settings.taught_indoor = true

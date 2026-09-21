@@ -389,7 +389,11 @@ func _nowhere(seat: Transform3D) -> Transform3D:
 ## How full the hall is, from empty to packed. A school hall has a handful of
 ## parents in it; an international final does not have a spare seat.
 func set_density(density: float) -> void:
-	var part := clampf(density, 0.0, 1.0)
+	# Thinned further when the player has asked for a lighter hall. The rung decides how
+	# full the venue is and this decides how much of it is drawn; a school hall at the
+	# lightest setting is still a school hall, with fewer people in the back rows.
+	var kept: float = Settings.QUALITY_CROWD[int(Settings.drawing)]
+	var part := clampf(density, 0.0, 1.0) * kept
 	# Thinned out evenly across all three kinds of person, or a half-empty hall would
 	# be a hall containing only the first of them.
 	for group in _crowds.size():

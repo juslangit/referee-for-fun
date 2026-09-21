@@ -77,6 +77,39 @@ var bindings := {}
 ## Off by default. The kits are as they were for everybody who does not need this.
 var clear_kits := false
 
+## How much the game is allowed to draw.
+##
+## Added 2026-09-21. Every venue holds 60 fps on the machine this is built on, which is
+## the machine nobody else has — and the two heaviest things in a hall are both optional
+## to the job. The volumetric fog that the beams hang in is scenery, and the far half of
+## the crowd is scenery. The court, the lines, the players and the ball are not, and no
+## setting here touches them: an official who cannot see the far corner has a broken game,
+## not a fast one.
+enum Quality { FULL, LIGHTER, LIGHTEST }
+
+const QUALITY_NAMES := ["Everything", "Lighter", "Lightest"]
+
+## What each rung switches off, for the settings screen to explain itself with.
+const QUALITY_NOTES := [
+	"The hall as it is meant to look.",
+	"No haze in the light beams. The crowd is thinned a little.",
+	"No haze, no shadows from the lamps, and half the crowd.",
+]
+
+var quality := Quality.FULL
+
+## What the game is drawing at right now.
+##
+## A static rather than a value handed down, because the hall is built by six courts, a
+## lighting rig and a stand, and none of those is given a `Settings` — nor should it be,
+## since none of them has any other reason to know what the player has chosen. `apply()`
+## is the only thing that writes it.
+static var drawing := Quality.FULL
+
+## How much of the crowd each rung keeps. The people are the second heaviest thing in a
+## hall after the haze, and the back rows are the ones nobody looks at.
+const QUALITY_CROWD := [1.0, 0.8, 0.5]
+
 
 static func load_or_default() -> Settings:
 	var settings := Settings.new()
@@ -102,6 +135,7 @@ static func load_or_default() -> Settings:
 	settings.fullscreen = file.get_value("window", "fullscreen", settings.fullscreen)
 	settings.bindings = file.get_value("controls", "bindings", {})
 	settings.clear_kits = file.get_value("player", "clear_kits", settings.clear_kits)
+	settings.quality = int(file.get_value("video", "quality", settings.quality))
 	settings.taught = file.get_value("player", "taught", settings.taught)
 	settings.taught_beach = file.get_value("player", "taught_beach", settings.taught_beach)
 	settings.taught_indoor = file.get_value(
@@ -129,12 +163,14 @@ func save() -> void:
 	file.set_value("player", "taught_takraw", taught_takraw)
 	file.set_value("controls", "bindings", bindings)
 	file.set_value("player", "clear_kits", clear_kits)
+	file.set_value("video", "quality", int(quality))
 	file.save(path())
 
 
 ## Makes the world match these settings. Safe to call as often as you like.
 func apply() -> void:
 	ensure_buses()
+	drawing = quality
 	# The verbs, and whatever the player has moved them to.
 	Controls.ensure(self)
 	_set_bus("Master", master)
