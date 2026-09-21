@@ -148,8 +148,13 @@ func _taken_off() -> void:
 		"the tournament referee comes on")
 	_expect(arena.career.times_removed == removals_before + 1,
 		"being taken off is saved before the walk off starts")
-	var saved := Career.load_or_start()
-	_expect(saved.times_removed == arena.career.times_removed, "and it is on disk")
+	# Polled rather than read once. The save happens inside `_finish_match`, which resolves
+	# the pressure the player was under before it touches the career, and that resolution
+	# awaits — so "is it on disk" is a question with a settling time. Reading it on the
+	# frame after the removal was asking too early, which is why this had been failing.
+	var landed := await _until(func() -> bool:
+		return Career.load_or_start().times_removed == arena.career.times_removed, 5.0)
+	_expect(landed, "and it reaches the disk before the walk off ends")
 	_expect(await _until(func() -> bool: return arena.ui._ending.visible, 30.0),
 		"the result follows it")
 	arena.queue_free()

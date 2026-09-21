@@ -1,6 +1,6 @@
 extends Node
 
-## Does the title screen offer the five things it should, and does PLAY actually arrive
+## Does the title screen offer everything it should, and does PLAY actually arrive
 ## at the sport menu?
 ##
 ##   godot --headless --path . res://dev/checks/_titlescreen.tscn
@@ -16,7 +16,11 @@ extends Node
 ## calling `show_sport_menu()` directly — calling it directly is what would have hidden
 ## the fault, since the screen always worked. It was the route to it that did not exist.
 
-const WANTED := ["PLAY", "CAREER", "HOW TO REFEREE", "SETTINGS", "QUIT"]
+## CREDITS joined the list on 2026-09-21. It is not decoration: every 3D model in this
+## game is Creative Commons Attribution, where naming the author is a condition of the
+## licence, so a title screen without a way to reach the credits is a licence problem
+## and this list is where that is written down.
+const WANTED := ["PLAY", "CAREER", "HOW TO REFEREE", "SETTINGS", "CREDITS", "QUIT"]
 
 var _failures: Array[String] = []
 
@@ -43,7 +47,8 @@ func _ready() -> void:
 
 	print("")
 	if _failures.is_empty():
-		print("PASS  the title screen offers five things and PLAY reaches the sports")
+		print("PASS  the title screen offers its %d things and PLAY reaches the sports"
+			% WANTED.size())
 	else:
 		for failure in _failures:
 			print("FAIL  " + failure)

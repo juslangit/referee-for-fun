@@ -51,11 +51,15 @@ for f in dev/checks/*.tscn; do
 done
 
 printf 'running %d checks, %d at a time\n\n' "${#names[@]}" "$LIMIT"
-running=0
+# A free slot is found by counting running jobs, not by `wait -n`.
+#
+# macOS ships bash 3.2, which has no `wait -n`. The first version of this used it with a
+# fallback to plain `wait`, which waits for *every* job — so the suite ran one batch at a
+# time, each batch as slow as its slowest member, with five of six slots idle while one
+# check ground on. It looked like the checks were slow. The runner was.
 for n in "${names[@]}"; do
+  while [ "$(jobs -r | wc -l | tr -d ' ')" -ge "$LIMIT" ]; do sleep 0.3; done
   run_one "$n" &
-  running=$((running + 1))
-  if [ "$running" -ge "$LIMIT" ]; then wait -n 2>/dev/null || wait; running=$((running - 1)); fi
 done
 wait
 
