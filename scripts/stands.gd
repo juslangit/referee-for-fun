@@ -117,7 +117,20 @@ const SEAT_DETAIL := 1.0
 ## A yaw put on the seat model so that it faces the way the row is turned. Which
 ## direction a model calls forward is a decision its author made and did not write
 ## down, so this is set by looking at the hall rather than worked out.
-const CROWD_FACING := 180.0
+##
+## **90, since 2026-09-21.** It was 180, which was the number the *old* downloaded seat
+## wanted, and it stayed at 180 when the crowd became the forge's spectator on 2026-09-20
+## and the people were given a separate `PERSON_FACING`. A quarter turn out puts the chair
+## side-on: a tall red panel beside each spectator instead of behind them, which is what
+## Luqman was looking at when he said *"the audience bench is not right, rotate it so it
+## facing camera"*.
+##
+## Found by rendering the front row at 0, 90, 180 and 270 from the court and looking at
+## all four — see `dev/looks/_seatfacing` and `_seat`. At 0 and 180 the chair is side-on,
+## at 270 its back is to the court and hides the person, and at 90 the back is behind the
+## person where a back belongs. Reasoning about the model's axes got it wrong twice before
+## the pictures settled it.
+const CROWD_FACING := 90.0
 
 ## The same, for the people. A separate number since 2026-09-20, because the crowd stopped
 ## being downloaded models and became the forge's own spectator, which faces its own way.
