@@ -134,7 +134,11 @@ const CROWD_FACING := 90.0
 
 ## The same, for the people. A separate number since 2026-09-20, because the crowd stopped
 ## being downloaded models and became the forge's own spectator, which faces its own way.
-const PERSON_FACING := 0.0
+##
+## **180, since 2026-09-21.** It was 0, which sat the whole hall with its back to the court
+## — invisible while the seats were also a quarter turn out and obvious the moment they
+## were put right. The two numbers are a pair and were wrong together; see `CROWD_FACING`.
+const PERSON_FACING := 180.0
 
 ## The only part of a spectator that instance colour is allowed to touch. The shirt is
 ## baked almost white so that the tint *is* the shirt; the face, hair and shoes keep what
