@@ -58,3 +58,6 @@ assets/audio/freesound/
 
 # Python bytecode from the tool scripts.
 __pycache__/
+
+# Project record: built locally, never committed (it holds session logs)
+docs/index.html
