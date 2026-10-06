@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://bxathvqddp82n"
-path="res://.godot/imported/random_guy.glb-ee9494d8ee3ada39bc857f5490948524.scn"
+path="res://.godot/imported/[unused] random_guy.glb-ae0b24a560faeea7a76f76c452da7a52.scn"
 
 [deps]
 
-source_file="res://assets/sketchfab/random_guy/random_guy.glb"
-dest_files=["res://.godot/imported/random_guy.glb-ee9494d8ee3ada39bc857f5490948524.scn"]
+source_file="res://assets/sketchfab/random_guy/[unused] random_guy.glb"
+dest_files=["res://.godot/imported/[unused] random_guy.glb-ae0b24a560faeea7a76f76c452da7a52.scn"]
 
 [params]
 

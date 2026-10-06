@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://cuxvynltoy3bn"
-path="res://.godot/imported/low_poly_man_taking_phone_while_walking.glb-be67aa8e666cae9e208fffe7a91da5d4.scn"
+path="res://.godot/imported/[unused] low_poly_man_taking_phone_while_walking.glb-64d1cefc77198b298e0e80d41271cb01.scn"
 
 [deps]
 
-source_file="res://assets/sketchfab/low_poly_man_taking_phone_while_walking/low_poly_man_taking_phone_while_walking.glb"
-dest_files=["res://.godot/imported/low_poly_man_taking_phone_while_walking.glb-be67aa8e666cae9e208fffe7a91da5d4.scn"]
+source_file="res://assets/sketchfab/low_poly_man_taking_phone_while_walking/[unused] low_poly_man_taking_phone_while_walking.glb"
+dest_files=["res://.godot/imported/[unused] low_poly_man_taking_phone_while_walking.glb-64d1cefc77198b298e0e80d41271cb01.scn"]
 
 [params]
 
