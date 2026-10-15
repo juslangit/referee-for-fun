@@ -24,6 +24,10 @@
       "refine": "01a07cd0-8aad-7385-8f2f-e1ad5e0909ca",
       "rig": "01a07cd4-20ee-73fa-bbf1-12bddbb7f6b3"
     },
+    "player_c": {
+      "anim_smash": "01a13da9-85d7-77db-a8f0-860d77ded5d4",
+      "rig": "01a13da2-368d-74f0-9154-9b5fb121bcbd"
+    },
     "player_red": {
       "anim_smash": "01a09b8c-ad7f-716a-88dc-e3e6b0e241f9",
       "preview": "01a07cd4-b468-73ee-bb61-1baa859ea3c5",
@@ -40,8 +44,14 @@
       "duration": 2.5,
       "mode": "prime",
       "prompt": "A right-handed badminton player does a jumping overhead smash. Starts side-on in a ready stance, right arm cocks the racket back behind the head while the left arm points up at the shuttle. Scissor-kick jump, whips the right arm up and hits hard at full stretch above the head, then snaps the arm down across the body and lands balanced.",
+      "task": "01a13da9-48de-7479-a507-9443b7d82e7c"
+    },
+    "smash_2026-09-14": {
+      "duration": 2.5,
+      "mode": "prime",
+      "prompt": "A right-handed badminton player does a jumping overhead smash. Starts side-on in a ready stance, right arm cocks the racket back behind the head while the left arm points up at the shuttle. Scissor-kick jump, whips the right arm up and hits hard at full stretch above the head, then snaps the arm down across the body and lands balanced.",
       "task": "01a09b8b-d467-74e9-ad4e-e06d4c6d15d5"
     }
   },
-  "spent": 232
+  "spent": 250
 }

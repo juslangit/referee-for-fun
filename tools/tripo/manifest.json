@@ -1,0 +1,13 @@
+{
+ "assets": {
+  "player_c": {
+   "balance_after": 960,
+   "balance_before": 1000,
+   "faces": 15000,
+   "image": "dev/concepts/2026-10-15/athlete_C_blue_single.png",
+   "spent": 40,
+   "task": "ca828e79-5caf-4190-8deb-d950267fc311",
+   "version": "v3.0-20250812"
+  }
+ }
+}

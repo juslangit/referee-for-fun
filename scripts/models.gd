@@ -28,8 +28,8 @@ extends RefCounted
 ## They arrive at a real 1.80 m with their feet at the origin, so nothing here has to
 ## be scaled or stood up.
 const PLAYERS := {
-	Sides.Team.BLUE: "res://assets/meshy/player_blue/player_blue_animated.glb",
-	Sides.Team.RED: "res://assets/meshy/player_red/player_red_animated.glb",
+	Sides.Team.BLUE: "res://assets/meshy/player_c/player_c_animated.glb",
+	Sides.Team.RED: "res://assets/meshy/player_c_red/player_c_red_animated.glb",
 }
 
 ## The line judges: grey-haired, in a uniform shirt and trousers that are nobody's
@@ -431,14 +431,14 @@ static func wear_libero_kit(figure: Node3D, sheet_path: String, fallback: Color)
 ## tint, for the same reason the libero has its own: a material put onto a built figure
 ## does not draw.
 const CLEAR_MODELS := {
-	Sides.Team.RED: "res://assets/meshy/player_red_clear/player_red_clear_animated.glb",
-	Sides.Team.BLUE: "res://assets/meshy/player_blue_clear/player_blue_clear_animated.glb",
+	Sides.Team.RED: "res://assets/meshy/player_c_red_clear/player_c_red_clear_animated.glb",
+	Sides.Team.BLUE: "res://assets/meshy/player_c_clear/player_c_clear_animated.glb",
 }
 
 
 const LIBERO_MODELS := {
-	Sides.Team.RED: "res://assets/meshy/player_red_libero/player_red_libero_animated.glb",
-	Sides.Team.BLUE: "res://assets/meshy/player_blue_libero/player_blue_libero_animated.glb",
+	Sides.Team.RED: "res://assets/meshy/player_c_red_libero/player_c_red_libero_animated.glb",
+	Sides.Team.BLUE: "res://assets/meshy/player_c_libero/player_c_libero_animated.glb",
 }
 
 

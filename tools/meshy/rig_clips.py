@@ -112,6 +112,16 @@ SMASH_FRAMES = (17.6, 40.8)
 # it left. A smash nobody saw coming still starts at 17.6, as before.
 SMASH_WINDUP_FRAMES = (10.0, 17.6)
 
+# A character whose smash is a different Meshy clip has its own frames. `player_c` (the
+# stylised player, 2026-10-15) got a fresh clip from the same prompt after the first one
+# expired, and it is timed differently: the hips bottom out at frame 10-11, the feet
+# leave the floor at 15, and the hand is highest — contact, 2.01 m — at frame 29, not 24.
+# The trims keep the old offsets (contact 6.4 frames in, 16.8 frames of follow-through) so
+# nothing in the game has to be retimed.
+SMASH_FRAMES_BY_CHARACTER = {
+    "player_c": ((22.6, 45.8), (7.0, 22.6)),
+}
+
 # Which of the Hips' location channels carry the journey rather than the body's own
 # rise and fall. On Meshy's rig the Hips bone's Y axis is the world's up: in the smash,
 # channel 0 is 0.8 m of drift to the side, 1 is the 0.65 m jump and 2 is forwards and
@@ -353,9 +363,11 @@ def forge(name):
 
     steal_animation(name, "_walking", "walk", rig)
     steal_animation(name, "_running", "run", rig)
-    meshy_smash = steal_animation(name, "_smash", "smash", rig, frames=SMASH_FRAMES,
+    smash_frames, windup_frames = SMASH_FRAMES_BY_CHARACTER.get(
+        name, (SMASH_FRAMES, SMASH_WINDUP_FRAMES))
+    meshy_smash = steal_animation(name, "_smash", "smash", rig, frames=smash_frames,
                                   drop=HIPS_SIDEWAYS_AND_FORWARDS)
-    steal_animation(name, "_smash", "smash_windup", rig, frames=SMASH_WINDUP_FRAMES,
+    steal_animation(name, "_smash", "smash_windup", rig, frames=windup_frames,
                     drop=HIPS_SIDEWAYS_AND_FORWARDS)
 
     rig.animation_data_create()
