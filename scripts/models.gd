@@ -34,6 +34,13 @@ const PLAYERS := {
 
 ## The line judges: grey-haired, in a uniform shirt and trousers that are nobody's
 ## team colour, and carrying the seated clip they spend the whole match in.
+##
+## Realistic since 2026-10-15, drawn to go with the realistic players: a teal polo with a
+## navy collar for the line judges, and a navy blazer and tie for the umpire and the
+## tournament referee, who until then wore the line judges' uniform. Each falls back to
+## the one before it if its file is missing.
+const LINE_JUDGE_MODEL := "res://assets/meshy/linejudge/linejudge_animated.glb"
+const UMPIRE_MODEL := "res://assets/meshy/umpire_r/umpire_r_animated.glb"
 const OFFICIAL_MODEL := "res://assets/meshy/official/official_animated.glb"
 
 ## The characters built in Blender by tools/blender/character_forge.py, kept as the
@@ -683,6 +690,9 @@ static func is_forged(figure: Node) -> bool:
 ## A line judge: grey-haired, in a uniform shirt that is nobody's team colour, and
 ## carrying the seated clip they spend the whole of a real match in.
 static func official() -> Node3D:
+	var real := _load_ready(LINE_JUDGE_MODEL)
+	if real != null:
+		return real
 	var meshy := _load_ready(OFFICIAL_MODEL)
 	if meshy != null:
 		return meshy
@@ -694,6 +704,13 @@ static func official() -> Node3D:
 	# above it. Adding another one laid the poor man flat and made him ten metres wide.
 	# Measure the assembled model, not the mesh inside it.
 	return _load(OFFICIAL, OFFICIAL_HEIGHT)
+
+
+## The umpire on their feet in the cutscenes, and the tournament referee: the senior
+## officials, in a blazer rather than the line judges' polo.
+static func umpire() -> Node3D:
+	var real := _load_ready(UMPIRE_MODEL)
+	return real if real != null else official()
 
 
 static func racket() -> Node3D:

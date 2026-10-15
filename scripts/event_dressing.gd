@@ -41,6 +41,30 @@ const LED_SECONDS := 7.0
 ## A person working at the side of the court. The crowd's own model, so they belong to the
 ## same world as the people watching.
 const PERSON := "res://assets/sketchfab/simple_low_poly_character/simple_low_poly_character.glb"
+
+## The realistic crew, drawn to go with the realistic players (2026-10-15): a photographer in
+## a red bib with a camera on its strap, a ball kid in a tournament polo, and a camera
+## operator in black with headphones. Rigged, so they stand or crouch in a real pose rather
+## than being squashed to crouch. The scorer and the assistant referee are officials and wear
+## the line judges' uniform. Anything without a file falls back to the low-poly person.
+const CREW_MODELS := {
+	"Photographer": "res://assets/meshy/crew_photographer/crew_photographer_animated.glb",
+	"Operator": "res://assets/meshy/crew_camera/crew_camera_animated.glb",
+	"BallKid": "res://assets/meshy/crew_ballkid/crew_ballkid_animated.glb",
+}
+const OFFICIAL_ROLES := ["Scorer", "AssistantReferee"]
+## The ball kid's polo in each event's crew colour, repainted from the red one by hue
+## (tools/meshy/recolour_kit.py). Real events dress their crew in their own colours, and
+## the layouts already say which — teal, orange, yellow, white for the moppers.
+const BALL_KID_SHIRTS := {
+	"teal": "res://assets/meshy/crew_ballkid/crew_ballkid_teal.png",
+	"orange": "res://assets/meshy/crew_ballkid/crew_ballkid_orange.png",
+	"yellow": "res://assets/meshy/crew_ballkid/crew_ballkid_yellow.png",
+	"white": "res://assets/meshy/crew_ballkid/crew_ballkid_white.png",
+}
+## The clip each kind of pose is frozen in, first one the character has wins.
+const STANDING_CLIPS := ["stand", "idle", "ready"]
+const CROUCHING_CLIPS := ["kneel", "ready", "idle"]
 const TV_CAMERA := "res://assets/sketchfab/tv_camera/tv_camera.glb"
 const PLASTIC_CHAIR := "res://assets/sketchfab/plastic_chair/plastic_chair.glb"
 const UMBRELLA := "res://assets/sketchfab/beach_umbrella_low_poly/beach_umbrella_low_poly.glb"
@@ -376,12 +400,14 @@ func _camera(spec: Dictionary) -> void:
 		_tint(camera, Color(0.16, 0.16, 0.18))
 		_no_shadows(camera)
 		rig.add_child(camera)
-	var operator := Props.node(PERSON, 1.74)
+	var real := _crew("Operator", false)
+	var operator := real if real != null else Props.node(PERSON, 1.74)
 	if operator != null:
 		var back := Vector3(sin(turn), 0.0, cos(turn)) * -0.6
 		operator.position = Vector3(back.x, lift, back.z)
 		operator.rotation.y = turn
-		_clothe(operator, spec.get("shirt", Color(0.08, 0.08, 0.10)))
+		if real == null:
+			_clothe(operator, spec.get("shirt", Color(0.08, 0.08, 0.10)))
 		_no_shadows(operator)
 		rig.add_child(operator)
 
@@ -562,17 +588,78 @@ func _prop(spec: Dictionary) -> void:
 
 ## Somebody who works at the event: a ball kid, a raker, a photographer, the scorer.
 func _person(spec: Dictionary) -> void:
-	var person := Props.node(PERSON, spec.get("height", 1.72))
+	var role := String(spec.get("role", "Crew"))
+	var crouch: bool = spec.get("crouch", false)
+	var real := _crew(role, crouch, spec.get("shirt", Color(-1, -1, -1)))
+	var person := real if real != null else Props.node(PERSON, spec.get("height", 1.72))
 	if person == null:
 		return
-	person.name = String(spec.get("role", "Crew")).capitalize().replace(" ", "")
+	person.name = role.capitalize().replace(" ", "")
 	person.position = spec["at"]
 	person.rotation.y = spec.get("turn", 0.0)
-	if spec.get("crouch", false):
-		person.scale = Vector3(1.0, 0.62, 1.0)
-	_clothe(person, spec.get("shirt", Color(0.9, 0.5, 0.1)), spec.get("trousers", Color(0.10, 0.11, 0.14)))
+	if real == null:
+		if crouch:
+			person.scale = Vector3(1.0, 0.62, 1.0)
+		_clothe(person, spec.get("shirt", Color(0.9, 0.5, 0.1)), spec.get("trousers", Color(0.10, 0.11, 0.14)))
 	_no_shadows(person)
 	add_child(person)
+
+
+## One of the realistic crew in their pose, or null to fall back to the low-poly person.
+## Every role that fetches balls, mops or rakes is a ball kid; the officials' roles get the
+## line judges' model. The pose is a frame of one of the character's own clips, held: the
+## crew stand still, and three dozen skeletons playing idle loops would cost frames for
+## nothing anyone watches.
+func _crew(role: String, crouch: bool, shirt := Color(-1, -1, -1)) -> Node3D:
+	var figure: Node3D = null
+	if role in OFFICIAL_ROLES:
+		figure = Models.official()
+	else:
+		var path: String = CREW_MODELS.get(role, CREW_MODELS["BallKid"])
+		if not ResourceLoader.exists(path):
+			return null
+		var holder := Node3D.new()
+		holder.add_child((load(path) as PackedScene).instantiate())
+		figure = holder
+		if path == CREW_MODELS["BallKid"] and shirt.r >= 0.0:
+			_dress_ball_kid(figure, shirt)
+	if figure == null:
+		return null
+	var animator := Models.animator(figure)
+	var clip := Models.clip_named(animator, CROUCHING_CLIPS if crouch else STANDING_CLIPS)
+	if animator != null and not clip.is_empty():
+		# Posed once it is in the tree; an AnimationPlayer outside it applies nothing.
+		figure.ready.connect(func() -> void:
+			animator.play(clip)
+			animator.seek(animator.get_animation(clip).length * 0.5, true)
+			animator.pause(), CONNECT_ONE_SHOT)
+	return figure
+
+
+## Puts the ball kid in the polo nearest the event's crew colour; red stays red.
+func _dress_ball_kid(figure: Node3D, shirt: Color) -> void:
+	var pick := ""
+	if shirt.s < 0.25:
+		pick = "white" if shirt.v > 0.6 else ""
+	elif shirt.h > 0.4 and shirt.h < 0.6:
+		pick = "teal"
+	elif shirt.h >= 0.05 and shirt.h < 0.11:
+		pick = "orange"
+	elif shirt.h >= 0.11 and shirt.h < 0.2:
+		pick = "yellow"
+	if pick.is_empty() or not ResourceLoader.exists(BALL_KID_SHIRTS[pick]):
+		return
+	var texture: Texture2D = load(BALL_KID_SHIRTS[pick])
+	for child in _every(figure):
+		if not (child is MeshInstance3D) or (child as MeshInstance3D).mesh == null:
+			continue
+		var mesh := child as MeshInstance3D
+		for i in mesh.mesh.get_surface_count():
+			var base := mesh.mesh.surface_get_material(i)
+			if base is StandardMaterial3D:
+				var paint: StandardMaterial3D = base.duplicate()
+				paint.albedo_texture = texture
+				mesh.set_surface_override_material(i, paint)
 
 
 func _model(parent: Node3D, path: String, height: float, tint := Color(-1, -1, -1),

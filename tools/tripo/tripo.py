@@ -76,7 +76,15 @@ def save(state):
 def wait(task_id, every=5.0, limit=1800):
     start = time.time()
     while time.time() - start < limit:
-        task = call("GET", f"task/{task_id}")
+        # A dropped connection while polling is not a failed task. `call` exits on any
+        # HTTP error, which on 2026-10-15 left the line judge's build half-done while
+        # the task carried on at Tripo; a status check is free to repeat.
+        try:
+            task = call("GET", f"task/{task_id}")
+        except SystemExit as error:
+            print(f"  poll failed, retrying: {error}", flush=True)
+            time.sleep(every)
+            continue
         status = task.get("status")
         print(f"  {status} {task.get('progress', '')}", flush=True)
         if status == "success":

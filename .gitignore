@@ -47,6 +47,9 @@ assets/meshy/*
 assets/meshy/*/*
 !assets/meshy/*/*_animated.glb
 !assets/meshy/*/*_animated.glb.import
+# The ball kid's polo in each event's colour, read by event_dressing.gd at runtime.
+!assets/meshy/crew_ballkid/crew_ballkid_*.png
+!assets/meshy/crew_ballkid/crew_ballkid_*.png.import
 
 # Downloaded audio, as opposed to the audio the game loads. `sfx` drops whole packs and
 # whole Freesound folders here; the game uses a handful of files out of them, and those

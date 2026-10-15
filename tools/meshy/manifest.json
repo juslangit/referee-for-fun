@@ -6,6 +6,30 @@
       "refine": "01a07cc3-4b1c-7731-820b-0a340aaf9fb9",
       "rig": "01a07cc6-21d2-7403-960d-aa3d29355993"
     },
+    "crew_ballkid": {
+      "rig": "01a13e6a-df1e-760e-b47c-24882434b524"
+    },
+    "crew_camera": {
+      "rig": "01a13e6c-aa03-71e2-a959-872411cac737"
+    },
+    "crew_photographer": {
+      "rig": "01a13e68-ef2e-7282-b7cc-43fc6d6059c2"
+    },
+    "fan_dad": {
+      "rig": "01a13e75-7476-7194-b0b5-1a1a2c88dc38"
+    },
+    "fan_teen": {
+      "rig": "01a13e73-4f1b-728b-b0fc-71ffe9eecacc"
+    },
+    "fan_tudung": {
+      "rig": "01a13e70-eebd-7176-a2de-0401635a1a68"
+    },
+    "fan_uncle": {
+      "rig": "01a13e6e-ee4d-7772-94ee-124d842753de"
+    },
+    "linejudge": {
+      "rig": "01a13e75-f8ae-7078-921a-98925c1b2f6d"
+    },
     "official": {
       "anim_smash": "01a09b8d-6470-76ba-950f-bf4553b3de70",
       "preview": "01a07cdf-2a2f-76ab-b82a-a7641fcacc67",
@@ -41,6 +65,9 @@
     "shuttlecock": {
       "preview": "01a07cbf-b8d6-76f9-abf6-c4a350e05dba",
       "refine": "01a07cc0-7afb-7668-99a2-11907468b0e5"
+    },
+    "umpire_r": {
+      "rig": "01a13e66-1671-7726-b0ca-4e8b1a8a8b67"
     }
   },
   "motions": {
@@ -57,5 +84,5 @@
       "task": "01a09b8b-d467-74e9-ad4e-e06d4c6d15d5"
     }
   },
-  "spent": 258
+  "spent": 303
 }

@@ -99,6 +99,38 @@ const CROWD_MODELS := [
 		"height": 0.0, "share": 0.45},
 ]
 
+## The realistic crowd, drawn to go with the realistic players (2026-10-15): a Malay uncle
+## in batik and a songkok, a young woman in a tudung, a teenager in a striped football shirt,
+## and a dad in a polo and a cap. Built by Tripo, rigged by Meshy and frozen into their poses
+## by `tools/tripo/bake_crowd_poses.py`. Four people dressed as themselves beat two dressed
+## by instance colour, so none of them is tinted — their materials are not called `kit`,
+## which is the only thing TINTED lets the colour touch. Half the uncles and dads lean
+## forward, the same trick as before, so a row does not all sit the same way. Used when every
+## file is there; otherwise CROWD_MODELS, as before.
+const REAL_CROWD_MODELS := [
+	{"sitting": "res://assets/characters/fan_uncle_sit.glb",
+		"standing": "res://assets/characters/fan_uncle_stand.glb", "height": 0.0, "share": 0.14},
+	{"sitting": "res://assets/characters/fan_uncle_lean.glb",
+		"standing": "res://assets/characters/fan_uncle_stand.glb", "height": 0.0, "share": 0.12},
+	{"sitting": "res://assets/characters/fan_tudung_sit.glb",
+		"standing": "res://assets/characters/fan_tudung_stand.glb", "height": 0.0, "share": 0.24},
+	{"sitting": "res://assets/characters/fan_teen_lean.glb",
+		"standing": "res://assets/characters/fan_teen_stand.glb", "height": 0.0, "share": 0.24},
+	{"sitting": "res://assets/characters/fan_dad_sit.glb",
+		"standing": "res://assets/characters/fan_dad_stand.glb", "height": 0.0, "share": 0.13},
+	{"sitting": "res://assets/characters/fan_dad_lean.glb",
+		"standing": "res://assets/characters/fan_dad_stand.glb", "height": 0.0, "share": 0.13},
+]
+
+
+## The crowd this hall is built from: the realistic one if all of it is on disk.
+static func crowd_models() -> Array:
+	for kind in REAL_CROWD_MODELS:
+		if not (ResourceLoader.exists(kind["sitting"]) and ResourceLoader.exists(kind["standing"])):
+			return CROWD_MODELS
+	return REAL_CROWD_MODELS
+
+
 ## Kept for the check that decides between painted people and the fallback boxes.
 const CROWD_MODEL := "res://assets/characters/crowd_a_sit.glb"
 
@@ -580,9 +612,10 @@ func _build_crowd() -> void:
 	# shuffled list, so each kind of person is scattered through the stands rather than
 	# sat together in a block, and thinning the crowd thins all three evenly.
 	var dealt := 0
-	for which in CROWD_MODELS.size():
-		var kind: Dictionary = CROWD_MODELS[which]
-		var take := _total - dealt if which == CROWD_MODELS.size() - 1 else roundi(_total * float(kind["share"]))
+	var models := crowd_models()
+	for which in models.size():
+		var kind: Dictionary = models[which]
+		var take := _total - dealt if which == models.size() - 1 else roundi(_total * float(kind["share"]))
 		if take <= 0:
 			continue
 		var correction := Props.turned(PERSON_FACING)

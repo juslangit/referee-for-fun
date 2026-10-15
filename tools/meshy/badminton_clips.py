@@ -325,6 +325,33 @@ CLIPS = {
         ],
     },
 
+    # Down on one knee: the ball kids at the net posts and the photographers behind the
+    # boards, who stay low so they are not in anybody's eyeline. Added 2026-10-15 for the
+    # realistic crew; the old low-poly crew were squashed to crouch, and every standing or
+    # bent-over clip left a realistic one's head across the bottom of the umpire's view.
+    # Right knee on the floor, left foot planted in front; hands rest on the front knee.
+    "kneel": {
+        "loop": True,
+        "keys": [
+            (0, {
+                MOVE: (0.0, 0.0, -0.36),
+                "Spine02": (14, 0, 0), "Head": (-8, 0, 0),
+                "LeftUpLeg": (-82, 0, -6), "LeftLeg": (84, 0, 0), "LeftFoot": (-6, 0, 0),
+                "RightUpLeg": (4, 0, 4), "RightLeg": (92, 0, 0), "RightFoot": (40, 0, 0),
+                "LeftArm": (-20, 70, -14), "LeftForeArm": (0, 0, -40),
+                "RightArm": (-20, -70, 14), "RightForeArm": (0, 0, 40),
+            }),
+            (60, {
+                MOVE: (0.0, 0.0, -0.36),
+                "Spine02": (14, 0, 0), "Head": (-8, 0, 0),
+                "LeftUpLeg": (-82, 0, -6), "LeftLeg": (84, 0, 0), "LeftFoot": (-6, 0, 0),
+                "RightUpLeg": (4, 0, 4), "RightLeg": (92, 0, 0), "RightFoot": (40, 0, 0),
+                "LeftArm": (-20, 70, -14), "LeftForeArm": (0, 0, -40),
+                "RightArm": (-20, -70, 14), "RightForeArm": (0, 0, 40),
+            }),
+        ],
+    },
+
     # The line judges sit in their corner for the whole match, which is the one thing
     # they do that no player ever does. Same rig, same file, so they get the clip too.
     "sit": {

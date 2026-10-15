@@ -5,8 +5,8 @@ extends Node3D
 ## chair after it, and the tournament referee coming to take them off.
 ##
 ## Only the cutscenes use one. During play the umpire is the camera and has no body, and
-## the line judges are LineJudge, which never stands up. Same character as the line
-## judges, so everybody in the building wearing the uniform is the same person.
+## the line judges are LineJudge, which never stands up. The umpire wears a blazer and
+## the line judges a polo, as at a real tournament (2026-10-15).
 
 ## A walk, not a march. The players walking on behind the umpire are held to the same
 ## pace, or the file of them comes apart before it reaches the court.
@@ -23,7 +23,7 @@ var _gesturing := false
 
 func _ready() -> void:
 	_destination = position
-	_figure = Models.official()
+	_figure = Models.umpire()
 	if _figure == null:
 		Figure.standing(self, Color(0.93, 0.85, 0.30), false)
 		return

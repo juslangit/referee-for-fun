@@ -1,5 +1,77 @@
 {
  "assets": {
+  "crew_ballkid": {
+   "balance_after": 760,
+   "balance_before": 800,
+   "faces": 12000,
+   "image": "dev/concepts/2026-10-15/realistic_cast/tpose/crew_ballkid_square.png",
+   "spent": 40,
+   "task": "b014e6a4-8a4e-4cd8-a6d0-3281dc507f19",
+   "version": "v3.0-20250812"
+  },
+  "crew_camera": {
+   "balance_after": 720,
+   "balance_before": 760,
+   "faces": 12000,
+   "image": "dev/concepts/2026-10-15/realistic_cast/tpose/crew_camera_square.png",
+   "spent": 40,
+   "task": "35e41513-211e-4868-8798-b76ba9d89d77",
+   "version": "v3.0-20250812"
+  },
+  "crew_photographer": {
+   "balance_after": 800,
+   "balance_before": 840,
+   "faces": 12000,
+   "image": "dev/concepts/2026-10-15/realistic_cast/tpose/crew_photographer_square.png",
+   "spent": 40,
+   "task": "b71cb135-211c-4b52-bc49-4cb74b6cfdf0",
+   "version": "v3.0-20250812"
+  },
+  "fan_dad": {
+   "balance_after": 560,
+   "balance_before": 600,
+   "faces": 5000,
+   "image": "dev/concepts/2026-10-15/realistic_cast/tpose/fan_dad_square.png",
+   "spent": 40,
+   "task": "70927fb4-6d73-4b14-9bcf-c6f43e5e0309",
+   "version": "v3.0-20250812"
+  },
+  "fan_teen": {
+   "balance_after": 600,
+   "balance_before": 640,
+   "faces": 5000,
+   "image": "dev/concepts/2026-10-15/realistic_cast/tpose/fan_teen_square.png",
+   "spent": 40,
+   "task": "b7702e2c-c541-4af3-bd59-0d3125b02960",
+   "version": "v3.0-20250812"
+  },
+  "fan_tudung": {
+   "balance_after": 640,
+   "balance_before": 680,
+   "faces": 5000,
+   "image": "dev/concepts/2026-10-15/realistic_cast/tpose/fan_tudung_square.png",
+   "spent": 40,
+   "task": "bd771e8f-f652-447e-b352-540074d66cc3",
+   "version": "v3.0-20250812"
+  },
+  "fan_uncle": {
+   "balance_after": 680,
+   "balance_before": 720,
+   "faces": 5000,
+   "image": "dev/concepts/2026-10-15/realistic_cast/tpose/fan_uncle_square.png",
+   "spent": 40,
+   "task": "19af4151-8084-4fce-88f7-39668b40a42e",
+   "version": "v3.0-20250812"
+  },
+  "linejudge": {
+   "balance_after": 560,
+   "balance_before": 880,
+   "faces": 20000,
+   "image": "dev/concepts/2026-10-15/realistic_cast/tpose/linejudge_square.png",
+   "spent": 40,
+   "task": "4015bbc6-073f-4f1a-a0a2-d4b5a1791236",
+   "version": "v3.0-20250812"
+  },
   "player_c": {
    "balance_after": 960,
    "balance_before": 1000,
@@ -16,6 +88,15 @@
    "image": "dev/concepts/2026-10-15/realistic/5_game_ready_square.png",
    "spent": 40,
    "task": "054766b6-c18a-468a-9aec-0864e42bb2ee",
+   "version": "v3.0-20250812"
+  },
+  "umpire_r": {
+   "balance_after": 880,
+   "balance_before": 920,
+   "faces": 20000,
+   "image": "dev/concepts/2026-10-15/realistic_cast/tpose/umpire_square.png",
+   "spent": 40,
+   "task": "f3fec83d-7725-4ff1-98a6-56bb1b46aa4d",
    "version": "v3.0-20250812"
   }
  }
