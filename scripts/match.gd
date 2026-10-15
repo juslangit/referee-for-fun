@@ -1078,7 +1078,7 @@ func _begin_the_stroke(player: Player, ahead: float, at: Vector3, step: float) -
 	# Only a smash crouches first. A clear or a drop is played from the same sideways
 	# stance without the drop into the legs, and a backhand from the back corner faces the
 	# other way entirely.
-	if (stroke == "smash" or stroke == "bd_jump_smash") and _wound_up_on_shot != _shots_this_rally:
+	if stroke in ["smash", "bd_smash", "bd_jump_smash"] and _wound_up_on_shot != _shots_this_rally:
 		_wound_up_on_shot = _shots_this_rally
 		player.wind_up(maxf(ahead - contact, step))
 	if ahead > contact + step:

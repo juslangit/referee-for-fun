@@ -63,7 +63,7 @@ func _play(sport: String) -> void:
 	for f in 4:
 		await get_tree().process_frame
 
-	var rows: Array[String] = ["sport,rally,shot_no,team,player,clip,side,front,height_m,height,reach_m,moving,speed,flight,angle,ball_speed,gap_m"]
+	var rows: Array[String] = ["sport,rally,shot_no,team,player,clip,side,front,height_m,height,reach_m,moving,speed,flight,angle,ball_speed,gap_m,turn_deg"]
 	var history := {}
 	var footwork := {}
 	var strikes_before := int(arena.sound.heard.get(STRIKES, 0))
@@ -96,7 +96,8 @@ func _play(sport: String) -> void:
 					pending.append({"frames": READ_FLIGHT_AFTER, "who": who,
 						"ball": ball.global_position, "how": _moving(who, history.get(who, [])),
 						"clip": who.playing_clip(), "gap": who.hitting_point().distance_to(ball.global_position),
-						"shot": shot_no, "rally": rally_no})
+						"shot": shot_no, "rally": rally_no,
+						"turn": rad_to_deg(wrapf(who.rotation.y - who.across_the_net(), -PI, PI))})
 			strikes_before = struck
 		else:
 			strikes_before = int(arena.sound.heard.get(STRIKES, 0))
@@ -192,6 +193,6 @@ func _row(sport: String, p: Dictionary, velocity: Vector3) -> String:
 	if speed < 8.0 and flight != "high":
 		flight = "soft_" + flight
 	var how: Array = p["how"]
-	return "%s,%d,%d,%d,%s,%s,%s,%s,%.2f,%s,%.2f,%s,%.2f,%s,%.0f,%.1f,%.2f" % [
+	return "%s,%d,%d,%d,%s,%s,%s,%s,%.2f,%s,%.2f,%s,%.2f,%s,%.0f,%.1f,%.2f,%.0f" % [
 		sport, p["rally"], p["shot"], who.team, who.name, p["clip"], side, front, height, band,
-		reach, how[0], how[1], flight, angle, speed, p["gap"]]
+		reach, how[0], how[1], flight, angle, speed, p["gap"], p["turn"]]

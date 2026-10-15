@@ -55,7 +55,9 @@ COCKED = {
     "LeftUpLeg": (-6, 0, -6), "LeftLeg": (14, 0, 0),
     "RightUpLeg": (8, 0, 8), "RightLeg": (18, 0, 0),
     "LeftArm": (0, -78, -18), "LeftForeArm": (0, 0, -10),
-    "RightArm": (0, 64, -44), "RightForeArm": (0, 0, 118),
+    # Elbow up at shoulder height and the hand dropped behind the head — the forearm folds
+    # about Y, not Z, once the upper arm is raised (checked side-on: Z only folded it forward).
+    "RightArm": (0, 30, -10), "RightForeArm": (0, 110, 0),
 }
 
 # Round the head: the same, leaning over onto the non-racket side.
@@ -216,13 +218,43 @@ CLIPS = {
     ]),
 
     # --- rear court, overhead -----------------------------------------------------------
+    # Turning side-on under the shuttle, racket cocked, waiting to strike: the wind-up that is
+    # stretched to end where a smash begins. Replaces Meshy's own crouch, which turned the
+    # whole body a quarter turn to the left and led into a smash that finished side-on to the
+    # net (Luqman, 2026-10-15: "sometimes when the player smash, they facing the wrong way").
+    "bd_smash_prep": _stroke([
+        (0, READY),
+        (10, COCKED),
+    ]),
+    # The standing smash: side-on and cocked, then the hips come round so the chest faces the
+    # net at contact, the racket arm reaching up and forward, and the follow-through goes
+    # down across the body as the racket leg steps through. Contact on 7.
+    "bd_smash": _stroke([
+        (0, COCKED),
+        (4, _with(COCKED, Hips=(0, 0, -22), RightArm=(0, 36, -18), RightForeArm=(0, 124, 0))),
+        (7, {
+            "Hips": (8, 0, 6), "Spine02": (16, 0, 0),
+            "LeftUpLeg": (-8, 0, -6), "LeftLeg": (20, 0, 0),
+            "RightUpLeg": (-16, 0, 6), "RightLeg": (28, 0, 0),
+            "LeftArm": (0, 30, -30), "LeftForeArm": (0, 0, -40),
+            "RightArm": (0, 90, 44), "RightForeArm": (0, 0, 4),
+        }),
+        (13, {
+            "Hips": (12, 0, 24), "Spine02": (18, 0, 0),
+            "LeftUpLeg": (10, 0, -6), "LeftLeg": (24, 0, 0),
+            "RightUpLeg": (-30, 0, 6), "RightLeg": (34, 0, 0),
+            "LeftArm": (0, 50, -10), "LeftForeArm": (0, 0, -40),
+            "RightArm": (0, -40, 80), "RightForeArm": (0, 0, 40),
+        }),
+        (20, READY),
+    ]),
     # Contact on 9, at the top of the jump.
     "bd_jump_smash": _stroke([
         (0, _moved(_with(COCKED, LeftUpLeg=(-30, 0, -8), LeftLeg=(56, 0, 0),
                          RightUpLeg=(-20, 0, 8), RightLeg=(56, 0, 0)), (0.0, 0.0, -0.05))),
         (6, _moved(_with(COCKED, LeftUpLeg=(-40, 0, -6), LeftLeg=(70, 0, 0),
                          RightUpLeg=(-10, 0, 6), RightLeg=(60, 0, 0),
-                         RightArm=(0, 72, -52), RightForeArm=(0, 0, 128)), (0.0, 0.0, 0.34))),
+                         RightArm=(0, 36, -18), RightForeArm=(0, 124, 0)), (0.0, 0.0, 0.34))),
         (9, _moved({
             "Hips": (6, 0, 6), "Spine02": (14, 0, 0),
             "LeftUpLeg": (-30, 0, -6), "LeftLeg": (50, 0, 0),
@@ -244,8 +276,8 @@ CLIPS = {
     # Round the head: a smash from over the left shoulder. Contact on 6.
     "bd_rth_smash": _stroke([
         (0, COCKED_RTH),
-        (6, _with(COCKED_RTH, Hips=(6, 14, 8), Spine02=(12, 10, 0),
-                  RightArm=(0, 100, 50), RightForeArm=(0, 0, 8),
+        (6, _with(COCKED_RTH, Hips=(8, 8, 8), Spine02=(12, 8, 0),
+                  RightArm=(0, 86, 68), RightForeArm=(0, 0, 8),
                   LeftArm=(0, 46, -20), LeftForeArm=(0, 0, -40))),
         (14, _with(READY, Hips=(12, 8, 24), RightArm=(0, -36, 82), RightForeArm=(0, 0, 44))),
         (22, READY),
@@ -262,8 +294,8 @@ CLIPS = {
     ]),
     "bd_rth_clear": _stroke([
         (0, COCKED_RTH),
-        (6, _with(COCKED_RTH, Hips=(0, 14, 4), Spine02=(-2, 10, 0),
-                  RightArm=(0, 100, 44), RightForeArm=(0, 0, 8),
+        (6, _with(COCKED_RTH, Hips=(4, 8, 4), Spine02=(4, 8, 0),
+                  RightArm=(0, 88, 64), RightForeArm=(0, 0, 8),
                   LeftArm=(0, 46, -20), LeftForeArm=(0, 0, -40))),
         (15, _with(READY, Hips=(12, 8, 18), RightArm=(0, -20, 76), RightForeArm=(0, 0, 50))),
         (22, READY),
@@ -462,7 +494,7 @@ CLIPS = {
 
 ## The frame each stroke meets the shuttle on. Player.CONTACT_AT holds the same numbers.
 CONTACT = {
-    "bd_jump_smash": 9, "bd_rth_smash": 6, "bd_clear": 6, "bd_rth_clear": 6,
+    "bd_smash": 7, "bd_jump_smash": 9, "bd_rth_smash": 6, "bd_clear": 6, "bd_rth_clear": 6,
     "bd_bh_clear": 7, "bd_drop": 6, "bd_bh_drop": 7,
     "bd_block_fh": 5, "bd_lift_fh_wide": 9, "bd_block_bh": 5, "bd_lift_bh_wide": 9,
     "bd_body": 5, "bd_dive": 8, "bd_drive_fh": 5, "bd_drive_bh": 5,

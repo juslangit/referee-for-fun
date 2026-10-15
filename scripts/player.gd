@@ -231,7 +231,7 @@ func _play(clip: String, one_shot := false, speed := 1.0) -> void:
 func _on_clip_finished(clip_name: StringName) -> void:
 	# A crouch that finishes a moment before the strike holds its last pose rather than
 	# standing up into `ready` and dropping straight back down into the smash.
-	if clip_name == &"smash_windup":
+	if clip_name == &"smash_windup" or clip_name == &"bd_smash_prep":
 		_holding_the_crouch = WIND_UP_HOLD
 		return
 	_one_shot = false
@@ -250,7 +250,15 @@ const LUNGING := ["bd_net_fh", "bd_net_bh", "bd_lift_fh", "bd_lift_bh",
 ## happens on a character without the clip, and a strike that comes sooner simply cuts it
 ## short.
 func wind_up(seconds_to_contact: float) -> void:
-	if _animator == null or not _animator.has_animation("smash_windup"):
+	if _animator == null:
+		return
+	# Badminton's own: side-on and cocked, facing the way the smash then turns through.
+	if _badminton() and _animator.has_animation("bd_smash_prep"):
+		var prep := _animator.get_animation("bd_smash_prep").length
+		_play("bd_smash_prep", true,
+			clampf(prep / maxf(seconds_to_contact, 0.01), WIND_UP_SLOWEST, WIND_UP_FASTEST))
+		return
+	if not _animator.has_animation("smash_windup"):
 		return
 	var length := _animator.get_animation("smash_windup").length
 	_play("smash_windup", true,
@@ -321,7 +329,7 @@ func _badminton_stroke(meeting: Vector3, in_seconds: float, overhead: bool, kind
 			"jump_smash":
 				clip = "bd_jump_smash" if forehand else "bd_rth_smash"
 			"smash":
-				clip = "smash" if forehand else "bd_rth_smash"
+				clip = "bd_smash" if forehand else "bd_rth_smash"
 			"drop":
 				clip = "bd_drop" if forehand or ahead > -BEHIND_THEM else "bd_bh_drop"
 			_:
@@ -751,7 +759,7 @@ func _animate(delta: float, running: bool) -> void:
 func _physics_process(delta: float) -> void:
 	if _holding_the_crouch > 0.0:
 		_holding_the_crouch -= delta
-		if _holding_the_crouch <= 0.0 and _clip == "smash_windup":
+		if _holding_the_crouch <= 0.0 and (_clip == "smash_windup" or _clip == "bd_smash_prep"):
 			_one_shot = false
 			_clip = ""
 	var aim := _destination
@@ -1059,6 +1067,7 @@ const CONTACT_AT := {
 	"st_block": 14.0 / 24.0,
 	"st_throw": 13.0 / 24.0,
 	# Badminton's full set, from CONTACT in tools/meshy/badminton_strokes.py.
+	"bd_smash": 7.0 / 24.0,
 	"bd_jump_smash": 9.0 / 24.0,
 	"bd_rth_smash": 6.0 / 24.0,
 	"bd_clear": 6.0 / 24.0,
@@ -1437,12 +1446,22 @@ func _turn_into_the_shot(clip: String, meeting: Vector3, in_seconds: float) -> v
 		return
 	var want := atan2(towards.x, towards.y) - atan2(out.x, out.y)
 	var off := wrapf(want - across_the_net(), -PI, PI)
-	_stroke_facing = across_the_net() + clampf(off, -MOST_OF_A_TURN, MOST_OF_A_TURN)
+	var most := MOST_OF_AN_OVERHEAD_TURN if clip in OVERHEADS else MOST_OF_A_TURN
+	_stroke_facing = across_the_net() + clampf(off, -most, most)
 
 
 ## How far the body may be turned to play a shot. Under a quarter turn past square, which
 ## is where the ball would start being behind them.
 const MOST_OF_A_TURN := deg_to_rad(85.0)
+
+## An overhead is struck with the chest coming round to the net, so it is barely turned at
+## all. Aiming the racket at the shuttle turned a smash 81 degrees away, side-on to the net,
+## because the smash meets the shuttle behind the racket shoulder; the round-the-head clear
+## went 81 the other way (Luqman, 2026-10-15: "sometimes when the player smash, they facing
+## the wrong way"). The backhand overheads turn their back to the net inside the clip itself.
+const MOST_OF_AN_OVERHEAD_TURN := deg_to_rad(20.0)
+const OVERHEADS := ["smash", "bd_smash", "bd_jump_smash", "bd_rth_smash", "bd_clear", "bd_rth_clear",
+	"bd_drop", "bd_bh_clear", "bd_bh_drop"]
 
 
 ## How fast to play a clip so its contact lands in `in_seconds`. One when nothing is being

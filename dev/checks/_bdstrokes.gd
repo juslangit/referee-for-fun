@@ -20,7 +20,7 @@ const CASES := [
 	["smash wide to the right", 1.1, 0.3, 0.8, "lift", true, "bd_lift_fh_wide"],
 	["smash wide to the left", -1.1, 0.3, 0.8, "lift", true, "bd_lift_bh_wide"],
 	["smash out of reach to the right, low", 1.4, 0.3, 0.4, "lift", true, "bd_dive"],
-	["high to the right: smash", 0.5, 0.3, 2.3, "smash", false, "smash"],
+	["high to the right: smash", 0.5, 0.3, 2.3, "smash", false, "bd_smash"],
 	["high, jumped smash", 0.5, 0.3, 2.7, "jump_smash", false, "bd_jump_smash"],
 	["high to the left: round the head smash", -0.6, 0.2, 2.3, "smash", false, "bd_rth_smash"],
 	["high to the right: clear", 0.4, 0.3, 2.3, "clear", false, "bd_clear"],

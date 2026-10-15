@@ -67,15 +67,15 @@ func _ready() -> void:
 				var clip: String = player._clip
 				var was: String = clip_was.get(player, "")
 				if clip != was:
-					if clip == "smash_windup":
+					if clip == "smash_windup" or clip == "bd_smash_prep":
 						wind_ups += 1
 						var animator: AnimationPlayer = player._animator
-						var planned: float = animator.get_animation("smash_windup").length \
+						var planned: float = animator.get_animation(clip).length \
 							/ maxf(0.01, animator.get_playing_speed())
 						started[player] = [clock, clock + planned]
 					# Since 2026-10-15 an overhead is a clear, a drop or a smash, and the
 					# jump smash crouches first too. Only these two are wound up for.
-					elif clip in ["smash", "bd_jump_smash"]:
+					elif clip in ["smash", "bd_smash", "bd_jump_smash"]:
 						smashes += 1
 						if started.has(player):
 							seen_coming += 1

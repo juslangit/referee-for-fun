@@ -5,7 +5,7 @@ extends Node
 ## screen is the one the situation calls for (dev/looks/_movelog has the numbers).
 ##
 ##     godot --path . res://dev/looks/_strokecam.tscn --fixed-fps 60 --resolution 960x720
-##     SHOTS=24   OUT=strokes   (the folder under dev/shots)
+##     SHOTS=24   OUT=strokes   (the folder under dev/shots)   CLIPS=bd_smash,bd_clear (only these)
 
 const STRIKES := &"strike"
 
@@ -48,6 +48,9 @@ func _ready() -> void:
 				if d < best:
 					best = d
 					who = p
+			var only := OS.get_environment("CLIPS").split(",", false)
+			if who != null and not only.is_empty() and not only.has(who.playing_clip()):
+				who = null
 			if who != null:
 				# From the opponent's side, off to the striker's right, at chest height.
 				var facing: float = who.across_the_net()
@@ -60,7 +63,7 @@ func _ready() -> void:
 				await RenderingServer.frame_post_draw
 				var name := "%02d_%s_gap%.2f" % [taken, who.playing_clip(), best]
 				get_viewport().get_texture().get_image().save_png(
-					"res://dev/shots/strokes_final/%s.png" % name)
+					"%s/%s.png" % [out, name])
 				print("saved ", name)
 				taken += 1
 				if taken >= want:
