@@ -17,14 +17,14 @@ MODELS
 
 Aggie Stadium Chair — joshua.mckimmey
     every seat in the stands · CC Attribution
+badminton racket — timmy
+    the badminton rackets · CC Attribution
 Badminton Racket And Shuttlecock (Low Poly) — game_travel
-    the rackets and the shuttlecock · CC Attribution
+    the rackets and the shuttlecock, if the realistic ones are missing · CC Attribution
 Beach Umbrella - Low Poly — Styro
     the team umbrellas at the beach · CC Attribution
 Gym Bench Chair — MHKstudio
     the team benches at the side of the court · CC Attribution
-Lifeguard Chair — Pixie3D
-    the umpire's high chair · CC Attribution
 Male Character In Caual Clothing — gamedevme
     the officials, and the line judges · CC Attribution
 Metal Folding Chair — Chen CheHsuan
@@ -35,6 +35,8 @@ Plastic Chair — Jazavac
     the players' and coaches' chairs at the side of the court · CC Attribution
 RIGGING TRUSS 80CM 10METER KOLONG — eventdesignws
     the lighting truss over every indoor court · CC Attribution
+Волан / Shuttlecock — Alex Petuhov
+    the shuttlecock · CC Attribution
 Simple Low Poly Character — PIXELOKAY
     the crew, photographers and ball kids around the court · CC Attribution
 Sport Water Bottle — rollthebryce
@@ -43,10 +45,20 @@ Sports Bag — Zeps3D
     the bags at the side of the court · CC Attribution
 STAGE LIGHTS ⭐ — Maxime GUINARD
     the lamps hanging under the truss · CC Attribution
+Table Tennis Rackets (Ping Pong) — AndrewHunt95
+    the table tennis bats · CC Attribution
+Tennis Ball — Tentrox
+    the tennis ball · CC Attribution
 Tennis racket — turtlemode
+    the tennis rackets, if the realistic one is missing · CC Attribution
+Tennis Racket — Yanez Designs
     the tennis rackets · CC Attribution
 TV Camera — merlincodes
     the television cameras round every venue · CC Attribution
+umpire chair — Batrish
+    the umpire's high chair · CC Attribution
+Volleyball — PatelDev
+    the volleyball, indoors and on the beach · CC Attribution
 
 MADE FOR THIS GAME
 

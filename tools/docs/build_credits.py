@@ -36,10 +36,10 @@ MODELS = PROJECT / "assets" / "sketchfab"
 # used; only a person knows what it is.
 USED_FOR = {
     "aggie_stadium_chair": "every seat in the stands",
-    "badminton_racket_and_shuttlecock_low_poly": "the rackets and the shuttlecock",
+    "badminton_racket_and_shuttlecock_low_poly": "the rackets and the shuttlecock, if the realistic ones are missing",
     "beach_umbrella_low_poly": "the team umbrellas at the beach",
     "gym_bench_chair": "the team benches at the side of the court",
-    "lifeguard_chair": "the umpire's high chair",
+    "lifeguard_chair": "the umpire's high chair (before 2026-10-15)",
     "male_character_in_caual_clothing": "the officials, and the line judges",
     "metal_folding_chair": "the line judges' chairs and the officials' table",
     "olympic_athlete": "the players",
@@ -49,8 +49,15 @@ USED_FOR = {
     "sport_water_bottle": "the bottles at the side of the court",
     "sports_bag": "the bags at the side of the court",
     "stage_lights": "the lamps hanging under the truss",
-    "tennis_racket": "the tennis rackets",
+    "tennis_racket": "the tennis rackets, if the realistic one is missing",
     "tv_camera": "the television cameras round every venue",
+    "badminton_racket": "the badminton rackets",
+    "shuttlecock": "the shuttlecock",
+    "tennis_racket_yanez": "the tennis rackets",
+    "tennis_ball": "the tennis ball",
+    "volleyball": "the volleyball, indoors and on the beach",
+    "table_tennis_rackets_ping_pong": "the table tennis bats",
+    "umpire_chair": "the umpire's high chair",
 }
 
 NOT_USED = "downloaded, not currently used in the game"

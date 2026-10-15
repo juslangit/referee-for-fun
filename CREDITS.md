@@ -16,8 +16,14 @@ list is how fifteen models ended up in the game and not in here.
 - https://sketchfab.com/3d-models/aggie-stadium-chair-b0607a5e412043e399745703be24a33a
 - Licence: CC Attribution
 
+### badminton racket
+- Used for: the badminton rackets
+- By: timmy
+- https://sketchfab.com/3d-models/badminton-racket-455a5ed487e7450b8a52f39897193ddf
+- Licence: CC Attribution
+
 ### Badminton Racket And Shuttlecock (Low Poly)
-- Used for: the rackets and the shuttlecock
+- Used for: the rackets and the shuttlecock, if the realistic ones are missing
 - By: game_travel
 - https://sketchfab.com/3d-models/badminton-racket-and-shuttlecock-low-poly-795e4cca2e544d7ab86a8e5c7ded2362
 - Licence: CC Attribution
@@ -32,12 +38,6 @@ list is how fifteen models ended up in the game and not in here.
 - Used for: the team benches at the side of the court
 - By: MHKstudio
 - https://sketchfab.com/3d-models/gym-bench-chair-6d2809949c9149d990995ebc40d4109f
-- Licence: CC Attribution
-
-### Lifeguard Chair
-- Used for: the umpire's high chair
-- By: Pixie3D
-- https://sketchfab.com/3d-models/lifeguard-chair-48c2980846c542a3bbd75bd36b2c3a61
 - Licence: CC Attribution
 
 ### Male Character In Caual Clothing
@@ -70,6 +70,12 @@ list is how fifteen models ended up in the game and not in here.
 - https://sketchfab.com/3d-models/rigging-truss-80cm-10meter-kolong-c25451c9c53249b4a040b6b27cec259e
 - Licence: CC Attribution
 
+### Волан / Shuttlecock
+- Used for: the shuttlecock
+- By: Alex Petuhov
+- https://sketchfab.com/3d-models/shuttlecock-c3e9b43766314a6186a0c92d1769980d
+- Licence: CC Attribution
+
 ### Simple Low Poly Character
 - Used for: the crew, photographers and ball kids around the court
 - By: PIXELOKAY
@@ -94,16 +100,46 @@ list is how fifteen models ended up in the game and not in here.
 - https://sketchfab.com/3d-models/stage-lights-373fdaaa7fd94665b421c3a344cfbff5
 - Licence: CC Attribution
 
+### Table Tennis Rackets (Ping Pong)
+- Used for: the table tennis bats
+- By: AndrewHunt95
+- https://sketchfab.com/3d-models/table-tennis-rackets-ping-pong-ad3b85ec56d042af88e4e57db648eacb
+- Licence: CC Attribution
+
+### Tennis Ball
+- Used for: the tennis ball
+- By: Tentrox
+- https://sketchfab.com/3d-models/tennis-ball-edc344dcc65440ea97b5eae84f1957a4
+- Licence: CC Attribution
+
 ### Tennis racket
-- Used for: the tennis rackets
+- Used for: the tennis rackets, if the realistic one is missing
 - By: turtlemode
 - https://sketchfab.com/3d-models/tennis-racket-a79f01ba56774f61bbe5a3196e2d7cf4
+- Licence: CC Attribution
+
+### Tennis Racket
+- Used for: the tennis rackets
+- By: Yanez Designs
+- https://sketchfab.com/3d-models/tennis-racket-c314dcce06ba488ca624957f579b8196
 - Licence: CC Attribution
 
 ### TV Camera
 - Used for: the television cameras round every venue
 - By: merlincodes
 - https://sketchfab.com/3d-models/tv-camera-3795b3283e9447c391efdab9a4efe27a
+- Licence: CC Attribution
+
+### umpire chair
+- Used for: the umpire's high chair
+- By: Batrish
+- https://sketchfab.com/3d-models/umpire-chair-e5b3666377ad45f4b45bf18ec2874e76
+- Licence: CC Attribution
+
+### Volleyball
+- Used for: the volleyball, indoors and on the beach
+- By: PatelDev
+- https://sketchfab.com/3d-models/volleyball-5ebd04ad8a9647e999c04ae92dd2fe13
 - Licence: CC Attribution
 
 ## Downloaded and not used
@@ -113,6 +149,8 @@ Kept in the repository, credited anyway, and not in the shipped game.
 - **Athlete USSR** by emelyarules — CC Attribution
 
 - **Female Athlete USSR** by emelyarules — CC Attribution
+
+- **Lifeguard Chair** by Pixie3D — CC Attribution
 
 - **Low-poly Man** by Razvan Savescu — CC Attribution
 

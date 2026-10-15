@@ -20,7 +20,9 @@ extends RefCounted
 ## thrown away down to 12% of itself to run, and at 12% it was a white lump.
 const SEAT := "res://assets/sketchfab/aggie_stadium_chair/aggie_stadium_chair.glb"
 const FOLDING_CHAIR := "res://assets/sketchfab/metal_folding_chair/metal_folding_chair.glb"
-const HIGH_CHAIR := "res://assets/sketchfab/lifeguard_chair/lifeguard_chair.glb"
+const HIGH_CHAIR := "res://assets/sketchfab/umpire_chair/umpire_chair.glb"
+## Degrees about Y that square the tournament chair, which its author left turned.
+const HIGH_CHAIR_SQUARE := 20.3
 const TRUSS := "res://assets/sketchfab/rigging_truss_80cm_10meter_kolong/rigging_truss_80cm_10meter_kolong.glb"
 const LAMP := "res://assets/sketchfab/stage_lights/stage_lights.glb"
 const BOTTLE := "res://assets/sketchfab/sport_water_bottle/sport_water_bottle.glb"

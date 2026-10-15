@@ -279,6 +279,13 @@ func force_landing() -> void:
 
 
 func _build_body() -> void:
+	# The textured match ball if it was downloaded; the plain sphere below if not.
+	var real := Models.ball(Models.VOLLEYBALL, radius * 2.0)
+	if real != null:
+		real.name = "Ball"
+		add_child(real)
+		return
+
 	var view := MeshInstance3D.new()
 	view.name = "Ball"
 	var sphere := SphereMesh.new()

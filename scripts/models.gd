@@ -61,6 +61,22 @@ const KIT := "res://assets/sketchfab/badminton_racket_and_shuttlecock_low_poly/b
 const TENNIS_KIT := "res://assets/sketchfab/tennis_racket/tennis_racket.glb"
 const TENNIS_RACKET_NODE := "06-12-19_tennis_racket_export_v1_obj_cleaner_materialmerger_gles"
 
+## The realistic set, chosen 2026-10-15 to go with the realistic players: a badminton
+## racket and a feathered shuttlecock in place of the low-poly pack, a modern tennis
+## frame, a real table tennis bat, and textured balls. Each one falls back to what came
+## before it if its file is missing, so a checkout without the downloads still plays.
+## The node names are the exporters'; `_part` lifts that one piece out of the file.
+const REAL_RACKET := "res://assets/sketchfab/badminton_racket/badminton_racket.glb"
+const REAL_RACKET_NODE := "Cylinder_025_2"
+const REAL_SHUTTLE := "res://assets/sketchfab/shuttlecock/shuttlecock.glb"
+const REAL_SHUTTLE_NODE := "Sketchfab_model"
+const REAL_TENNIS_KIT := "res://assets/sketchfab/tennis_racket_yanez/tennis_racket_yanez.glb"
+const REAL_TENNIS_NODE := "Tennis Racket"
+const REAL_BAT := "res://assets/sketchfab/table_tennis_rackets_ping_pong/table_tennis_rackets_ping_pong.glb"
+const REAL_BAT_NODE := "SM_PingPongPaddle"
+const TENNIS_BALL := "res://assets/sketchfab/tennis_ball/tennis_ball.glb"
+const VOLLEYBALL := "res://assets/sketchfab/volleyball/volleyball.glb"
+
 ## Real heights, in metres.
 const PLAYER_HEIGHT := 1.80
 const OFFICIAL_HEIGHT := 1.76
@@ -681,19 +697,25 @@ static func official() -> Node3D:
 
 
 static func racket() -> Node3D:
-	return _part(KIT, "Obj_Racket", RACKET_LENGTH)
+	var real := _part(REAL_RACKET, REAL_RACKET_NODE, RACKET_LENGTH)
+	return real if real != null else _part(KIT, "Obj_Racket", RACKET_LENGTH)
 
 
 ## The tennis racket. Its three meshes — frame, strings and grip — sit under one node
 ## whose name is the exporter's, so it is taken whole rather than a mesh at a time.
 static func tennis_racket() -> Node3D:
-	return _part(TENNIS_KIT, TENNIS_RACKET_NODE, TENNIS_RACKET_LENGTH)
+	var real := _part(REAL_TENNIS_KIT, REAL_TENNIS_NODE, TENNIS_RACKET_LENGTH)
+	return real if real != null else _part(TENNIS_KIT, TENNIS_RACKET_NODE, TENNIS_RACKET_LENGTH)
 
 
 ## A table tennis bat, built rather than loaded: a red rubber face on a wooden blade,
 ## with a flared handle. Its long axis is Y with the head at the top, which is what
 ## `_hold_racket` expects of anything it puts in a hand.
 static func bat() -> Node3D:
+	var real := _part(REAL_BAT, REAL_BAT_NODE, BAT_LENGTH)
+	if real != null:
+		return real
+
 	var made := Node3D.new()
 	made.name = "Bat"
 
@@ -730,7 +752,26 @@ static func _flat(colour: Color) -> StandardMaterial3D:
 
 
 static func shuttlecock() -> Node3D:
-	return _part(KIT, "Gp_Shuttle", SHUTTLE_LENGTH)
+	var real := _part(REAL_SHUTTLE, REAL_SHUTTLE_NODE, SHUTTLE_LENGTH)
+	return real if real != null else _part(KIT, "Gp_Shuttle", SHUTTLE_LENGTH)
+
+
+## A textured ball, `diameter` across and centred on its own origin, or null when the
+## file is not there and the caller should draw its plain sphere instead.
+static func ball(path: String, diameter: float) -> Node3D:
+	if not ResourceLoader.exists(path):
+		return null
+	var whole: Node3D = load(path).instantiate()
+	var holder := Node3D.new()
+	holder.name = path.get_file().get_basename()
+	holder.add_child(whole)
+	var box := _bounds(holder)
+	var longest := maxf(box.size.x, maxf(box.size.y, box.size.z))
+	if longest > 0.0001:
+		whole.scale *= diameter / longest
+		box = _bounds(holder)
+		whole.position -= box.get_center()
+	return holder
 
 
 static func has_assets() -> bool:
@@ -796,11 +837,13 @@ static func _part(path: String, part_name: String, length: float) -> Node3D:
 	holder.add_child(found)
 	whole.queue_free()
 
-	var box := _bounds(found)
+	found.transform = Transform3D(_lengthways(path, holder), Vector3.ZERO) * found.transform
+
+	var box := _bounds(holder)
 	var longest := maxf(box.size.x, maxf(box.size.y, box.size.z))
 	if longest > 0.001:
-		found.scale = Vector3.ONE * (length / longest)
-		box = _bounds(found)
+		found.transform = found.transform.scaled(Vector3.ONE * (length / longest))
+		box = _bounds(holder)
 		found.position -= box.get_center()
 
 	# Deliberately left on the court layer. This used to put everything it loaded on the
@@ -809,6 +852,78 @@ static func _part(path: String, part_name: String, length: float) -> Node3D:
 	# exists to show was the one object culled out of it. The racket is moved to the
 	# people layer by whoever puts it in a hand, which is where that decision belongs.
 	return holder
+
+
+## The turn that lays a held object the way the code that holds it expects: long axis
+## along Z with the wide end — a racket's head, a shuttle's skirt — at +Z, the next
+## widest across X and the thinnest along Y. That is how the first racket pack happened
+## to be built, and the grip, the swing and the cork-first flight were all written
+## against it. Models from elsewhere arrive any way round, so the shape is measured
+## rather than a turn being written down per file. Cached per file, since a racket is
+## loaded for every player and the measuring walks every vertex.
+static var _lengthways_cache := {}
+
+static func _lengthways(path: String, holder: Node3D) -> Basis:
+	if _lengthways_cache.has(path):
+		return _lengthways_cache[path]
+
+	var points: Array[Vector3] = []
+	for node in _every(holder):
+		if not (node is MeshInstance3D) or (node as MeshInstance3D).mesh == null:
+			continue
+		var place := _placed_in(node as Node3D, holder)
+		var mesh: Mesh = (node as MeshInstance3D).mesh
+		for surface in mesh.get_surface_count():
+			for v in mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX]:
+				points.append(place * v)
+	if points.is_empty():
+		return Basis.IDENTITY
+
+	var low := points[0]
+	var high := points[0]
+	for p in points:
+		low = low.min(p)
+		high = high.max(p)
+	var size := high - low
+	var order := [0, 1, 2]
+	order.sort_custom(func(a: int, b: int) -> bool: return size[a] > size[b])
+	var long_axis: int = order[0]
+
+	# Which end is wide: the half of the points with the greater spread off the axis.
+	var centre := (low + high) * 0.5
+	var middle: float = centre[long_axis]
+	var spread_low := 0.0
+	var spread_high := 0.0
+	for p in points:
+		var off := p - centre
+		off[long_axis] = 0.0
+		if p[long_axis] < middle:
+			spread_low = maxf(spread_low, off.length())
+		else:
+			spread_high = maxf(spread_high, off.length())
+
+	# Rows of the turn: which source axis ends up on X, on Y, and on Z.
+	var rows := [Vector3.ZERO, Vector3.ZERO, Vector3.ZERO]
+	rows[2][long_axis] = 1.0 if spread_high >= spread_low else -1.0
+	rows[0][order[1]] = 1.0
+	rows[1][order[2]] = 1.0
+	# A mirror would turn a right-handed racket left-handed; flip across X instead.
+	if (rows[0] as Vector3).cross(rows[1]).dot(rows[2]) < 0.0:
+		rows[0] = -rows[0]
+	var turn := Basis(rows[0], rows[1], rows[2]).transposed()
+	_lengthways_cache[path] = turn
+	return turn
+
+
+## Where `node` sits in `top`'s space, by multiplying the transforms down between them.
+static func _placed_in(node: Node3D, top: Node3D) -> Transform3D:
+	var place := Transform3D.IDENTITY
+	var at: Node = node
+	while at != null and at != top:
+		if at is Node3D:
+			place = (at as Node3D).transform * place
+		at = at.get_parent()
+	return place
 
 
 ## Multiplies every material by a colour, which tints a textured model without

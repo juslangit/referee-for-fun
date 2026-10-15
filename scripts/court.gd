@@ -398,7 +398,9 @@ func _build_umpire_chair() -> void:
 	# A real high chair if the download is there. It is turned to face the court and
 	# pushed a little further out than the boxes were, because the player's eye sits
 	# where the seat is and a backrest drawn across the camera is a wall.
-	var real := Props.node(Props.HIGH_CHAIR, 2.75)
+	# The tournament chair's file has it turned 20 degrees on the spot; the correction
+	# squares it back to the court before the quarter turn below faces it across.
+	var real := Props.node(Props.HIGH_CHAIR, 2.75, Props.turned(Props.HIGH_CHAIR_SQUARE))
 	if real != null:
 		real.position = Vector3(0.28, 0.0, 0.0)
 		# Turned to face the court, so the umpire sits looking across it rather than

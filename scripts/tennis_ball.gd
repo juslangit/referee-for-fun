@@ -46,6 +46,13 @@ func _init() -> void:
 
 
 func _build_body() -> void:
+	# The textured match ball if it was downloaded; the plain sphere below if not.
+	var real := Models.ball(Models.TENNIS_BALL, radius * 2.0)
+	if real != null:
+		real.name = "Ball"
+		add_child(real)
+		return
+
 	var view := MeshInstance3D.new()
 	view.name = "Ball"
 	var sphere := SphereMesh.new()
