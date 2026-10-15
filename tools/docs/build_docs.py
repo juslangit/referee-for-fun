@@ -54,6 +54,20 @@ IMAGE_QUALITY = 62
 # screenshot says it is old.
 
 GALLERIES = [
+    ("realistic-cast", "The realistic cast and props", "On 2026-10-15 everything around the players followed them into a realistic look. Luqman picked each person from OpenArt designs; Tripo built them, Meshy rigged them. The rackets, balls and umpire's chair are free Sketchfab models at real sizes.", [
+        ("real__castline", "The cast: umpire in a blazer, line judge in a teal polo, the photographer standing and kneeling, the ball kid standing and kneeling, the TV camera operator."),
+        ("real_crowd_sitting", "The hall seated: a batik uncle in a songkok, a woman in a tudung, a teen in a striped jersey and a dad in a polo, each dressed as themselves."),
+        ("real_crowd_standing", "On their feet over a call: the same four people, arms up."),
+        ("real_cut_walk_on_08.5", "The umpire walks the players on, past the new tournament chair."),
+        ("real_cut_walk_on_15.5", "The coin toss at the net, a line judge in the teal polo seated behind."),
+        ("real_tennis_chair", "Tennis from the chair: ball kids in the event's teal, kneeling at the posts below the eyeline."),
+        ("real_badminton_wide", "The international badminton final from above."),
+        ("real__propline", "The props at real size: badminton racket, tennis racket, table tennis bat, shuttlecock, tennis ball, volleyball."),
+        ("real__player_close", "A badminton player with the new racket in hand."),
+        ("real__close_tennis", "A tennis player with the modern frame."),
+        ("real__close_table_tennis", "A table tennis bat, one red side and one black, as the rules require."),
+        ("real__shot_chair", "The umpire's high chair: blue tournament frame with a sunshade, in place of the lifeguard chair."),
+    ]),
     ("screens-interface", "The broadcast interface", "Every screen restyled on 2026-09-15 from real sports television, starting from two OpenArt concept mockups. Each sport's score bug copies that sport's own broadcast.", [
         ("dev/ref/ui-redesign/mockup_main_menu.png", "OpenArt mockup: the title screen as a sports-game home screen."),
         ("dev/ref/ui-redesign/mockup_hud_badminton.png", "OpenArt mockup: the badminton HUD modelled on BWF television. Its Q/E keys were wrong and not copied."),
