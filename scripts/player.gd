@@ -123,7 +123,29 @@ var _clip := ""
 var _one_shot := false
 
 ## Clips that run until something else interrupts them, as opposed to shots.
-const LOOPING := ["idle", "ready", "run", "walk", "tired", "argue", "vb_ready"]
+const LOOPING := ["idle", "ready", "run", "walk", "tired", "argue", "vb_ready",
+	"shuffle_left", "shuffle_right", "bd_retreat", "walk_sad", "bd_receive"]
+
+## Whether a rally is live. Between points an athlete stands up straight; during one they
+## wait in the ready crouch whether or not the shuttle is theirs. Set by the badminton match
+## (2026-10-15) — the old idle *was* the crouch, so everybody hunched between points.
+var in_rally := false
+
+## After a point in badminton: "won" or "lost" until the next rally starts. They walk back
+## instead of running, and the side that lost it walks back with their head down.
+var _between_points := ""
+
+## A pose held while they stand still, ahead of ready and idle: the receiver's stance while
+## the server sets up.
+var still_clip := ""
+
+## How much longer the split-step owns their legs.
+var _split_left := 0.0
+
+## Which side of the body the shuttle they are going for will be on: 1 the racket side, -1
+## the other. Decided when the chase starts, as a player does — they read the shuttle off
+## the opponent's racket and set up for a forehand or a backhand, and stand to suit.
+var _reach_side := 1.0
 
 ## The figure and the racket in its hand.
 var _figure: Node3D
@@ -214,6 +236,13 @@ func _on_clip_finished(clip_name: StringName) -> void:
 		return
 	_one_shot = false
 	_clip = ""
+	if String(clip_name) in LUNGING:
+		_play("bd_recover", true)
+
+
+## The strokes that end deep in a lunge, out of which they push back to the middle.
+const LUNGING := ["bd_net_fh", "bd_net_bh", "bd_lift_fh", "bd_lift_bh",
+	"bd_lift_fh_wide", "bd_lift_bh_wide"]
 
 
 ## The crouch and push-off before a smash, stretched or squeezed to end in
@@ -231,6 +260,123 @@ func wind_up(seconds_to_contact: float) -> void:
 ## How long a finished wind-up may hold its pose waiting for the strike, in seconds.
 const WIND_UP_HOLD := 0.3
 var _holding_the_crouch := 0.0
+
+
+# --- badminton's strokes ---------------------------------------------------------------
+#
+# One clip per situation (tools/meshy/badminton_strokes.py, 2026-10-15). The match decides
+# what the shot is going to be a moment before contact — smash, clear, drop, net shot, lift
+# — and whether the shuttle coming at them is a smash; this decides which of the clips plays
+# it, from where the shuttle will be against their body.
+
+var _planned_clip := ""
+
+
+## Whether this is a badminton player, which is who the clips below are for.
+func _badminton() -> bool:
+	return racket_kind == &"badminton" and not volleyball
+
+
+## Their own right, in the world, facing across the net.
+func _right_of_net() -> Vector3:
+	var facing := across_the_net()
+	return Vector3(-cos(facing), 0.0, sin(facing))
+
+
+## Which side of them a shuttle landing at `point` is: the racket side unless it is clearly
+## on the other.
+func _side_of(point: Vector3) -> float:
+	var lateral := (Vector3(point.x, 0.0, point.z) - Vector3(position.x, 0.0, position.z)).dot(_right_of_net())
+	return 1.0 if lateral > -BACKHAND_BEYOND else -1.0
+
+
+## How far to the non-racket side a shuttle has to be before it is a backhand. A little,
+## because players run round a shuttle that is only just on the backhand side.
+const BACKHAND_BEYOND := 0.35
+
+
+## Picks the stroke for the shot that is coming and remembers it, so the match can time the
+## start of it off that stroke's own moment of contact. Returns its name.
+func plan_stroke(in_seconds: float, meeting: Vector3, overhead: bool, kind: String,
+		incoming_smash: bool) -> String:
+	_planned_clip = _badminton_stroke(meeting, in_seconds, overhead, kind, incoming_smash)
+	return _planned_clip
+
+
+func _badminton_stroke(meeting: Vector3, in_seconds: float, overhead: bool, kind: String,
+		incoming_smash: bool) -> String:
+	var standing := position_in(in_seconds)
+	var gap := Vector3(meeting.x - standing.x, 0.0, meeting.z - standing.z)
+	var lateral := gap.dot(_right_of_net())
+	var ahead := gap.dot(-_away_from_the_net())
+	var flat := Vector2(lateral, ahead).length()
+	var height := meeting.y
+	var side := _reach_side
+	if absf(lateral) > CLEARLY_TO_ONE_SIDE:
+		side = signf(lateral)
+	var forehand := side > 0.0
+	var clip := ""
+	if overhead:
+		match kind:
+			"jump_smash":
+				clip = "bd_jump_smash" if forehand else "bd_rth_smash"
+			"smash":
+				clip = "smash" if forehand else "bd_rth_smash"
+			"drop":
+				clip = "bd_drop" if forehand or ahead > -BEHIND_THEM else "bd_bh_drop"
+			_:
+				if forehand:
+					clip = "bd_clear"
+				else:
+					clip = "bd_bh_clear" if ahead < -BEHIND_THEM else "bd_rth_clear"
+	elif incoming_smash and height < DEFENCE_BELOW:
+		if absf(lateral) < AT_THE_BODY and height > 0.75:
+			clip = "bd_body"
+		elif forehand and flat > DIVE_BEYOND and height < 0.6:
+			clip = "bd_dive"
+		elif flat > WIDE_BEYOND:
+			clip = "bd_lift_fh_wide" if forehand else "bd_lift_bh_wide"
+		else:
+			clip = "bd_block_fh" if forehand else "bd_block_bh"
+	elif absf(meeting.z) < FRONT_COURT and height > KILL_ABOVE:
+		clip = "bd_kill"
+	elif absf(meeting.z) < FRONT_COURT and height < LUNGE_BELOW:
+		# Low at the front is a lunge. A shuttle still at the chest by the time it gets
+		# there is played standing, as a push or a drive, below.
+		if kind == "net" or kind == "drop":
+			clip = "bd_net_fh" if forehand else "bd_net_bh"
+		else:
+			clip = "bd_lift_fh" if forehand else "bd_lift_bh"
+	elif height > DRIVE_ABOVE:
+		clip = "bd_drive_fh" if forehand else "bd_drive_bh"
+	elif forehand:
+		clip = "forehand"
+	else:
+		# The old `backhand` clip meets the ball on the racket side — measured, 1.09 m to the
+		# right — so a shuttle on the backhand side is played with the new backhand drive, or
+		# lifted if it is low.
+		clip = "bd_drive_bh" if height > 0.9 else "bd_lift_bh"
+	if _animator != null and not _animator.has_animation(clip):
+		return "smash" if overhead else ("forehand" if forehand else "backhand")
+	return clip
+
+
+## Thresholds for the stroke choice, in metres. A shuttle more than this far to one side is
+## on that side whatever was set up for; behind them by this much is taken back-to-the-net.
+const CLEARLY_TO_ONE_SIDE := 0.25
+const BEHIND_THEM := 0.2
+## Smash defence: below this it is defended rather than driven, this close to the middle of
+## them it is a body smash, and this far out it is a wide lift or a dive.
+const DEFENCE_BELOW := 1.6
+const AT_THE_BODY := 0.3
+const WIDE_BEYOND := 0.95
+const DIVE_BEYOND := 1.25
+## The front court is the part of it within this of the net; above this height there, it
+## is killed rather than touched over. Flat drives are played above this height elsewhere.
+const FRONT_COURT := 2.4
+const KILL_ABOVE := 1.7
+const LUNGE_BELOW := 1.0
+const DRIVE_ABOVE := 1.15
 
 
 ## Where they will be in `seconds`, running at the spot they are already running to.
@@ -263,6 +409,9 @@ func swing(overhead := false) -> void:
 		_stroke_clip = ""
 		_swing_left = SWING_SECONDS
 		return
+	if _badminton():
+		_swing(_badminton_stroke(hitting_point(), 0.0, overhead, "", false), 0.0)
+		return
 	_swing("smash" if overhead else ("forehand" if randf() < 0.65 else "backhand"), 0.0)
 
 
@@ -274,7 +423,9 @@ func swing(overhead := false) -> void:
 func _swing(clip: String, in_seconds: float) -> void:
 	_swing_left = SWING_SECONDS
 	var pace := _pace_to_contact(clip, in_seconds)
-	if clip == "smash":
+	if clip.begins_with("bd_"):
+		_play(clip, true, pace)
+	elif clip == "smash":
 		_play("smash", true, pace)
 	elif clip == "backhand":
 		_play("backhand", true, pace)
@@ -367,14 +518,31 @@ func serve_the_ball(toward: Vector3) -> void:
 ##
 ## Where they stand is `stand_to_serve`, called before the fault is staged so that a foot
 ## fault steps off the spot they are actually going to serve from.
-func serve_the_shuttle() -> void:
-	_play("serve", true)
-	if _lunge_left <= 0.0 and _animator != null and _animator.has_animation("serve"):
-		_planted_left = _animator.get_animation("serve").length
+func serve_the_shuttle(doubles := true) -> void:
+	var clip := serve_clip(doubles)
+	if clip == "bd_serve_low":
+		_play("bd_serve_low", true)
+	elif clip == "bd_serve_high":
+		_play("bd_serve_high", true)
+	else:
+		_play("serve", true)
+	if _lunge_left <= 0.0 and _animator != null and _animator.has_animation(clip):
+		_planted_left = _animator.get_animation(clip).length
+
+
+## Which serve this is: the low backhand of doubles or the high forehand of singles, on a
+## character that has them.
+func serve_clip(doubles := true) -> String:
+	var clip := "bd_serve_low" if doubles else "bd_serve_high"
+	if _animator != null and _animator.has_animation(clip):
+		return clip
+	return "serve"
 
 
 ## Stands where the racket can reach `contact`, facing across the net.
 func stand_to_serve(contact: Vector3) -> void:
+	# A serve is played in front of them, whatever side the last shuttle was on.
+	_reach_side = 1.0
 	place_to_serve(hitting_stance(contact))
 
 
@@ -587,6 +755,15 @@ func _physics_process(delta: float) -> void:
 			_one_shot = false
 			_clip = ""
 	var aim := _destination
+	if _split_left > 0.0:
+		_split_left -= delta
+	# A celebration happens where they are standing. Played while they ran home, it slid
+	# them across the court with their arms up. Badminton only, which walks back between
+	# points anyway; the other sports start the next point soon enough that a player still
+	# celebrating on the spot is out of position for it (tennis contacts went from 0.05 m to
+	# half a metre off the ball when this applied to everybody).
+	if _clip == "celebrate" and _badminton():
+		aim = position
 	if _lunge_left > 0.0:
 		_lunge_left -= delta
 		aim = _lunge_spot
@@ -596,7 +773,8 @@ func _physics_process(delta: float) -> void:
 
 	var here := Vector2(position.x, position.z)
 	var there := Vector2(aim.x, aim.z)
-	var pace: float = Official.WALK_SPEED if _walking else speed * _footwork_pace(there - here)
+	var strolling := _walking or (not _between_points.is_empty() and not chasing)
+	var pace: float = Official.WALK_SPEED if strolling else speed * _footwork_pace(there - here)
 	var moved := here.move_toward(there, pace * delta)
 	position = Vector3(moved.x, 0.0, moved.y)
 
@@ -609,7 +787,7 @@ func _physics_process(delta: float) -> void:
 		_turn_into_the_run(delta, heading, there.distance_to(moved))
 	_animate(delta, running)
 	if _animator != null:
-		_play_footwork(running, heading)
+		_play_footwork(running, heading, there.distance_to(moved))
 
 
 ## The way they face when they are not looking at anything in particular: across the net, at
@@ -673,20 +851,63 @@ func _turn_into_the_run(delta: float, heading: Vector2, still_to_go: float) -> v
 
 
 ## Which pair of legs is playing: a run, a backpedal, or a chassé across the court.
-func _play_footwork(running: bool, heading: Vector2) -> void:
-	if _walking:
-		_play("walk" if running else "idle")
+func _play_footwork(running: bool, heading: Vector2, still_to_go := 0.0) -> void:
+	if _walking or (not _between_points.is_empty() and not chasing):
+		var beaten := _between_points == "lost"
+		if running:
+			_play(_carried("walk_sad", "walk") if beaten else "walk")
+		else:
+			_play("idle")
 		return
 	if not running:
-		_play("ready" if chasing else "idle")
+		if _split_left > 0.0:
+			return
+		if not still_clip.is_empty() and _animator != null and _animator.has_animation(still_clip):
+			_play(still_clip)
+			return
+		_play("ready" if chasing or in_rally else "idle")
 		return
 	var off := _off_square(heading)
 	if cos(off) < BACKWARDS_BEYOND:
-		_play(_carried("backpedal", "run"))
+		# A long way back to the rear court is chasséd side-on with the racket coming up;
+		# a step or two is backpedalled square.
+		if racket_kind == &"badminton" and not volleyball and still_to_go > RETREAT_BEYOND:
+			_play(_carried("bd_retreat", "backpedal"))
+		else:
+			_play(_carried("backpedal", "run"))
 	elif absf(sin(off)) > SIDEWAYS_BEYOND:
-		_play(_carried("shuffle", "run"))
+		# Their own left is +X on the rig, which is a positive turn off square.
+		_play(_carried("shuffle_left" if sin(off) > 0.0 else "shuffle_right", "shuffle"))
 	else:
 		_play("run")
+
+
+## How far back the run has to be before it is turned side-on instead of backpedalled.
+const RETREAT_BEYOND := 1.6
+
+
+## The hop as the opponent strikes. Held until they start to move, which for whoever is
+## going for the shuttle is almost at once and for their partner is the whole of it.
+func split_step() -> void:
+	if _one_shot or _animator == null or not _animator.has_animation("bd_split"):
+		return
+	_play("bd_split")
+	_split_left = _animator.get_animation("bd_split").length
+
+
+## The rally is about to start: crouched and ready, and no longer walking back.
+func rally_starting() -> void:
+	in_rally = true
+	_between_points = ""
+
+
+## The rally is over. Only badminton walks back between points; the other sports still
+## run to their places and would be late if they did not.
+func point_over(won: bool) -> void:
+	in_rally = false
+	still_clip = ""
+	if racket_kind == &"badminton" and not volleyball:
+		_between_points = "won" if won else "lost"
 
 
 ## The first of two clips this character actually carries.
@@ -748,6 +969,10 @@ func chase(point: Vector3, with_clip := "") -> void:
 	_walking = false
 	chasing = true
 	_planted_left = 0.0
+	_between_points = ""
+	still_clip = ""
+	if _badminton():
+		_reach_side = _side_of(point)
 	_destination = hitting_stance(point, with_clip)
 
 
@@ -833,6 +1058,29 @@ const CONTACT_AT := {
 	"st_set": 10.0 / 24.0,
 	"st_block": 14.0 / 24.0,
 	"st_throw": 13.0 / 24.0,
+	# Badminton's full set, from CONTACT in tools/meshy/badminton_strokes.py.
+	"bd_jump_smash": 9.0 / 24.0,
+	"bd_rth_smash": 6.0 / 24.0,
+	"bd_clear": 6.0 / 24.0,
+	"bd_rth_clear": 6.0 / 24.0,
+	"bd_bh_clear": 7.0 / 24.0,
+	"bd_drop": 6.0 / 24.0,
+	"bd_bh_drop": 7.0 / 24.0,
+	"bd_block_fh": 5.0 / 24.0,
+	"bd_lift_fh_wide": 9.0 / 24.0,
+	"bd_block_bh": 5.0 / 24.0,
+	"bd_lift_bh_wide": 9.0 / 24.0,
+	"bd_body": 5.0 / 24.0,
+	"bd_dive": 8.0 / 24.0,
+	"bd_drive_fh": 5.0 / 24.0,
+	"bd_drive_bh": 5.0 / 24.0,
+	"bd_net_fh": 9.0 / 24.0,
+	"bd_net_bh": 9.0 / 24.0,
+	"bd_lift_fh": 9.0 / 24.0,
+	"bd_lift_bh": 9.0 / 24.0,
+	"bd_kill": 5.0 / 24.0,
+	"bd_serve_low": 10.0 / 24.0,
+	"bd_serve_high": 10.0 / 24.0,
 }
 
 ## How far a stroke may be slowed down or sped up to land on the ball before it stops
@@ -886,6 +1134,14 @@ var _contact_offset := {}
 func _measure_the_contacts() -> void:
 	if _animator == null or _figure == null:
 		return
+	# Once per kind of player per session. Every kit is the same rig with the same clips, so
+	# what differs is what is in the hand — and with badminton's full stroke set (2026-10-15)
+	# measuring took long enough, at a frame a clip, that players were visibly missing for most
+	# of a second at the start of every match.
+	var key := "%s|%s|%s" % [racket_kind, volleyball, plays_with_the_feet]
+	if _measured_before.has(key):
+		_contact_offset = (_measured_before[key] as Dictionary).duplicate()
+		return
 	# A frame per clip, and there is no way round it. Forcing the skeleton to update does
 	# **not** carry through to the bone attachments the racket and the hands hang on: it was
 	# tried on 2026-09-17 and every clip came back with the same stale offset — one pose,
@@ -901,7 +1157,7 @@ func _measure_the_contacts() -> void:
 	var seen := _figure.visible
 	_figure.visible = false
 	for clip in CONTACT_AT:
-		if not _animator.has_animation(clip):
+		if not _animator.has_animation(clip) or not _measures(clip):
 			continue
 		_animator.play(clip)
 		_animator.seek(float(CONTACT_AT[clip]), true, true)
@@ -910,6 +1166,7 @@ func _measure_the_contacts() -> void:
 			return
 		_contact_offset[clip] = (hitting_point(clip) - global_position).rotated(
 			Vector3.UP, -rotation.y)
+	_measured_before[key] = _contact_offset.duplicate()
 	_animator.stop()
 	_measuring = false
 	_clip = ""
@@ -924,10 +1181,25 @@ func _measure_the_contacts() -> void:
 		_asked_for_while_measuring = ""
 
 
+## Whether this sport plays `clip`, and so whether it is worth a frame to measure. Every
+## character carries every sport's clips; measuring all of them kept a tennis player hidden for
+## half a second longer once badminton had its full set, and the strokes asked for in that
+## time were deferred and played late.
+func _measures(clip: String) -> bool:
+	if clip.begins_with("bd_"):
+		return _badminton()
+	if _badminton():
+		return not (clip.begins_with("vb_") or clip.begins_with("st_") or clip.begins_with("tn_"))
+	return true
+
+
 ## Whether the character is being measured, and the last clip anything asked for while it
 ## was. See `_measure_the_contacts`.
 var _measuring := false
 var _asked_for_while_measuring := ""
+
+## What `_measure_the_contacts` found, per kind of player, kept for the session.
+static var _measured_before := {}
 
 
 ## How high the implement is at this clip's moment of contact, or below zero when the clip
@@ -1058,6 +1330,9 @@ func hitting_stance(ball_spot: Vector3, clip := "") -> Vector3:
 		if out.length() > reach * MOST_OF_A_REACH:
 			out = out.normalized() * (reach * MOST_OF_A_REACH)
 		return flat + aside * out.x - forward * out.y
+	if _badminton():
+		# The shuttle on the side they are setting up to play it on.
+		return flat + away * (reach * STANCE_BEHIND) - _right_of_net() * (reach * STANCE_ASIDE * _reach_side)
 	return flat + away * (reach * STANCE_BEHIND) + aside * (reach * STANCE_ASIDE)
 
 
@@ -1090,6 +1365,9 @@ func begin_stroke(in_seconds: float, meeting: Vector3, overhead := false) -> boo
 	if _stroke_under_way:
 		return false
 	var clip := _stroke_for(meeting, in_seconds, overhead)
+	if _badminton() and not _planned_clip.is_empty():
+		clip = _planned_clip
+	_planned_clip = ""
 	_stroke_under_way = true
 	_stroke_clip = clip
 	_turn_into_the_shot(clip, meeting, in_seconds)

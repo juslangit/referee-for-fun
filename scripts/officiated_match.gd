@@ -1464,6 +1464,7 @@ func _the_players_react(winner: Sides.Team, rally) -> void:
 	var seen: float = rally.visibility() if rally != null else 0.0
 	var wrong: bool = rally != null and rally.verdict() == Rally.Verdict.WRONG
 	for player in players:
+		player.point_over(player.team == winner)
 		if player.team == winner:
 			player.celebrate()
 		elif wrong and seen >= ARGUES_WHEN_SEEN:

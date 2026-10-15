@@ -49,9 +49,14 @@ func _ready() -> void:
 	var clip_was := {}
 	var clock := 0.0
 
-	for r in _rallies_wanted(24):
-		if hall.board.is_over:
+	# Smashes are rarer than they look. Until 2026-10-15 every overhead played the smash clip,
+	# clears and drops included, so two dozen rallies were plenty; now only the shots that are
+	# actually hit down are smashes, and it takes a match and more to see enough of them.
+	for r in _rallies_wanted(90):
+		if smashes >= 12:
 			break
+		if hall.board.is_over:
+			hall.begin_match()
 		hall.start_rally()
 		var w := 0
 		while hall._phase != hall.Phase.AWAITING_CALL and w < 4000:
@@ -68,7 +73,9 @@ func _ready() -> void:
 						var planned: float = animator.get_animation("smash_windup").length \
 							/ maxf(0.01, animator.get_playing_speed())
 						started[player] = [clock, clock + planned]
-					elif clip == "smash":
+					# Since 2026-10-15 an overhead is a clear, a drop or a smash, and the
+					# jump smash crouches first too. Only these two are wound up for.
+					elif clip in ["smash", "bd_jump_smash"]:
 						smashes += 1
 						if started.has(player):
 							seen_coming += 1

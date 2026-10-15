@@ -11,11 +11,9 @@ func _ready() -> void:
 	await get_tree().physics_frame
 	arena._set_up_the_match(false)
 	arena.begin_match()
-	for f in 30:
+	for f in 90:
 		await get_tree().physics_frame
-	var figures: Array = get_tree().get_nodes_in_group("players")
-	if figures.is_empty():
-		figures = arena.find_children("*", "Player", true, false)
+	var figures: Array = arena.players
 	var which := int(OS.get_environment("WHICH")) if not OS.get_environment("WHICH").is_empty() else 0
 	var target: Node3D = figures[which % figures.size()]
 	var cam := Camera3D.new()

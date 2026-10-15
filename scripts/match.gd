@@ -223,6 +223,17 @@ var _shots_this_rally := 0
 ## started for — so each is started once per shot rather than on every frame the shuttle
 ## is still on its way.
 var _wound_up_on_shot := -1
+
+## The next shot, decided a moment before it is played so the stroke on screen can be the
+## stroke that plays it (2026-10-15): which shot, where it goes, at what angle, and whether
+## the shuttle coming in is a smash. Where it lands is still `_pick_target` and the angle is
+## still `_choose_angle` — only *when* they are rolled has moved, so the line calls the game
+## is built on come out as often as they did.
+var _plan := {}
+
+## Of the smashes a player can play, how many are jumped.
+const JUMP_SMASH_SHARE := 0.3
+const JUMP_SMASH_ABOVE := 2.6
 var _stroke_begun_on_shot := -1
 
 ## How far ahead the game looks for the next contact.
@@ -865,6 +876,9 @@ func _set_up_the_serve() -> void:
 
 
 func start_rally() -> void:
+	_plan = {}
+	for player in players:
+		player.rally_starting()
 	_shots_this_rally = 0
 	_wound_up_on_shot = -1
 	_stroke_begun_on_shot = -1
@@ -900,6 +914,10 @@ func start_rally() -> void:
 	var server := _server_of(serving)
 	if server != null:
 		server.stand_to_serve(from)
+	# The receiver waits in the receiving stance, diagonally opposite the server.
+	var receiver := _receiver_facing(served_from)
+	if receiver != null:
+		receiver.still_clip = "bd_receive"
 	_show_the_service_fault(illegal, from, contact)
 	var target := _pick_serve_target(
 		Sides.half_sign(Sides.opponent(serving)), -served_from)
@@ -914,9 +932,11 @@ func start_rally() -> void:
 	# by construction rather than by being tuned against each other.
 	var served := from
 	if server != null:
-		server.serve_the_shuttle()
+		server.serve_the_shuttle(playing_doubles())
 		var this_rally := rally
-		await get_tree().create_timer(Player.CONTACT_AT["serve"], false).timeout
+		await get_tree().create_timer(
+			float(Player.CONTACT_AT.get(server.serve_clip(playing_doubles()), Player.CONTACT_AT["serve"])),
+			false).timeout
 		if _phase != Phase.IN_PLAY or rally != this_rally:
 			return
 		# Off the racket head, keeping the height the fault is judged on. Where the shuttle
@@ -1052,8 +1072,13 @@ func _see_the_contact_coming(receiving: Sides.Team) -> void:
 ## The crouch and the stroke, each started when it is its turn.
 func _begin_the_stroke(player: Player, ahead: float, at: Vector3, step: float) -> void:
 	var overhead := at.y > OVERHEAD_HEIGHT
-	var contact: float = Player.CONTACT_AT["smash" if overhead else "forehand"]
-	if overhead and _wound_up_on_shot != _shots_this_rally:
+	var plan := _plan_for(player, at, overhead)
+	var stroke := player.plan_stroke(ahead, at, overhead, plan["kind"], plan["incoming_smash"])
+	var contact: float = Player.CONTACT_AT.get(stroke, Player.CONTACT_AT["smash" if overhead else "forehand"])
+	# Only a smash crouches first. A clear or a drop is played from the same sideways
+	# stance without the drop into the legs, and a backhand from the back corner faces the
+	# other way entirely.
+	if (stroke == "smash" or stroke == "bd_jump_smash") and _wound_up_on_shot != _shots_this_rally:
 		_wound_up_on_shot = _shots_this_rally
 		player.wind_up(maxf(ahead - contact, step))
 	if ahead > contact + step:
@@ -1097,7 +1122,11 @@ func _return_shot(player: Player) -> void:
 	# animation has put it, and the shuttle is brought the last few centimetres onto it.
 	var from := player.struck_from(_shuttle.global_position)
 	var target := _pick_target(Sides.half_sign(Sides.opponent(player.team)))
-	if not _hit_or_something_safer(from, target, player.team):
+	var angle := NAN
+	if _plan.get("shot", -1) == _shots_this_rally and _plan.get("player") == player:
+		target = _plan["target"]
+		angle = _plan["angle"]
+	if not _hit_or_something_safer(from, target, player.team, angle):
 		return
 
 	if offence == Incident.Kind.DOUBLE_HIT:
@@ -1118,8 +1147,9 @@ func _return_shot(player: Player) -> void:
 ## find the shot they wanted does not stand there holding the shuttle: they push
 ## something safer into the middle. Without this the rally simply stopped, which left
 ## the match waiting for a landing that was never going to come.
-func _hit_or_something_safer(from: Vector3, target: Vector3, striker: Sides.Team) -> bool:
-	if _hit(from, target, _choose_angle(from), striker):
+func _hit_or_something_safer(from: Vector3, target: Vector3, striker: Sides.Team,
+		angle := NAN) -> bool:
+	if _hit(from, target, _choose_angle(from) if is_nan(angle) else angle, striker):
 		return true
 
 	var into := Sides.half_sign(Sides.opponent(striker))
@@ -1286,6 +1316,10 @@ func _hit(from: Vector3, target: Vector3, angle: float, striker: Sides.Team) -> 
 
 	_shuttle.launch(from, velocity)
 	rally.struck_by = striker
+	for player in players:
+		player.still_clip = ""
+		if player.team != striker:
+			player.split_step()
 	# Every shot has to get over the net on its own account, so the question is
 	# reopened each time the shuttle is struck.
 	rally.went_over_the_net = true
@@ -1394,7 +1428,50 @@ func _choose_angle(from: Vector3) -> float:
 	return clampf(randf_range(26.0, 46.0), lowest, 64.0)
 
 
+## Decides the shot about to be played, once per shot. See `_plan`.
+func _plan_for(player: Player, at: Vector3, overhead: bool) -> Dictionary:
+	if _plan.get("shot", -1) == _shots_this_rally and _plan.get("player") == player:
+		return _plan
+	var target := _pick_target(Sides.half_sign(Sides.opponent(player.team)))
+	var angle := _choose_angle(at)
+	var kind := ""
+	if angle < 0.0:
+		kind = "jump_smash" if at.y > JUMP_SMASH_ABOVE or randf() < JUMP_SMASH_SHARE else "smash"
+	elif absf(target.z) < Player.FRONT_COURT:
+		kind = "drop" if overhead else "net"
+	else:
+		kind = "clear" if overhead else "lift"
+	# Whether what is coming is a smash is known from the shot that was played, not read off
+	# the shuttle: a shuttle's terminal speed is under 7 m/s, so by the time a smash arrives
+	# it is travelling no faster than a clear, and a speed test never saw one.
+	var incoming: bool = _plan.get("shot", -2) == _shots_this_rally - 1 \
+		and String(_plan.get("kind", "")).ends_with("smash")
+	_plan = {
+		"shot": _shots_this_rally, "player": player, "target": target, "angle": angle,
+		"kind": kind, "incoming_smash": incoming,
+	}
+	return _plan
+
+
+## The player waiting to receive: on the other side, in the service court diagonally
+## opposite the one being served from.
+func _receiver_facing(served_from: float) -> Player:
+	var best: Player = null
+	var nearest := INF
+	for player in players:
+		if player.team == serving:
+			continue
+		var gap := absf(player.position.x + served_from * 1.1) + absf(absf(player.position.z) - 2.4)
+		if gap < nearest:
+			nearest = gap
+			best = player
+	return best
+
+
 func _on_shuttle_landed(point: Vector3) -> void:
+	# The rally is over the moment it lands; they straighten up while the umpire calls it.
+	for player in players:
+		player.in_rally = false
 	rally.record_landing(point)
 	sound.landing(point)
 	_phase = Phase.AWAITING_CALL

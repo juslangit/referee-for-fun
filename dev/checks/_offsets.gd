@@ -40,6 +40,10 @@ const LOW := {"vb_dig": 1.2, "st_receive": 1.2, "serve": 1.2}
 var _problems: Array[String] = []
 
 
+## Strokes whose reach includes the body travelling with them (2026-10-15).
+const BODY_TRAVELS := ["bd_dive"]
+
+
 func _ready() -> void:
 	var player := Player.new()
 	player.racket_kind = &"badminton"
@@ -64,7 +68,9 @@ func _ready() -> void:
 		var at: Vector3 = measured[clip]
 		var out := Vector2(at.x, at.z).length()
 		print("  %-14s %v   %.2f m out, %.2f m up" % [clip, at, out, at.y])
-		if out > FURTHEST_OUT:
+		# A dive is the one stroke that throws the whole body after the shuttle, so its
+		# racket ends up further out than an arm and a racket from where the feet began.
+		if out > FURTHEST_OUT and clip not in BODY_TRAVELS:
 			_problems.append("%s reaches %.2f m out, further than an arm and a racket"
 				% [clip, out])
 		if at.y > HIGHEST or at.y < 0.0:

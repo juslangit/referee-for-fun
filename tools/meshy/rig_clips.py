@@ -33,6 +33,7 @@ from badminton_clips import CLIPS as BADMINTON_CLIPS  # noqa: E402
 from volleyball_clips import CLIPS as VOLLEYBALL_CLIPS  # noqa: E402
 from tennis_clips import CLIPS as TENNIS_CLIPS  # noqa: E402
 from takraw_clips import CLIPS as TAKRAW_CLIPS  # noqa: E402
+from badminton_strokes import CLIPS as STROKE_CLIPS  # noqa: E402
 
 # Both sports go into one character.
 #
@@ -46,6 +47,13 @@ for _name, _clip in (list(VOLLEYBALL_CLIPS.items()) + list(TENNIS_CLIPS.items())
                      + list(TAKRAW_CLIPS.items())):
     if _name in CLIPS:
         raise SystemExit(f"clip name {_name} is claimed by both sports")
+    CLIPS[_name] = _clip
+# Badminton's full stroke set (2026-10-15). It replaces `idle` on purpose — the old one
+# was the rally crouch and every athlete hunched over between points — and may replace
+# nothing else.
+for _name, _clip in STROKE_CLIPS.items():
+    if _name in CLIPS and _name != "idle":
+        raise SystemExit(f"clip name {_name} is claimed twice")
     CLIPS[_name] = _clip
 
 
