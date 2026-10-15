@@ -505,7 +505,7 @@ func _receive(here: Vector3) -> void:
 	if here.y > 1.2:
 		_receiver.takraw_header()
 	else:
-		_receiver.takraw_receive()
+		_receiver.takraw_receive(here)
 	# An arm touch happens here if it is going to happen at all: the ball comes in fast and
 	# low, the arms are out for balance, and it clips one.
 	if _fault == &"arm" and randf() < 0.6:

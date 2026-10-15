@@ -207,6 +207,13 @@ const HEADERS := ["Head", "head", "head_02"]
 ## and the ball meets them in the middle, not at either one.
 const OTHER_HANDS := ["LeftHand", "hand.L", "L.hand_028"]
 
+## The other foot, the knee and the chest: sepak takraw's receives off the inside of the
+## left foot, off the thigh and off the chest (2026-10-15), which are met there and not on the
+## kicking foot. The knee is the top of the shin, which is where a thigh meets a ball.
+const OTHER_FEET := ["LeftFoot", "foot.L", "L.foot_028"]
+const KNEES := ["RightLeg", "shin.R", "R.leg_028"]
+const CHESTS := ["Spine02", "chest", "spine_03"]
+
 
 ## Hangs an empty on the hand, on the kicking foot and on the head, so that whoever is
 ## holding the figure can ask where any of them is at any moment.
@@ -220,7 +227,8 @@ static func _fit_sockets(figure: Node3D) -> void:
 	if skeleton == null:
 		return
 	for pair in [["hand", HITTING_HANDS], ["foot", KICKING_FEET], ["head", HEADERS],
-			["other_hand", OTHER_HANDS]]:
+			["other_hand", OTHER_HANDS], ["other_foot", OTHER_FEET], ["knee", KNEES],
+			["chest", CHESTS]]:
 		var bone := ""
 		for candidate in pair[1]:
 			if skeleton.find_bone(candidate) >= 0:

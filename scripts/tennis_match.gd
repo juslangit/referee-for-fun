@@ -547,6 +547,7 @@ func start_rally() -> void:
 		_server_end = signf(from.z)
 
 	server.serve_for_tennis()
+	receiver.returning_serve = true
 	sound.whistle()
 	_aimed_to_end = false
 	_phase = Phase.IN_PLAY

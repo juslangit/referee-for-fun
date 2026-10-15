@@ -5,7 +5,7 @@ extends Node
 ## screen is the one the situation calls for (dev/looks/_movelog has the numbers).
 ##
 ##     godot --path . res://dev/looks/_strokecam.tscn --fixed-fps 60 --resolution 960x720
-##     SHOTS=24   OUT=strokes   (the folder under dev/shots)   CLIPS=bd_smash,bd_clear (only these)
+##     SPORT=tennis   SHOTS=24   OUT=strokes   (the folder under dev/shots)   CLIPS=bd_smash,bd_clear (only these)
 
 const STRIKES := &"strike"
 
@@ -14,12 +14,27 @@ func _ready() -> void:
 	var want := int(OS.get_environment("SHOTS")) if OS.has_environment("SHOTS") else 24
 	var out := "res://dev/shots/%s" % (OS.get_environment("OUT") if OS.has_environment("OUT") else "strokes")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out))
-	var arena: Node = load("res://scenes/match.tscn").instantiate()
+	# Any sport: SPORT=tennis|table_tennis|indoor|beach|takraw, badminton when not given.
+	var sports := {
+		"badminton": ["res://scenes/match.tscn", Career.BADMINTON],
+		"beach": ["res://scenes/beach.tscn", Career.BEACH],
+		"indoor": ["res://scenes/volleyball.tscn", Career.INDOOR],
+		"tennis": ["res://scenes/tennis.tscn", Career.TENNIS],
+		"table_tennis": ["res://scenes/table_tennis.tscn", Career.TABLE_TENNIS],
+		"takraw": ["res://scenes/sepak_takraw.tscn", Career.TAKRAW],
+	}
+	var sport: String = OS.get_environment("SPORT") if sports.has(OS.get_environment("SPORT")) else "badminton"
+	var arena: Node = load(str(sports[sport][0])).instantiate()
 	arena.print_truth_while_testing = false
 	add_child(arena)
 	await get_tree().physics_frame
 	arena.career = Career.new()
-	arena.settings.taught = true
+	arena.career.sport = sports[sport][1]
+	for flag in ["taught", "taught_beach", "taught_indoor", "taught_tennis",
+			"taught_table_tennis", "taught_takraw"]:
+		arena.settings.set(flag, true)
+	if arena.has_method("rebuild_players"):
+		arena.rebuild_players()
 	arena.ui.match_requested.emit()
 	await get_tree().process_frame
 	if arena.pressure.exists():

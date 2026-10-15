@@ -540,6 +540,13 @@ func _take_the_next_contact() -> void:
 			_beat = Beat.DIG
 			_digger = nearest_of(_possession, here)
 			_setter = _closest_to_the_net(_possession, _digger)
+			# Who will attack is decided now rather than at the set, so the setter knows which
+			# way to set: a setter faces their own left, so a hitter on their right is behind
+			# them and gets a back set (2026-10-15).
+			_next_attacker = _pick_an_attacker(_possession)
+			if _setter != null and _next_attacker != null:
+				var right: Vector3 = _setter._right_of_net()
+				_setter.set_backwards = (_next_attacker.position - _setter.position).dot(right) > BACK_SET_BEYOND
 			_digger.dig()
 			sound.strike(here, false)
 			var to_the_setter := _set_point(_possession)
@@ -556,7 +563,8 @@ func _take_the_next_contact() -> void:
 			sound.strike(here, false)
 			# Whoever attacks is whoever is furthest forward and is not the setter, which
 			# with six people is usually a front-row player and sometimes is not.
-			var hitter := _pick_an_attacker(_possession)
+			var hitter: Player = _next_attacker if _next_attacker != null else _pick_an_attacker(_possession)
+			_next_attacker = null
 			_attacker_is_back_row = _is_back_row(_possession, hitter)
 			var illegal := _back_row_attack_wanted and _attacker_is_back_row
 			var to_the_hitter := _attack_point(_possession, _attacker_is_back_row, illegal)
@@ -585,6 +593,12 @@ func _closest_to_the_net(team: Sides.Team, other: Player) -> Player:
 
 ## Who hits the third ball. Usually somebody in the front row; occasionally a back-row
 ## player coming in behind them, which is the whole reason the attack line exists.
+## The attacker chosen at the dig, for the set that follows. See Beat.DIG above.
+var _next_attacker: Player = null
+## How far to the setter's right the hitter has to be to be set behind them.
+const BACK_SET_BEYOND := 1.0
+
+
 func _pick_an_attacker(team: Sides.Team) -> Player:
 	var who: Rotation = rota[team]
 	var wants_back_row := _back_row_attack_wanted or randf() < 0.28

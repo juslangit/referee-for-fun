@@ -34,6 +34,7 @@ from volleyball_clips import CLIPS as VOLLEYBALL_CLIPS  # noqa: E402
 from tennis_clips import CLIPS as TENNIS_CLIPS  # noqa: E402
 from takraw_clips import CLIPS as TAKRAW_CLIPS  # noqa: E402
 from badminton_strokes import CLIPS as STROKE_CLIPS  # noqa: E402
+from sport_strokes import CLIPS as SPORT_STROKE_CLIPS  # noqa: E402
 
 # Both sports go into one character.
 #
@@ -53,6 +54,11 @@ for _name, _clip in (list(VOLLEYBALL_CLIPS.items()) + list(TENNIS_CLIPS.items())
 # nothing else.
 for _name, _clip in STROKE_CLIPS.items():
     if _name in CLIPS and _name != "idle":
+        raise SystemExit(f"clip name {_name} is claimed twice")
+    CLIPS[_name] = _clip
+# The other four sports' full sets (2026-10-15), which replace nothing.
+for _name, _clip in SPORT_STROKE_CLIPS.items():
+    if _name in CLIPS:
         raise SystemExit(f"clip name {_name} is claimed twice")
     CLIPS[_name] = _clip
 

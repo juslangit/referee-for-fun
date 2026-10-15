@@ -124,7 +124,7 @@ var _one_shot := false
 
 ## Clips that run until something else interrupts them, as opposed to shots.
 const LOOPING := ["idle", "ready", "run", "walk", "tired", "argue", "vb_ready",
-	"shuffle_left", "shuffle_right", "bd_retreat", "walk_sad", "bd_receive"]
+	"shuffle_left", "shuffle_right", "bd_retreat", "walk_sad", "bd_receive", "vb_approach"]
 
 ## Whether a rally is live. Between points an athlete stands up straight; during one they
 ## wait in the ready crouch whether or not the shuttle is theirs. Set by the badminton match
@@ -146,6 +146,20 @@ var _split_left := 0.0
 ## the other. Decided when the chase starts, as a player does — they read the shuttle off
 ## the opponent's racket and set up for a forehand or a backhand, and stand to suit.
 var _reach_side := 1.0
+
+## Set by tennis and table tennis on the receiver when the serve is struck: their next stroke
+## is a return, which is a shorter, earlier one.
+var returning_serve := false
+
+## Beach volleyball, which dives into the sand rather than sprawling on a floor.
+var on_sand := false
+
+## Set by indoor volleyball on the setter when the attacker they are setting is behind them.
+var set_backwards := false
+
+## The touch a sport asked for, when a variant of it is playing instead (a pass to the left
+## for a dig, a sunback for a spike). See `_touch_variant`.
+var _touch_family := ""
 
 ## The figure and the racket in its hand.
 var _figure: Node3D
@@ -295,7 +309,10 @@ func _right_of_net() -> Vector3:
 ## on the other.
 func _side_of(point: Vector3) -> float:
 	var lateral := (Vector3(point.x, 0.0, point.z) - Vector3(position.x, 0.0, position.z)).dot(_right_of_net())
-	return 1.0 if lateral > -BACKHAND_BEYOND else -1.0
+	# Table tennis is played square to the table and the bat crosses the body for anything
+	# left of centre; nobody runs round a ball there the way they do on a court.
+	var lean_to_forehand := 0.0 if racket_kind == &"bat" else BACKHAND_BEYOND
+	return 1.0 if lateral > -lean_to_forehand else -1.0
 
 
 ## How far to the non-racket side a shuttle has to be before it is a backhand. A little,
@@ -369,6 +386,149 @@ func _badminton_stroke(meeting: Vector3, in_seconds: float, overhead: bool, kind
 	return clip
 
 
+## Whether a racket or a bat is in their hand.
+func _racket_sport() -> bool:
+	return not volleyball and racket_kind in [&"badminton", &"tennis", &"bat"]
+
+
+## Where a ball meeting them at `meeting` will be against their body when they get there:
+## [to their right, in front of them, across the ground]. Every chooser below starts here.
+func _against_me(meeting: Vector3, in_seconds: float) -> Array:
+	var standing := position_in(in_seconds)
+	var gap := Vector3(meeting.x - standing.x, 0.0, meeting.z - standing.z)
+	var lateral := gap.dot(_right_of_net())
+	var ahead := gap.dot(-_away_from_the_net())
+	return [lateral, ahead, Vector2(lateral, ahead).length(), standing]
+
+
+## Forehand or backhand, from the side they set up for and where the ball really is.
+func _forehand_side(lateral: float) -> bool:
+	if racket_kind == &"bat":
+		return lateral >= 0.0
+	if absf(lateral) > CLEARLY_TO_ONE_SIDE:
+		return lateral > 0.0
+	return _reach_side > 0.0
+
+
+## Tennis (2026-10-15): the overhead is badminton's keyed smash, which turns the right way;
+## at the net a volley; a return of serve is short and early; a low ball is sliced; a wide
+## one is hit on the run; anything else is a topspin forehand or a two-handed backhand.
+func _tennis_stroke(meeting: Vector3, in_seconds: float, overhead: bool) -> String:
+	var g := _against_me(meeting, in_seconds)
+	var forehand := _forehand_side(g[0])
+	var standing: Vector3 = g[3]
+	var clip := ""
+	if overhead:
+		clip = "bd_smash"
+	elif returning_serve:
+		clip = "tn_return_fh" if forehand else "tn_return_bh"
+	elif absf(standing.z) < TENNIS_NET_ZONE and meeting.y > 0.6:
+		clip = "tn_volley_fh" if forehand else "tn_volley_bh"
+	elif meeting.y < SLICE_BELOW:
+		clip = "tn_slice_fh" if forehand else "tn_slice_bh"
+	elif float(g[2]) > RUNNING_BEYOND:
+		clip = "tn_run_fh" if forehand else "tn_run_bh"
+	else:
+		clip = "tn_forehand" if forehand else "tn_backhand"
+	if _animator != null and not _animator.has_animation(clip):
+		return "smash" if overhead else ("forehand" if forehand else "backhand")
+	return clip
+
+
+## Table tennis (2026-10-15): a high ball is smashed; far back from the table it is lobbed; a
+## short ball over the table, or the return of a serve, is pushed; right up at the end of the
+## table it is blocked; anything else is driven, forehand or backhand.
+func _table_tennis_stroke(meeting: Vector3, in_seconds: float, overhead: bool) -> String:
+	var g := _against_me(meeting, in_seconds)
+	var forehand := _forehand_side(g[0])
+	var standing: Vector3 = g[3]
+	var back := absf(standing.z) - TableTennisSpec.HALF_LENGTH
+	var clip := ""
+	if overhead:
+		clip = "tt_smash"
+	elif back > LOB_BEYOND:
+		clip = "tt_lob"
+	elif returning_serve or absf(meeting.z) < TableTennisSpec.HALF_LENGTH - SHORT_BALL:
+		clip = "tt_fh_push" if forehand else "tt_bh_push"
+	elif back < BLOCK_WITHIN:
+		clip = "tt_block"
+	else:
+		clip = "tt_fh_drive" if forehand else "tt_bh_drive"
+	if _animator != null and not _animator.has_animation(clip):
+		return "forehand"
+	return clip
+
+
+## Volleyball and sepak takraw (2026-10-15): the touch the sport asked for, or the variant
+## of it that fits where the ball is — a pass stepped to the side, a dive, an overhead pass, a
+## back set, a tip; the inside of the left foot, the thigh, the chest, the knee, the sunback.
+## Each keeps its touch's moment of contact, so the sport's timing still lands on it.
+func _touch_variant(clip: String, meeting: Vector3, in_seconds: float) -> String:
+	var g := _against_me(meeting, in_seconds)
+	var lateral: float = g[0]
+	var flat: float = g[2]
+	var want := clip
+	match clip:
+		"vb_dig":
+			if meeting.y > OVERHEAD_PASS_ABOVE:
+				want = "vb_overhead_pass"
+			elif flat > DIVE_REACH or meeting.y < DIVE_BELOW:
+				want = "vb_dive_sand" if on_sand else "vb_dive"
+			elif lateral > PASS_ASIDE:
+				want = "vb_pass_right"
+			elif lateral < -PASS_ASIDE:
+				want = "vb_pass_left"
+		"vb_set":
+			if set_backwards:
+				want = "vb_back_set"
+			set_backwards = false
+		"vb_spike":
+			if randf() < TIP_SHARE:
+				want = "vb_tip"
+		"st_receive":
+			if meeting.y > CHEST_ABOVE:
+				want = "st_chest"
+			elif meeting.y > THIGH_ABOVE:
+				want = "st_thigh"
+			elif lateral < -PASS_ASIDE:
+				want = "st_receive_left"
+		"st_set":
+			if meeting.y < KNEE_SET_BELOW:
+				want = "st_knee_set"
+		"st_spike":
+			if randf() < SUNBACK_SHARE:
+				want = "st_sunback"
+	if _animator == null or not _animator.has_animation(want):
+		return clip
+	return want
+
+
+## Tennis: inside this far of the net a ball is volleyed. Below this it is sliced; further
+## out than this it is hit on the run.
+const TENNIS_NET_ZONE := 4.5
+const SLICE_BELOW := 0.5
+const RUNNING_BEYOND := 1.45
+## Table tennis: further back from the end of the table than this, a lob; within this of it,
+## a block; a ball landing this far inside the end is short, and pushed.
+const LOB_BEYOND := 1.6
+const BLOCK_WITHIN := 0.25
+const SHORT_BALL := 0.45
+## Volleyball: above this a reception is taken overhead; further than this or lower than this
+## it is dived for; more than this to one side it is passed with a step that way. Takraw's
+## left-foot receive uses the same step.
+const OVERHEAD_PASS_ABOVE := 1.75
+const DIVE_REACH := 1.35
+const DIVE_BELOW := 0.12
+const PASS_ASIDE := 0.35
+const TIP_SHARE := 0.18
+## Sepak takraw: a receive above this is taken on the chest, above this on the thigh; a set
+## below this is off the knee; this share of spikes are sunbacks.
+const CHEST_ABOVE := 1.05
+const THIGH_ABOVE := 0.62
+const KNEE_SET_BELOW := 0.62
+const SUNBACK_SHARE := 0.35
+
+
 ## Thresholds for the stroke choice, in metres. A shuttle more than this far to one side is
 ## on that side whatever was set up for; behind them by this much is taken back-to-the-net.
 const CLEARLY_TO_ONE_SIDE := 0.25
@@ -420,6 +580,14 @@ func swing(overhead := false) -> void:
 	if _badminton():
 		_swing(_badminton_stroke(hitting_point(), 0.0, overhead, "", false), 0.0)
 		return
+	if racket_kind == &"tennis" and not volleyball:
+		_swing(_tennis_stroke(hitting_point(), 0.0, overhead), 0.0)
+		returning_serve = false
+		return
+	if racket_kind == &"bat" and not volleyball:
+		_swing(_table_tennis_stroke(hitting_point(), 0.0, overhead), 0.0)
+		returning_serve = false
+		return
 	_swing("smash" if overhead else ("forehand" if randf() < 0.65 else "backhand"), 0.0)
 
 
@@ -431,7 +599,7 @@ func swing(overhead := false) -> void:
 func _swing(clip: String, in_seconds: float) -> void:
 	_swing_left = SWING_SECONDS
 	var pace := _pace_to_contact(clip, in_seconds)
-	if clip.begins_with("bd_"):
+	if clip.begins_with("bd_") or clip.begins_with("tn_") or clip.begins_with("tt_"):
 		_play(clip, true, pace)
 	elif clip == "smash":
 		_play("smash", true, pace)
@@ -496,6 +664,10 @@ const VB_SERVE_WIDE := 0.18
 ## serve a third of this length hid and this one would not: the follow-through is held,
 ## and a held pose gliding across the floor is the first thing anybody would notice.
 func serve_the_ball(toward: Vector3) -> void:
+	# A jump serve some of the time (2026-10-15), more indoors than on the sand. It strikes
+	# on the same frame as the standing serve, so the ball the game holds up meets it.
+	var jump := _animator != null and _animator.has_animation("vb_jump_serve") \
+		and randf() < (JUMP_SERVE_ON_SAND if on_sand else JUMP_SERVE_INDOORS)
 	var heading := Vector2(toward.x - position.x, toward.z - position.z)
 	if heading.length() > 0.0005:
 		rotation.y = atan2(heading.x, heading.y)
@@ -503,11 +675,27 @@ func serve_the_ball(toward: Vector3) -> void:
 		# and to one side.
 		var facing := heading.normalized()
 		var hitting_side := Vector2(-facing.y, facing.x)
-		var step := facing * VB_SERVE_REACH + hitting_side * VB_SERVE_WIDE
+		var reach := VB_SERVE_REACH
+		var wide := VB_SERVE_WIDE
+		if jump and _contact_offset.has("vb_jump_serve"):
+			# A jump serve meets the ball most of a metre further out, measured on the rig.
+			var offset: Vector3 = _contact_offset["vb_jump_serve"]
+			reach = offset.z
+			wide = -offset.x
+		var step := facing * reach + hitting_side * wide
 		position -= Vector3(step.x, 0.0, step.y)
-	_play("vb_serve", true)
-	if _animator != null and _animator.has_animation("vb_serve"):
-		_planted_left = _animator.get_animation("vb_serve").length
+	if jump:
+		_play("vb_jump_serve", true)
+	else:
+		_play("vb_serve", true)
+	var clip := "vb_jump_serve" if jump else "vb_serve"
+	if _animator != null and _animator.has_animation(clip):
+		_planted_left = _animator.get_animation(clip).length
+
+
+## How often a volleyball serve is jumped.
+const JUMP_SERVE_INDOORS := 0.4
+const JUMP_SERVE_ON_SAND := 0.15
 
 
 ## A badminton serve: underarm, from below the waist, the shuttle dropped onto the racket.
@@ -653,10 +841,15 @@ func takraw_throw() -> void:
 
 
 ## The first touch: sepak sila, the inside of the foot at knee height.
-func takraw_receive() -> void:
+func takraw_receive(ball := Vector3.INF) -> void:
 	if _took_it_early("st_receive"):
 		return
-	_play("st_receive", true)
+	# Played on arrival when nobody saw it coming, which after a spike is every time: still
+	# the right part of the body for where the ball is — chest, thigh, or either foot.
+	var clip := "st_receive"
+	if ball != Vector3.INF:
+		clip = _touch_variant("st_receive", ball, 0.0)
+	_play(clip, true)
 
 
 ## Up onto the toes and through the ball with the forehead.
@@ -883,11 +1076,18 @@ func _play_footwork(running: bool, heading: Vector2, still_to_go := 0.0) -> void
 			_play(_carried("bd_retreat", "backpedal"))
 		else:
 			_play(_carried("backpedal", "run"))
+	elif _chasing_for == "vb_spike" and _animator != null and _animator.has_animation("vb_approach"):
+		# Running in to attack: the long, low approach with both arms swinging back.
+		_play("vb_approach")
 	elif absf(sin(off)) > SIDEWAYS_BEYOND:
 		# Their own left is +X on the rig, which is a positive turn off square.
 		_play(_carried("shuffle_left" if sin(off) > 0.0 else "shuffle_right", "shuffle"))
 	else:
 		_play("run")
+
+
+## The touch a chase is for, when the sport said: the spiker running in plays the approach.
+var _chasing_for := ""
 
 
 ## How far back the run has to be before it is turned side-on instead of backpedalled.
@@ -979,7 +1179,8 @@ func chase(point: Vector3, with_clip := "") -> void:
 	_planted_left = 0.0
 	_between_points = ""
 	still_clip = ""
-	if _badminton():
+	_chasing_for = with_clip
+	if _racket_sport():
 		_reach_side = _side_of(point)
 	_destination = hitting_stance(point, with_clip)
 
@@ -988,6 +1189,7 @@ func chase(point: Vector3, with_clip := "") -> void:
 ## umpire, and the player has no idea who the umpire wants to win.
 func stand_off() -> void:
 	chasing = false
+	_chasing_for = ""
 	_stroke_under_way = false
 	_stroke_clip = ""
 
@@ -1090,6 +1292,38 @@ const CONTACT_AT := {
 	"bd_kill": 5.0 / 24.0,
 	"bd_serve_low": 10.0 / 24.0,
 	"bd_serve_high": 10.0 / 24.0,
+	# The other four sports' full sets, from CONTACT in tools/meshy/sport_strokes.py.
+	"tn_forehand": 6.0 / 24.0,
+	"tn_backhand": 6.0 / 24.0,
+	"tn_slice_fh": 6.0 / 24.0,
+	"tn_slice_bh": 6.0 / 24.0,
+	"tn_run_fh": 8.0 / 24.0,
+	"tn_run_bh": 8.0 / 24.0,
+	"tn_volley_fh": 5.0 / 24.0,
+	"tn_volley_bh": 5.0 / 24.0,
+	"tn_return_fh": 5.0 / 24.0,
+	"tn_return_bh": 5.0 / 24.0,
+	"tt_serve": 10.0 / 24.0,
+	"tt_fh_drive": 5.0 / 24.0,
+	"tt_bh_drive": 5.0 / 24.0,
+	"tt_fh_push": 6.0 / 24.0,
+	"tt_bh_push": 6.0 / 24.0,
+	"tt_block": 4.0 / 24.0,
+	"tt_smash": 6.0 / 24.0,
+	"tt_lob": 7.0 / 24.0,
+	"vb_pass_left": 9.0 / 24.0,
+	"vb_pass_right": 9.0 / 24.0,
+	"vb_dive": 9.0 / 24.0,
+	"vb_dive_sand": 9.0 / 24.0,
+	"vb_overhead_pass": 9.0 / 24.0,
+	"vb_back_set": 10.0 / 24.0,
+	"vb_tip": 9.0 / 24.0,
+	"vb_jump_serve": VB_SERVE_CONTACT,
+	"st_receive_left": 9.0 / 24.0,
+	"st_thigh": 9.0 / 24.0,
+	"st_chest": 9.0 / 24.0,
+	"st_knee_set": 10.0 / 24.0,
+	"st_sunback": ST_SPIKE_CONTACT,
 }
 
 ## How far a stroke may be slowed down or sped up to land on the ball before it stops
@@ -1196,9 +1430,16 @@ func _measure_the_contacts() -> void:
 ## time were deferred and played late.
 func _measures(clip: String) -> bool:
 	if clip.begins_with("bd_"):
-		return _badminton()
-	if _badminton():
-		return not (clip.begins_with("vb_") or clip.begins_with("st_") or clip.begins_with("tn_"))
+		# Tennis smashes with badminton's keyed smash.
+		return _badminton() or (clip == "bd_smash" and racket_kind == &"tennis")
+	if clip.begins_with("tn_"):
+		return racket_kind == &"tennis" or racket_kind == &"bat"
+	if clip.begins_with("tt_"):
+		return racket_kind == &"bat" and not volleyball
+	if clip.begins_with("vb_"):
+		return volleyball and not plays_with_the_feet
+	if clip.begins_with("st_"):
+		return plays_with_the_feet
 	return true
 
 
@@ -1261,6 +1502,12 @@ func hitting_point(for_clip := "") -> Vector3:
 	var part := &"hand"
 	if clip == "st_header":
 		part = &"head"
+	elif clip == "st_receive_left":
+		part = &"other_foot"
+	elif clip == "st_thigh" or clip == "st_knee_set":
+		part = &"knee"
+	elif clip == "st_chest":
+		part = &"chest"
 	elif plays_with_the_feet:
 		part = &"foot"
 	var socket := _socket(part)
@@ -1271,7 +1518,8 @@ func hitting_point(for_clip := "") -> Vector3:
 
 
 ## The touches made with both hands, which are met in the middle of the two.
-const TWO_HANDED := ["vb_dig", "vb_set", "vb_block"]
+const TWO_HANDED := ["vb_dig", "vb_set", "vb_block", "vb_pass_left", "vb_pass_right",
+	"vb_dive", "vb_dive_sand", "vb_overhead_pass", "vb_back_set"]
 
 
 ## Where a figure with no skeleton hits from: shoulder height, at arm's length in front.
@@ -1339,7 +1587,7 @@ func hitting_stance(ball_spot: Vector3, clip := "") -> Vector3:
 		if out.length() > reach * MOST_OF_A_REACH:
 			out = out.normalized() * (reach * MOST_OF_A_REACH)
 		return flat + aside * out.x - forward * out.y
-	if _badminton():
+	if _racket_sport():
 		# The shuttle on the side they are setting up to play it on.
 		return flat + away * (reach * STANCE_BEHIND) - _right_of_net() * (reach * STANCE_ASIDE * _reach_side)
 	return flat + away * (reach * STANCE_BEHIND) + aside * (reach * STANCE_ASIDE)
@@ -1363,7 +1611,8 @@ func _took_it_early(clip: String) -> bool:
 		return false
 	_stroke_under_way = false
 	_stroke_clip = ""
-	return _clip == clip
+	# A variant started early stands in for the touch it is a variant of.
+	return _clip == clip or (_touch_family == clip and _clip != "")
 
 
 ## Starts the stroke now so the implement is on the ball at `meeting` in `in_seconds`.
@@ -1376,7 +1625,12 @@ func begin_stroke(in_seconds: float, meeting: Vector3, overhead := false) -> boo
 	var clip := _stroke_for(meeting, in_seconds, overhead)
 	if _badminton() and not _planned_clip.is_empty():
 		clip = _planned_clip
+	elif racket_kind == &"tennis" and not volleyball:
+		clip = _tennis_stroke(meeting, in_seconds, overhead)
+	elif racket_kind == &"bat" and not volleyball:
+		clip = _table_tennis_stroke(meeting, in_seconds, overhead)
 	_planned_clip = ""
+	returning_serve = false
 	_stroke_under_way = true
 	_stroke_clip = clip
 	_turn_into_the_shot(clip, meeting, in_seconds)
@@ -1389,6 +1643,8 @@ func begin_stroke(in_seconds: float, meeting: Vector3, overhead := false) -> boo
 func begin_touch(clip: String, in_seconds: float, meeting: Vector3) -> bool:
 	if _stroke_under_way or _animator == null or not _animator.has_animation(clip):
 		return false
+	_touch_family = clip
+	clip = _touch_variant(clip, meeting, in_seconds)
 	_stroke_under_way = true
 	_stroke_clip = clip
 	_turn_into_the_shot(clip, meeting, in_seconds)
@@ -1436,6 +1692,11 @@ func _stroke_for(meeting: Vector3, in_seconds: float, overhead: bool) -> String:
 ## The turn is capped at `MOST_OF_A_TURN` for the same reason the footwork is: a shot
 ## reached by turning your back on the net is not a shot anybody plays.
 func _turn_into_the_shot(clip: String, meeting: Vector3, in_seconds: float) -> void:
+	# Square to the net unless the shot says otherwise. Left alone, a stroke whose turn could
+	# not be worked out held whatever facing the last one had — 0, at the start of a match —
+	# which turned a table tennis server at the far end to face the back wall for the whole
+	# of the rally that followed (2026-10-15; `_contact` had been failing on it at random).
+	_stroke_facing = across_the_net()
 	if not _contact_offset.has(clip):
 		return
 	var offset: Vector3 = _contact_offset[clip]

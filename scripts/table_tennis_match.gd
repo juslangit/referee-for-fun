@@ -425,8 +425,12 @@ func start_rally() -> void:
 	# contact nearly a second in, against a toss of 0.42 s — and the ball left off the
 	# server's chest with the bat still coming up. Every serve in the sport was half a metre
 	# from the bat, which is a fifth of the length of the table.
-	if not server.begin_touch("tn_serve", THROW_SECONDS, from):
+	# Table tennis's own serve since 2026-10-15: a low toss and a short brush over the
+	# table. It used to be the tennis serve, overhead.
+	if not server.begin_touch("tt_serve", THROW_SECONDS, from) \
+			and not server.begin_touch("tn_serve", THROW_SECONDS, from):
 		server.serve_for_tennis()
+	receiver.returning_serve = true
 	sound.whistle()
 	_phase = Phase.IN_PLAY
 	ui.set_prompt("watch it")

@@ -4,10 +4,11 @@ extends Node
 ## a badminton player stands off the shuttle. For tuning tools/meshy/badminton_strokes.py so
 ## that each stroke meets the shuttle where the athlete actually stands for it.
 ##
-##     godot --headless --path . res://dev/looks/_offsets.tscn
+##     SCENE=sepak_takraw godot --headless --path . res://dev/looks/_offsets.tscn
 
 func _ready() -> void:
-	var arena: Node = load("res://scenes/match.tscn").instantiate()
+	var scene := OS.get_environment("SCENE") if OS.has_environment("SCENE") else "match"
+	var arena: Node = load("res://scenes/%s.tscn" % scene).instantiate()
 	arena.print_truth_while_testing = false
 	add_child(arena)
 	for f in 90:

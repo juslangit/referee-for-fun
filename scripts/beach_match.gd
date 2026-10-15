@@ -288,6 +288,7 @@ func build_the_players() -> void:
 			player.clear_kit = settings != null and settings.clear_kits
 			player.name = "%s%d" % [Sides.label(team), i]
 			player.volleyball = true
+			player.on_sand = true
 			player.speed = SAND_SPEED
 			# A volleyball player reaches a lot further than a badminton player does:
 			# two arms, a jump, and no racket to be precise with.
