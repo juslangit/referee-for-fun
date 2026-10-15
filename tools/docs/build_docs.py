@@ -58,6 +58,8 @@ GALLERIES = [
         ("bd_strokes_live", "Forty live contacts, each labelled with the stroke the game chose and how far the racket was from the shuttle."),
         ("bd_strokes_poses", "Every new clip at its moment of contact: smashes, clears, drops, blocks, the dive, drives, net shots, lifts, the kill, both serves, and the footwork."),
         ("real_idle_upright", "Standing between points: upright, racket held loosely, no longer the rally crouch."),
+        ("sports_strokes_poses", "The other four sports' 32 new clips at contact: tennis slices, volleys, running shots and returns; table tennis serve, drives, pushes, block, smash and lob; volleyball passes, dives, overhead pass, back set, tip, approach and jump serve; takraw left foot, thigh, chest, knee set and sunback."),
+        ("sports_strokes_live", "Sixteen live contacts in each of tennis, table tennis, indoor and beach volleyball, and sepak takraw, labelled with the stroke chosen."),
         ("bd_overheads_facing", "Sixteen live overheads after the smash fix: every one played facing the net, where the old smash finished side-on."),
     ]),
     ("realistic-cast", "The realistic cast and props", "On 2026-10-15 everything around the players followed them into a realistic look. Luqman picked each person from OpenArt designs; Tripo built them, Meshy rigged them. The rackets, balls and umpire's chair are free Sketchfab models at real sizes.", [
