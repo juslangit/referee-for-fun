@@ -54,6 +54,11 @@ IMAGE_QUALITY = 62
 # screenshot says it is old.
 
 GALLERIES = [
+    ("badminton-strokes", "Badminton: a stroke for every situation", "On 2026-10-15 the game was played and every contact recorded (dev/looks/_movelog): the athletes had three strokes for everything. Thirty clips replaced them, each chosen by where the shuttle is against the body, how high, how far, what the shot will be and whether a smash is coming.", [
+        ("bd_strokes_live", "Forty live contacts, each labelled with the stroke the game chose and how far the racket was from the shuttle."),
+        ("bd_strokes_poses", "Every new clip at its moment of contact: smashes, clears, drops, blocks, the dive, drives, net shots, lifts, the kill, both serves, and the footwork."),
+        ("real_idle_upright", "Standing between points: upright, racket held loosely, no longer the rally crouch."),
+    ]),
     ("realistic-cast", "The realistic cast and props", "On 2026-10-15 everything around the players followed them into a realistic look. Luqman picked each person from OpenArt designs; Tripo built them, Meshy rigged them. The rackets, balls and umpire's chair are free Sketchfab models at real sizes.", [
         ("real__castline", "The cast: umpire in a blazer, line judge in a teal polo, the photographer standing and kneeling, the ball kid standing and kneeling, the TV camera operator."),
         ("real_crowd_sitting", "The hall seated: a batik uncle in a songkok, a woman in a tudung, a teen in a striped jersey and a dad in a polo, each dressed as themselves."),
