@@ -1,6 +1,7 @@
 """Cleans a Tripo character after Meshy has rigged it, before the clips are forged.
 
     blender --background --python tools/tripo/clean_rig.py -- player_c
+    blender --background --python tools/tripo/clean_rig.py -- player_r realistic
 
 Reads  assets/meshy/<name>/<name>_rigged_raw.glb   (Meshy's file, kept as delivered)
        assets/tripo/<name>/<name>_flat.png         (tools/tripo/flatten_texture.py)
@@ -31,40 +32,54 @@ ANGLE = 40.0
 EMISSION = 0.25
 
 
+## A realistic character (`realistic` after the name — design 5, chosen 2026-10-15 in
+## place of style C) keeps Tripo's own texture, since its detail is the point, and is
+## shaded smooth with only the hardest corners split (shoe soles, collar), because flat
+## planes on a human body read as low-poly. The emission lift applies to both.
+REALISTIC_ANGLE = 70.0
+
+
 def main():
-    name = sys.argv[sys.argv.index("--") + 1]
+    args = sys.argv[sys.argv.index("--") + 1:]
+    name = args[0]
+    realistic = "realistic" in args[1:]
     raw = PROJECT / "assets" / "meshy" / name / f"{name}_rigged_raw.glb"
     sheet = PROJECT / "assets" / "tripo" / name / f"{name}_flat.png"
     out = PROJECT / "assets" / "meshy" / name / f"{name}_rigged.glb"
 
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.gltf(filepath=str(raw))
-    image = bpy.data.images.load(str(sheet))
-    image.pack()
+    image = None
+    if not realistic:
+        image = bpy.data.images.load(str(sheet))
+        image.pack()
 
     for obj in [o for o in bpy.data.objects if o.type == "MESH" and o.parent]:
         bpy.context.view_layer.objects.active = obj
         bpy.ops.object.select_all(action="DESELECT")
         obj.select_set(True)
-        bpy.ops.object.shade_smooth_by_angle(angle=math.radians(ANGLE))
+        bpy.ops.object.shade_smooth_by_angle(
+            angle=math.radians(REALISTIC_ANGLE if realistic else ANGLE))
         # Weighted normals: each vertex takes the normal of the largest face around it,
         # so a broad plane — cheek, chest, shin — shades as one tone instead of picking
         # up every small bump Tripo left in the surface. Applied ahead of the armature.
-        weighted = obj.modifiers.new("WeightedNormal", "WEIGHTED_NORMAL")
-        weighted.mode = "FACE_AREA"
-        weighted.weight = 100
-        weighted.keep_sharp = True
-        bpy.ops.object.modifier_move_to_index(modifier=weighted.name, index=0)
-        bpy.ops.object.modifier_apply(modifier=weighted.name)
+        if not realistic:
+            weighted = obj.modifiers.new("WeightedNormal", "WEIGHTED_NORMAL")
+            weighted.mode = "FACE_AREA"
+            weighted.weight = 100
+            weighted.keep_sharp = True
+            bpy.ops.object.modifier_move_to_index(modifier=weighted.name, index=0)
+            bpy.ops.object.modifier_apply(modifier=weighted.name)
         for mat in obj.data.materials:
             nodes = mat.node_tree.nodes
             bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
             tex = next(n for n in nodes if n.type == "TEX_IMAGE")
-            tex.image = image
+            if image is not None:
+                tex.image = image
             mat.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Emission Color"])
             bsdf.inputs["Emission Strength"].default_value = EMISSION
             bsdf.inputs["Roughness"].default_value = 0.85
-        print(f"  {obj.name}: smooth by angle {ANGLE:.0f}, flat sheet, emission {EMISSION}")
+        print(f"  {obj.name}: {'realistic' if realistic else 'flat sheet'}, emission {EMISSION}")
 
     bpy.ops.export_scene.gltf(filepath=str(out), export_format="GLB",
                               export_animations=False, export_yup=True)

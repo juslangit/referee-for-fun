@@ -28,6 +28,10 @@
       "anim_smash": "01a13da9-85d7-77db-a8f0-860d77ded5d4",
       "rig": "01a13da2-368d-74f0-9154-9b5fb121bcbd"
     },
+    "player_r": {
+      "anim_smash": "01a13dcc-e1de-76b5-9d88-a5b500409bb5",
+      "rig": "01a13dcc-8d29-72fa-abf7-f424e7f86ee5"
+    },
     "player_red": {
       "anim_smash": "01a09b8c-ad7f-716a-88dc-e3e6b0e241f9",
       "preview": "01a07cd4-b468-73ee-bb61-1baa859ea3c5",
@@ -53,5 +57,5 @@
       "task": "01a09b8b-d467-74e9-ad4e-e06d4c6d15d5"
     }
   },
-  "spent": 250
+  "spent": 258
 }

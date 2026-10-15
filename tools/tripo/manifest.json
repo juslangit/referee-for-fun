@@ -8,6 +8,15 @@
    "spent": 40,
    "task": "ca828e79-5caf-4190-8deb-d950267fc311",
    "version": "v3.0-20250812"
+  },
+  "player_r": {
+   "balance_after": 920,
+   "balance_before": 960,
+   "faces": 20000,
+   "image": "dev/concepts/2026-10-15/realistic/5_game_ready_square.png",
+   "spent": 40,
+   "task": "054766b6-c18a-468a-9aec-0864e42bb2ee",
+   "version": "v3.0-20250812"
   }
  }
 }

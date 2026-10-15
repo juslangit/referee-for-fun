@@ -120,6 +120,8 @@ SMASH_WINDUP_FRAMES = (10.0, 17.6)
 # nothing in the game has to be retimed.
 SMASH_FRAMES_BY_CHARACTER = {
     "player_c": ((22.6, 45.8), (7.0, 22.6)),
+    # The realistic player (design 5) got the same motion applied, so the same frames.
+    "player_r": ((22.6, 45.8), (7.0, 22.6)),
 }
 
 # Which of the Hips' location channels carry the journey rather than the body's own
