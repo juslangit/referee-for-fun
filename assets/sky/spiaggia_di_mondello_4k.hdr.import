@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://djp7pxerg1nog"
-path="res://.godot/imported/box_profile_metal_sheet_diff_1k.jpg-99c5ac7b8f3d8e60e5c6688527103360.ctex"
+uid="uid://ce8bgh6sch55a"
+path="res://.godot/imported/spiaggia_di_mondello_4k.hdr-3706a6b3d98a6d57cb8451b2ffdd025d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://tools/stadium/textures/box_profile_metal_sheet_diff_1k.jpg"
-dest_files=["res://.godot/imported/box_profile_metal_sheet_diff_1k.jpg-99c5ac7b8f3d8e60e5c6688527103360.ctex"]
+source_file="res://assets/sky/spiaggia_di_mondello_4k.hdr"
+dest_files=["res://.godot/imported/spiaggia_di_mondello_4k.hdr-3706a6b3d98a6d57cb8451b2ffdd025d.ctex"]
 
 [params]
 

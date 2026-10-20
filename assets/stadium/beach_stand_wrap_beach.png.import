@@ -2,16 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cnohcx1jbgcem"
-path="res://.godot/imported/concrete_floor_02_nor_gl_1k.jpg-b04f819982eed2e17cfb10ef6ceb7077.ctex"
+uid="uid://ctucjpdk0uewd"
+path="res://.godot/imported/beach_stand_wrap_beach.png-77d339b82e3a7b12da02e44a29ce645e.ctex"
 metadata={
 "vram_texture": false
+}
+generator_parameters={
+"md5": "ac337c7a6ac6319e7d3b9bd56656dbe3"
 }
 
 [deps]
 
-source_file="res://tools/stadium/textures/concrete_floor_02_nor_gl_1k.jpg"
-dest_files=["res://.godot/imported/concrete_floor_02_nor_gl_1k.jpg-b04f819982eed2e17cfb10ef6ceb7077.ctex"]
+source_file="res://assets/stadium/beach_stand_wrap_beach.png"
+dest_files=["res://.godot/imported/beach_stand_wrap_beach.png-77d339b82e3a7b12da02e44a29ce645e.ctex"]
 
 [params]
 
@@ -23,7 +26,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

@@ -239,29 +239,35 @@ func _build_camera() -> void:
 
 
 ## Outdoors, so the light comes from a sky rather than from a truss.
+##
+## Since 2026-10-20 the sky is a photograph of a real beach (`RealSky`), turned so its sea
+## lies off the -x side of the court — in front of the umpire, behind the stand they look
+## at, where Pantai Cenang has the sea — and its trees and headlands are behind the chair.
+## The sea in the picture is centred at u 0.05, which `SKY_TURN_DEG` brings round to 270°,
+## and that puts the sun at 108°: behind the umpire's right shoulder, low and warm, so the
+## court is lit from the chair and the shadows fall away from it.
 func _build_sky() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.name = "Sun"
-	sun.rotation = Vector3(deg_to_rad(-54.0), deg_to_rad(34.0), 0.0)
+	sun.rotation = RealSky.sun_rotation(SKY, SKY_TURN_DEG)
 	sun.light_energy = 1.2
+	sun.light_color = Color(1.0, 0.97, 0.92)
 	sun.shadow_enabled = true
 	add_child(sun)
 
 	var world := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
-	var sky := Sky.new()
-	var material := ProceduralSkyMaterial.new()
-	material.sky_top_color = Color(0.28, 0.52, 0.82)
-	material.sky_horizon_color = Color(0.78, 0.84, 0.90)
-	material.ground_bottom_color = Color(0.72, 0.62, 0.46)
-	material.ground_horizon_color = Color(0.82, 0.76, 0.62)
-	sky.sky_material = material
-	env.sky = sky
+	env.sky = RealSky.sky(SKY)
+	env.sky_rotation = RealSky.turn_radians(SKY_TURN_DEG)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_energy = 0.75
 	world.environment = env
 	add_child(world)
+
+
+const SKY: StringName = &"spiaggia_di_mondello"
+const SKY_TURN_DEG := 108.0
 
 
 ## Where a pair stands when the ball is not their problem: one up at the net, one deep.

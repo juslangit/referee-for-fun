@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bu52m58dy7mej"
-path="res://.godot/imported/box_profile_metal_sheet_rough_1k.jpg-bb016e4ad59f774f1b6cd835caee7daf.ctex"
+uid="uid://cyg2tpmctmjh4"
+path="res://.godot/imported/beach_sand_rough_1k.jpg-702d741c9f33cf8561e26b13a6754191.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://tools/stadium/textures/box_profile_metal_sheet_rough_1k.jpg"
-dest_files=["res://.godot/imported/box_profile_metal_sheet_rough_1k.jpg-bb016e4ad59f774f1b6cd835caee7daf.ctex"]
+source_file="res://assets/surfaces/beach_sand_rough_1k.jpg"
+dest_files=["res://.godot/imported/beach_sand_rough_1k.jpg-702d741c9f33cf8561e26b13a6754191.ctex"]
 
 [params]
 

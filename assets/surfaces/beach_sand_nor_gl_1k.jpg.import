@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://6wmotuit4okn"
-path="res://.godot/imported/square_concrete_pavers_diff_1k.jpg-83a196dbbf1df98138f9c6e51e7c5bed.ctex"
+uid="uid://sdph6b6gfmew"
+path="res://.godot/imported/beach_sand_nor_gl_1k.jpg-cf78f72c100f121391b118f6bb82f206.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://tools/stadium/textures/square_concrete_pavers_diff_1k.jpg"
-dest_files=["res://.godot/imported/square_concrete_pavers_diff_1k.jpg-83a196dbbf1df98138f9c6e51e7c5bed.ctex"]
+source_file="res://assets/surfaces/beach_sand_nor_gl_1k.jpg"
+dest_files=["res://.godot/imported/beach_sand_nor_gl_1k.jpg-cf78f72c100f121391b118f6bb82f206.ctex"]
 
 [params]
 

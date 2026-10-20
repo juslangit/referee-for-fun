@@ -26,9 +26,16 @@ extends RefCounted
 ## Tried on 2026-10-20 against je_gray_park (a low morning sun and long dark shadows) and
 ## netball_court (a real sports centre, but shot at dusk and washed out to white); Luqman
 ## kept this one.
+##
+## The beach got its own on 2026-10-20, when the other sports were given real surroundings:
+## *Spiaggia di Mondello*, a white-sand beach in bright afternoon sun with the sea along one
+## side and trees and headlands along the other — the nearest thing on Poly Haven to Pantai
+## Cenang. Sun measured the same way (brightest pixel of the 4k file).
 const SKIES := {
 	&"rural_asphalt_road": {"file": "res://assets/sky/rural_asphalt_road_4k.hdr",
 		"u": 0.600, "elevation": 45.7, "author": "Alexander Scholten"},
+	&"spiaggia_di_mondello": {"file": "res://assets/sky/spiaggia_di_mondello_4k.hdr",
+		"u": 0.6006, "elevation": 25.3, "author": "Andreas Mischok"},
 }
 
 

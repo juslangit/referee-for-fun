@@ -1,0 +1,32 @@
+{
+  "about": "The beach grandstands, at every rung. Read by tools/stadium/build_stadium.py (builder venues/beach.py) to model the scaffold, and by scripts/bowl.gd to seat the crowd on its planks. Godot coordinates: x across the court, z along it, y up, metres. inner_half[0] is the front of each stand, BeachSpec.HALF_WIDTH + BeachCourt.STAND_SET_BACK. The -x stand is the one the umpire looks at all match, and is kept low so the sea stays in the picture.",
+  "builder": "beach",
+  "inner_half": [10.2, 11.0],
+  "corner_radius": 0.01,
+  "benches": true,
+  "seat_spacing": 0.56,
+  "aisles": {"width": 1.0},
+  "tiers": [
+    {
+      "name": "facing the umpire",
+      "first_offset": 0.3,
+      "rows": 6,
+      "depth": 0.8,
+      "rise": 0.38,
+      "base": 0.25,
+      "gaps": [-4.0, 4.0],
+      "runs": [{"side": "-x", "from": -11.0, "to": 11.0}]
+    },
+    {
+      "name": "behind the umpire",
+      "first_offset": 0.3,
+      "rows": 10,
+      "depth": 0.8,
+      "rise": 0.42,
+      "base": 0.25,
+      "gaps": [-4.0, 4.0],
+      "runs": [{"side": "+x", "from": -11.0, "to": 11.0}]
+    }
+  ],
+  "rail": {"offset": 8.35, "y": 5.85, "runs": [{"side": "+x", "from": -11.0, "to": 11.0}]}
+}

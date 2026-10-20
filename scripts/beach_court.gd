@@ -53,6 +53,11 @@ const STAND_LAYER := 4
 ## beach court with nobody watching it is not a stylistic gap — it is the feedback
 ## channel missing.
 var stands: Stands
+## The scaffold the crowd sits on. See `_build_stands`.
+var grandstands: Node3D
+
+const GRANDSTANDS := "res://assets/stadium/beach_stand.glb"
+const STAND_PLAN := "res://assets/stadium/beach_stand.json"
 ## The event round the court: see EventDressing.
 var event: EventDressing
 
@@ -85,7 +90,8 @@ func _build_materials() -> void:
 	# Sand, and a slightly darker sand for the court itself. Real beach courts are one
 	# colour, but a rectangle the eye can find without hunting for the tape is worth
 	# the small lie — and a player who cannot see where the court is cannot referee it.
-	_sand_material = _make_material(Color(0.90, 0.80, 0.61))
+	# Photographed sand since 2026-10-20 (see `Surfaces`), the same as the beach round it.
+	_sand_material = Surfaces.sand()
 	_line_material = _make_material(Color(0.96, 0.96, 0.94))
 	_net_material = _make_material(Color(0.13, 0.14, 0.16))
 	# Corded, at beach volleyball — the same net as indoor's own gauge. See `NetCord`.
@@ -117,7 +123,7 @@ func _build_sand() -> void:
 	# Enough darker than the surrounding sand to find without hunting for the tape.
 	# The first pass was a six-percent difference, which vanished completely under a
 	# low sun — and a player who cannot see where the court is cannot referee it.
-	var court := _make_material(Color(0.72, 0.58, 0.38))
+	var court := Surfaces.sand(Color(0.80, 0.72, 0.60))
 	_add_box(
 		"CourtSand",
 		Vector3(BeachSpec.HALF_WIDTH * 2.0, COURT_INLAY, BeachSpec.HALF_LENGTH * 2.0),
@@ -254,11 +260,20 @@ func _build_referee_stand() -> void:
 		part.layers = STAND_LAYER
 
 
-## Both sides at the same distance, unlike the badminton hall — there is no second
-## court here to push one stand back, and no building to fit inside.
+## Since 2026-10-20 the stands are modelled: two scaffold grandstands built in Blender by
+## `tools/stadium/build_stadium.py`, low in front of the umpire so the sea stays in the
+## picture and taller behind. The crowd sits on their planks from the same numbers.
 func _build_stands() -> void:
+	grandstands = load(GRANDSTANDS).instantiate()
+	grandstands.name = "Grandstands"
+	add_child(grandstands)
+
 	stands = Stands.new()
 	stands.name = "Stands"
+	stands.bowl = Bowl.open(STAND_PLAN)
+	# A few hundred people on two stands, close to the court: kept at half their detail
+	# rather than the tennis bowl's fifth. See `Stands.crowd_detail`.
+	stands.crowd_detail = 0.5
 	stands.outdoors = true
 	stands.near_row_x = BeachSpec.HALF_WIDTH + STAND_SET_BACK
 	stands.far_row_x = BeachSpec.HALF_WIDTH + STAND_SET_BACK

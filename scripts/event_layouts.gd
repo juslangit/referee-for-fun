@@ -316,7 +316,7 @@ static func indoor() -> Dictionary:
 	}
 
 
-## The Pantai Cenang Beach Volleyball Open: the sea and the islands off Langkawi behind the
+## The Pantai Cenang Beach Volleyball Open: the sea off Langkawi behind the
 ## stands, white vinyl sponsor banners on metal crowd barriers, yellow posts, team chairs under
 ## umbrellas beside the scorer's table, feather flags, an inflatable arch, and the crew in orange.
 static func beach() -> Dictionary:
@@ -324,14 +324,15 @@ static func beach() -> Dictionary:
 	var sz := BeachSpec.HALF_LENGTH + BeachCourt.SAND_MARGIN
 	var fx := BeachSpec.HALF_WIDTH + BeachSpec.FREE_ZONE
 	var props: Array = [
-		{"kind": "ground", "at": Vector3(0.0, 0.0, 0.0), "size": Vector2(160.0, 400.0),
-			"colour": Color(0.90, 0.82, 0.64), "from": S},
-		{"kind": "sea", "at": Vector3(-2080.0, 0.0, 0.0), "width": 4000.0, "depth": 6000.0, "from": S,
-			"islands": [
-				{"at": Vector3(1880.0, -4.0, -120.0), "radius": 60.0, "flat": 0.55},
-				{"at": Vector3(1780.0, -6.0, 150.0), "radius": 90.0, "flat": 0.5},
-				{"at": Vector3(1600.0, -10.0, -10.0), "radius": 140.0, "flat": 0.45},
-			]},
+		# The beach inland of the court, out to where the photographed sky's own sand takes
+		# over. It stops at x -80, where the sea begins, and runs a long way the other way
+		# so its far edge is too far off to be seen from above.
+		{"kind": "ground", "at": Vector3(620.0, 0.0, 0.0), "size": Vector2(1400.0, 1400.0),
+			"colour": Color(0.90, 0.82, 0.64), "surface": "sand", "from": S},
+		# The water in front of the court. The islands that used to stand in it are gone:
+		# the photographed sky (`RealSky`, since 2026-10-20) has real headlands on its horizon,
+		# and grey-green domes in front of them gave the game away.
+		{"kind": "sea", "at": Vector3(-2080.0, 0.0, 0.0), "width": 4000.0, "depth": 6000.0, "from": S},
 		{"kind": "table", "at": Vector3(-fx + 1.6, 0.0, 0.0), "turn": PI * 0.5, "length": 1.8,
 			"colour": Color(0.06, 0.30, 0.62), "picture": "logo_beach", "from": R},
 		{"kind": "arch", "at": Vector3(0.0, 0.0, sz + 5.0), "turn": PI, "width": 9.0,
@@ -354,9 +355,10 @@ static func beach() -> Dictionary:
 				"turn": 0.0 if end < 0.0 else PI, "height": 3.4,
 				"colour": Color(0.10, 0.62, 0.70) if int(x) % 2 == 0 else Color(0.96, 0.78, 0.12),
 				"from": R if absf(x) > 6.0 else A})
-	# Palms behind the stand at the umpire's back, where the beach goes inland.
+	# Palms behind the stand at the umpire's back, where the beach goes inland — clear of the
+	# back of the modelled grandstand, which reaches x 18.6.
 	for i in 6:
-		props.append({"kind": "palm", "at": Vector3(18.0 + float(i % 2) * 4.0, 0.0, -14.0 + float(i) * 5.6),
+		props.append({"kind": "palm", "at": Vector3(22.0 + float(i % 2) * 4.0, 0.0, -14.0 + float(i) * 5.6),
 			"height": 7.0 + float(i % 3), "lean": 0.08 + 0.05 * float(i % 3), "turn": float(i) * 1.3,
 			"from": S})
 

@@ -1,5 +1,6 @@
 {
-  "about": "The tennis stadium's bowl. Read by tools/stadium/build_stadium.py (Blender, through the MCP) to model the steps, and by scripts/bowl.gd to seat the crowd on them, so the two cannot drift apart. Godot coordinates: x across the court, z along it, y up, metres. Every row runs round a rounded rectangle offset outwards from the inside face of the podium wall.",
+  "about": "The tennis stadium. Read by tools/stadium/build_stadium.py (Blender, through the MCP; builder venues/tennis.py) to model the steps, and by scripts/bowl.gd to seat the crowd on them, so the two cannot drift apart. Godot coordinates: x across the court, z along it, y up, metres. Every row runs round a rounded rectangle offset outwards from the inside face of the podium wall.",
+  "builder": "tennis",
   "inner_half": [
     10.4,
     21.0

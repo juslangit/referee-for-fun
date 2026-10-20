@@ -602,7 +602,11 @@ func _build_crowd() -> void:
 	# A seat bolted down for every person, at every venue but the school hall — which
 	# has none, because a school hall does not have any.
 	var stand_forward := 0.0
-	if Venue.TIERS[tier]["seats"]:
+	# Nobody bolts a seat to a bench: a venue whose rows are planks (`Bowl.benches`) has them
+	# modelled in, and its people sit straight on them.
+	if bowl != null and bowl.benches():
+		stand_forward = SEAT_DEPTH
+	elif Venue.TIERS[tier]["seats"]:
 		# The same half turn the people get. Without it the seats face the back wall:
 		# this model looks down its own +Z, and both stands turn it away from the court.
 		# The rows had their occupants right and their chairs backwards, which reads as

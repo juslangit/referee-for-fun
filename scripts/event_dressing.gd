@@ -535,7 +535,10 @@ func _prop(spec: Dictionary) -> void:
 			# Something under the whole event, where the sky's own horizon would otherwise
 			# show through as a floor that goes on for ever.
 			var size: Vector2 = spec.get("size", Vector2(200.0, 200.0))
-			_block(holder, "Ground", Vector3(size.x, 0.02, size.y), Vector3(0.0, -0.02, 0.0), colour)
+			var ground := _block(holder, "Ground", Vector3(size.x, 0.02, size.y), Vector3(0.0, -0.02, 0.0), colour)
+			# Photographed sand rather than a flat colour, where the layout asks for it.
+			if spec.get("surface", "") == "sand":
+				ground.material_override = Surfaces.sand()
 		"enclosure":
 			# Four walls round the whole event: a hall's walls, or the green windbreak round an
 			# outdoor court. Nothing overhead — the background is the roof.
@@ -747,6 +750,9 @@ func _rail_banners(spec: Dictionary) -> void:
 	if count <= 0:
 		return
 	var n := 0
+	if stands.bowl != null:
+		_rail_banners_on(stands.bowl, spec, count)
+		return
 	for side: float in spec.get("sides", [-1.0]):
 		var start := stands.far_row_x if side > 0.0 else stands.near_row_x
 		var x := side * (start + stands.row_depth * stands.rows + 0.15)
@@ -763,6 +769,25 @@ func _rail_banners(spec: Dictionary) -> void:
 			banner.position = Vector3(x, y, z)
 			banner.rotation.y = -side * PI * 0.5
 			add_child(banner)
+
+
+## The same banners, on a modelled venue: along the rail its JSON names (`Bowl.rail_spots`),
+## facing the court. A venue without a rail gets none.
+func _rail_banners_on(bowl: Bowl, spec: Dictionary, count: int) -> void:
+	var rail: Dictionary = bowl.data.get("rail", {})
+	var y: float = rail.get("y", 0.0)
+	var n := 0
+	for spot in bowl.rail_spots(count):
+		var at: Vector2 = spot[0]
+		var out: Vector2 = spot[1]
+		var picture := "banner_" + String(BANNERS[n % BANNERS.size()])
+		if spec.get("logo_every", 0) > 0 and n % int(spec["logo_every"]) == int(spec["logo_every"]) / 2:
+			picture = String(layout.get("logo", picture))
+		n += 1
+		var banner := _picture(picture, _fit(picture, Vector2(3.0, float(rail.get("height", 1.3)))))
+		banner.position = Vector3(at.x, y, at.y) - Vector3(out.x, 0.0, out.y) * 0.04
+		banner.rotation.y = atan2(-out.x, -out.y)
+		add_child(banner)
 
 
 ## Flags held up in the crowd: the national flag mostly, and the odd supporters' banner.
