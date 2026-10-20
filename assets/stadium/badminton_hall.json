@@ -1,5 +1,5 @@
 {
-  "about": "Badminton's community hall, for the school hall and the district championship: two courts side by side, as every hall in the country has. Read by tools/stadium/build_stadium.py (builder venues/dewan.py) and by scripts/bowl.gd. The hall is centred between our court and the one behind the umpire (Venue.SECOND_COURT_X 13.4), so centre[0] is 6.9 and inner_half[0] puts the near bleachers at x -6.55, where Stands.near_row_x has always had them. The stage is at the -z end.",
+  "about": "Badminton's community hall, for the school hall and the district championship: two courts side by side, as every hall in the country has. Read by tools/stadium/build_stadium.py (builder venues/dewan.py) and by scripts/bowl.gd. The hall is centred between our court and the one behind the umpire (Venue.SECOND_COURT_X 13.4), so centre[0] is 6.9 and inner_half[0] puts the near bleachers at x -6.55, where Stands.near_row_x has always had them. The stage is at the -z end. half_x is wide enough to hold the walk-on's opening camera (Cutscene.walk_on, x -12.4) inside the hall.",
   "builder": "dewan",
   "inner_half": [
     13.45,
@@ -41,7 +41,7 @@
     }
   ],
   "hall": {
-    "half_x": 18.55,
+    "half_x": 20.6,
     "z_from": -18.5,
     "z_to": 13.5,
     "eave": 8.0,

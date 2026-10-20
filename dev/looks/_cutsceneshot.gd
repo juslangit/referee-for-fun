@@ -54,6 +54,8 @@ func _ready() -> void:
 	add_child(arena)
 	await get_tree().physics_frame
 	arena.career.doubles = doubles
+	if OS.has_environment("TIER"):
+		arena.career.tier = int(OS.get_environment("TIER"))
 	arena.rebuild_players()
 	arena.ui.hide_menus()
 	arena._umpire_view()

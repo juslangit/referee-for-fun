@@ -54,6 +54,14 @@ IMAGE_QUALITY = 62
 # screenshot says it is old.
 
 GALLERIES = [
+    ("venues", "Every sport in a real place", "On 2026-10-20 Luqman asked for the surroundings of every sport to be done before the next release, and chose a different building for each indoor sport with a community hall at the bottom of the ladder. Every venue was modelled in Blender through the MCP from one JSON that also seats the crowd: the beach under a photographed sky, a dewan for the school rungs, and arenas drawn from the Axiata Arena, MITEC, Stadium Titiwangsa and Malawati Stadium.", [
+        ("venues_beach", "The beach: Spiaggia di Mondello for a sky, the sea in front of the umpire, and scaffold grandstands with the crowd on their planks."),
+        ("venues_hall", "A community hall at the school rungs: louvred windows, portal frames, fans, battens, a stage and wooden bleachers."),
+        ("venues_badminton", "Badminton's arena, after the Axiata Arena: two tiers, the suites under a sponsor band, catwalk lamps and the screen cube."),
+        ("venues_volleyball", "Volleyball's arena, after MITEC: an exhibition hall with telescopic stands and drapes across the ends."),
+        ("venues_takraw", "Sepak takraw's arena, after Stadium Titiwangsa: concrete stands of blue seats and the songket mural."),
+        ("venues_table_tennis", "Table tennis's arena, after Malawati Stadium: a round bowl under a dome, from above."),
+    ]),
     ("tennis-stadium", "Tennis: a stadium under a real sky", "On 2026-10-20 Luqman found the outdoor tennis courts empty: a gradient sky over a green windbreak. The sky became a Poly Haven photograph with the game's sun matched to it, and every rung became one open-air stadium modelled in Blender through the MCP, with the crowd seated on its steps from the same numbers.", [
         ("stadium_before", "Before: the club court inside its windbreak, under the old two-colour sky."),
         ("stadium_club", "The club rung: the same stadium, a thinner crowd."),
