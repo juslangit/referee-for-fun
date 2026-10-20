@@ -90,8 +90,9 @@ func _build_materials() -> void:
 	# Sand, and a slightly darker sand for the court itself. Real beach courts are one
 	# colour, but a rectangle the eye can find without hunting for the tape is worth
 	# the small lie — and a player who cannot see where the court is cannot referee it.
-	# Photographed sand since 2026-10-20 (see `Surfaces`), the same as the beach round it.
-	_sand_material = Surfaces.sand()
+	# Laid as photographed sand in `_build_sand` since 2026-10-20 (see `Surfaces`); this
+	# colour is what it falls back to.
+	_sand_material = _make_material(Color(0.90, 0.80, 0.61))
 	_line_material = _make_material(Color(0.96, 0.96, 0.94))
 	_net_material = _make_material(Color(0.13, 0.14, 0.16))
 	# Corded, at beach volleyball — the same net as indoor's own gauge. See `NetCord`.
@@ -112,24 +113,24 @@ func _make_material(colour: Color) -> StandardMaterial3D:
 func _build_sand() -> void:
 	var length := (BeachSpec.HALF_LENGTH + SAND_MARGIN) * 2.0
 	var width := (BeachSpec.HALF_WIDTH + SAND_MARGIN) * 2.0
-	_add_box(
+	Surfaces.lay_sand(_add_box(
 		"Sand",
 		Vector3(width, SAND_THICKNESS, length),
 		Vector3(0.0, SAND_THICKNESS * 0.5, 0.0),
 		_sand_material
-	)
+	))
 
 	# The court itself, a shade darker, so the rectangle reads from the stand.
 	# Enough darker than the surrounding sand to find without hunting for the tape.
 	# The first pass was a six-percent difference, which vanished completely under a
 	# low sun — and a player who cannot see where the court is cannot referee it.
-	var court := Surfaces.sand(Color(0.80, 0.72, 0.60))
-	_add_box(
+	var court := _make_material(Color(0.72, 0.58, 0.38))
+	Surfaces.lay_sand(_add_box(
 		"CourtSand",
 		Vector3(BeachSpec.HALF_WIDTH * 2.0, COURT_INLAY, BeachSpec.HALF_LENGTH * 2.0),
 		Vector3(0.0, SAND_THICKNESS + COURT_INLAY * 0.5, 0.0),
 		court
-	)
+	), Color(0.80, 0.72, 0.60))
 
 	# Something for the ball to land on. The truth is taken from the ball's own height
 	# solve rather than from this collision, but without a floor a missed rally falls

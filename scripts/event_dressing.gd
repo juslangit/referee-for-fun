@@ -538,7 +538,7 @@ func _prop(spec: Dictionary) -> void:
 			var ground := _block(holder, "Ground", Vector3(size.x, 0.02, size.y), Vector3(0.0, -0.02, 0.0), colour)
 			# Photographed sand rather than a flat colour, where the layout asks for it.
 			if spec.get("surface", "") == "sand":
-				ground.material_override = Surfaces.sand()
+				Surfaces.lay_sand(ground)
 		"enclosure":
 			# Four walls round the whole event: a hall's walls, or the green windbreak round an
 			# outdoor court. Nothing overhead — the background is the roof.

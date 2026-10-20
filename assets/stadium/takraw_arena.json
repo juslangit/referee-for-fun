@@ -1,0 +1,98 @@
+{
+  "about": "Sepak takraw's arena from the state games up, modelled on Stadium Titiwangsa, Kuala Lumpur. Read by tools/stadium/build_stadium.py (builder venues/titiwangsa.py) and by scripts/bowl.gd. Godot coordinates, metres. inner_half[0] is the front of the two stands, TakrawSpec.HALF_WIDTH + FREE_ZONE + 1.0; half_z is TakrawCourt's wall_z (10.7), where the event hangs its backdrop (+z) and screen (-z). The songket mural runs across the +z wall above the backdrop.",
+  "builder": "titiwangsa",
+  "inner_half": [
+    7.05,
+    10.2
+  ],
+  "seat_spacing": 0.55,
+  "seat_colour": [
+    0.12,
+    0.3,
+    0.72
+  ],
+  "crowd_detail": 0.35,
+  "aisles": {
+    "width": 1.0
+  },
+  "tiers": [
+    {
+      "name": "stands",
+      "first_offset": 0.3,
+      "rows": 12,
+      "depth": 0.8,
+      "rise": 0.42,
+      "base": 0.9,
+      "gaps": [
+        -5.5,
+        0.0,
+        5.5
+      ],
+      "runs": [
+        {
+          "side": "-x",
+          "from": -10.4,
+          "to": 10.4
+        },
+        {
+          "side": "+x",
+          "from": -10.4,
+          "to": 10.4
+        }
+      ]
+    }
+  ],
+  "rail": {
+    "offset": 9.85,
+    "y": 7.3,
+    "height": 1.0,
+    "runs": [
+      {
+        "side": "-x",
+        "from": -10.4,
+        "to": 10.4
+      },
+      {
+        "side": "+x",
+        "from": -10.4,
+        "to": 10.4
+      }
+    ]
+  },
+  "hall": {
+    "half_x": 17.0,
+    "half_z": 10.7,
+    "eave": 11.0,
+    "crown": 15.0,
+    "roster": [
+      8.6,
+      10.2
+    ],
+    "mural": [
+      7.8,
+      10.6
+    ],
+    "bay": 4.3,
+    "lamp_x": [
+      -10.0,
+      -6.5,
+      6.5,
+      10.0
+    ]
+  },
+  "rig": {
+    "half_width": 3.05,
+    "half_length": 6.7,
+    "hall_height": 9.0
+  },
+  "detail_bands": [
+    [
+      13,
+      0.22
+    ],
+    [
+      999,
+      0.1
+    ]
+  ]
+}

@@ -185,24 +185,38 @@ pose anybody.
 The sepak takraw animations were keyed for this game by hand, as numbers, in
 `tools/meshy/takraw_clips.py`.
 
-The hall, the court, the nets and the umpire's chair are built in code.
+The courts, the nets and the umpire's chair are built in code.
 
 ## Interface type
 
 Barlow Condensed and Barlow Semi Condensed, by The Barlow Project Authors (Jeremy Tribby).
 <https://github.com/jpt/barlow> — SIL Open Font License 1.1, `assets/fonts/OFL.txt`.
 
-## The tennis stadium and its sky
+## The venues and their skies
 
-The stadium round the tennis court was modelled for this game in Blender by
-`tools/stadium/build_stadium.py`, from the numbers in `assets/stadium/tennis_bowl.json`.
-Its sky and its textures are from [Poly Haven](https://polyhaven.com), all CC0 (no credit
+Every venue round a court was modelled for this game in Blender by
+`tools/stadium/build_stadium.py`, from the numbers in `assets/stadium/<venue>.json`
+(builders in `tools/stadium/venues/`): the tennis stadium, the beach grandstands, a community
+hall for the bottom rungs of each indoor sport, and four arenas drawn from real Malaysian
+venues — the Axiata Arena (badminton), MITEC (volleyball), Stadium Titiwangsa (sepak takraw)
+and Malawati Stadium (table tennis). The names and sponsors at the events are invented.
+
+The skies and textures are from [Poly Haven](https://polyhaven.com), all CC0 (no credit
 required, credited anyway):
 
 - **Rural Asphalt Road** (HDRI) by Alexander Scholten — the sky over the tennis stadium
-- **concrete_floor_02** — the stadium steps
-- **concrete_panels** — the stadium walls
-- **square_concrete_pavers** — the plaza round the stadium
-- **box_profile_metal_sheet** — the stadium roof
+- **Spiaggia di Mondello** (HDRI) by Andreas Mischok — the sky over the beach
+- **Dense Sand** — the beach and the court's sand
+- **concrete_floor_02** — the stadium and arena steps
+- **concrete_panels** — stadium and arena walls
+- **square_concrete_pavers** — the plaza round the tennis stadium
+- **box_profile_metal_sheet** — roofs, the exhibition hall's deck and the dome
+- **painted_plaster_wall** — the community halls, Stadium Titiwangsa and Malawati
+- **corrugated_iron_02** — the zinc roofs
+- **wood_planks** — the bleachers and the stages
+- **factory_wall** — the exhibition hall's cladding
+- **hangar_concrete_floor** — the halls' and arenas' floors
 
-The textures were turned grey for the stadium; the originals are in `tools/stadium/textures/`.
+Several were turned grey or lightened for the venues; the originals are in
+`tools/stadium/textures/`. The songket mural, the ventilation blocks and the sponsor wraps were
+drawn for this game by `tools/stadium/make_patterns.py` and `tools/stadium/make_wraps.py`.

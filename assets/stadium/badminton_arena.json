@@ -1,0 +1,111 @@
+{
+  "about": "Badminton's arena from the state open up, modelled on the Axiata Arena, Bukit Jalil. Read by tools/stadium/build_stadium.py (builder venues/axiata.py) to model it, and by scripts/bowl.gd to seat the crowd. Godot coordinates, metres. Centred between our court and the second one (centre[0] 6.9, as the community hall); inner_half[0] puts the near lower tier at x -6.55, where Stands.near_row_x has always had it.",
+  "builder": "axiata",
+  "inner_half": [
+    13.45,
+    13.5
+  ],
+  "centre": [
+    6.9,
+    0.0
+  ],
+  "corner_radius": 6.0,
+  "seat_spacing": 0.56,
+  "seat_colour": [
+    0.1,
+    0.26,
+    0.66
+  ],
+  "crowd_detail": 0.16,
+  "podium": {
+    "solid_height": 1.2
+  },
+  "tiers": [
+    {
+      "name": "lower",
+      "first_offset": 0.3,
+      "rows": 16,
+      "depth": 0.8,
+      "rise": 0.4,
+      "base": 1.2
+    },
+    {
+      "name": "upper",
+      "first_offset": 16.6,
+      "rows": 10,
+      "depth": 0.85,
+      "rise": 0.56,
+      "base": 11.2
+    }
+  ],
+  "suites": {
+    "from_offset": 13.1,
+    "front": 13.5,
+    "to_offset": 16.2,
+    "floor": 7.6,
+    "top": 10.9
+  },
+  "back_wall": {
+    "offset": 25.1,
+    "top": 23.0
+  },
+  "roof": {
+    "bottom": 20.6,
+    "top": 23.0,
+    "bay": 6.0,
+    "catwalks": [
+      -3.0,
+      9.0
+    ]
+  },
+  "aisles": {
+    "width": 1.1,
+    "side_z": [
+      -9.0,
+      -3.0,
+      3.0,
+      9.0
+    ],
+    "end_x": [
+      -7.5,
+      0.0,
+      7.5
+    ],
+    "corner_deg": [
+      45.0
+    ]
+  },
+  "screens": [
+    {
+      "cube": true,
+      "at": [
+        0.0,
+        0.0
+      ],
+      "size": [
+        7.0,
+        4.0
+      ],
+      "bottom": 13.5
+    }
+  ],
+  "rig": {
+    "half_width": 3.05,
+    "half_length": 6.7,
+    "hall_height": 9.0
+  },
+  "detail_bands": [
+    [
+      10,
+      0.22
+    ],
+    [
+      18,
+      0.1
+    ],
+    [
+      999,
+      0.06
+    ]
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "about": "Table tennis's arena from the national ranking event up, modelled on Malawati Stadium, Shah Alam (2016 World Team Championships). Read by tools/stadium/build_stadium.py (builder venues/malawati.py) and by scripts/bowl.gd. Godot coordinates, metres. A circle: inner_half and corner_radius all 9.5, which keeps the cameras and photographers round the barriers (TableTennisTable.BARRIER_X/Z 3.6, 5.4) on the floor.",
+  "builder": "malawati",
+  "inner_half": [
+    9.5,
+    9.5
+  ],
+  "corner_radius": 9.5,
+  "seat_spacing": 0.56,
+  "seat_colour": [
+    0.62,
+    0.12,
+    0.16
+  ],
+  "crowd_detail": 0.2,
+  "podium": {
+    "solid_height": 1.0
+  },
+  "tiers": [
+    {
+      "name": "lower",
+      "first_offset": 0.3,
+      "rows": 13,
+      "depth": 0.8,
+      "rise": 0.42,
+      "base": 1.0
+    },
+    {
+      "name": "upper",
+      "first_offset": 13.0,
+      "rows": 9,
+      "depth": 0.85,
+      "rise": 0.55,
+      "base": 7.6
+    }
+  ],
+  "concourse": {
+    "from_offset": 10.7,
+    "to_offset": 12.7,
+    "height": 6.46
+  },
+  "back_wall": {
+    "offset": 20.95,
+    "spring": 15.5
+  },
+  "dome": {
+    "crown": 28.0,
+    "oculus": 4.0,
+    "ribs": 24,
+    "catwalk": 17.5,
+    "catwalk_radius": 11.0
+  },
+  "aisles": {
+    "width": 1.1,
+    "corner_deg": [
+      15.0,
+      45.0,
+      75.0
+    ]
+  },
+  "screens": [
+    {
+      "cube": true,
+      "at": [
+        0.0,
+        0.0
+      ],
+      "size": [
+        5.0,
+        2.9
+      ],
+      "bottom": 11.0
+    }
+  ],
+  "rig": {
+    "half_width": 3.6,
+    "half_length": 5.4,
+    "hall_height": 5.2
+  },
+  "detail_bands": [
+    [
+      9,
+      0.22
+    ],
+    [
+      16,
+      0.1
+    ],
+    [
+      999,
+      0.06
+    ]
+  ]
+}

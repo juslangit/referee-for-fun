@@ -581,7 +581,7 @@ def run(repo, venue, build, make_materials, uv_metres, scene=None):
     # venue gave it, since another venue's scene in the same Blender may already hold a
     # material of that name and this one has been called "glass.001".
     for key, m in b.materials.items():
-        m.use_backface_culling = key not in ("glass", "cloth", "net", "fabric", "drape", "wrap")
+        m.use_backface_culling = key not in ("glass", "cloth", "net", "fabric", "drape")
     window = bpy.context.window
     if window is not None:
         window.scene = sc
@@ -701,3 +701,73 @@ def bleacher(b, plan, tier, run, deck="deck", plank="plank", frame="frame", nosi
             b.run_end(skirt or wrap, run, end, [(first, 0.0), (back, 0.0), (back, top), (first, base + rise)])
     if skirt:
         b.run_band(skirt, run, first - 0.02, 0.0, first - 0.02, base + rise - 0.05, "in")
+
+
+# --- arena parts ----------------------------------------------------------------------
+
+def podium(b, plan, solid_height, thickness=0.25, glass_top=None, ribbon="ribbon",
+           wall="walls", glass="glass", steel="steel"):
+    """The court-side wall all the way round the bowl: a solid face, an LED ribbon along it,
+    and glass above it if `glass_top` is given."""
+    b.band(wall, 0.0, 0.0, 0.0, solid_height, "in")
+    b.band(wall, 0.0, solid_height, thickness, solid_height, "up")
+    if ribbon:
+        b.band(ribbon, -0.02, solid_height * 0.25, -0.02, solid_height * 0.88, "in")
+    if glass_top:
+        b.band(glass, 0.08, solid_height, 0.08, glass_top, "in")
+        b.band(steel, 0.06, glass_top - 0.02, 0.10, glass_top + 0.04, "up")
+
+
+def floor_quad(b, plan, material, y=-0.008, margin=0.0):
+    """The arena floor out to the podium (a rounded rectangle, as a fan of quads)."""
+    n = len(plan.frame)
+    c = (plan.cx, y, plan.cz)
+    for i in range(n):
+        j = (i + 1) % n
+        a = plan.at(i, margin, y)
+        bb = plan.at(j, margin, y)
+        b.tri(material, c, a, bb, (0, 1, 0))
+
+
+def space_frame(b, x0, x1, z0, z1, y_low, y_high, spacing, chord="steel", web="steel",
+                chord_size=0.22, web_size=0.1):
+    """A flat roof's deep steel grid: a top and a bottom grid of chords, offset by half a
+    bay, with diagonal webs between them — the black lattice over every modern arena."""
+    nx = max(1, int(round((x1 - x0) / spacing)))
+    nz = max(1, int(round((z1 - z0) / spacing)))
+    sx = (x1 - x0) / nx
+    sz = (z1 - z0) / nz
+    for i in range(nx + 1):
+        x = x0 + sx * i
+        b.beam(chord, (x, y_low, z0), (x, y_low, z1), chord_size, chord_size)
+    for k in range(nz + 1):
+        z = z0 + sz * k
+        b.beam(chord, (x0, y_low, z), (x1, y_low, z), chord_size, chord_size)
+    for i in range(nx):
+        x = x0 + sx * (i + 0.5)
+        b.beam(chord, (x, y_high, z0), (x, y_high, z1), chord_size * 0.8, chord_size * 0.8)
+    for k in range(nz):
+        z = z0 + sz * (k + 0.5)
+        b.beam(chord, (x0, y_high, z), (x1, y_high, z), chord_size * 0.8, chord_size * 0.8)
+    # Webs: from each bottom node up to the four top nodes round it, every other node so the
+    # grid reads as a lattice and stays a few thousand triangles.
+    for i in range(nx + 1):
+        for k in range(nz + 1):
+            if (i + k) % 2:
+                continue
+            p = (x0 + sx * i, y_low, z0 + sz * k)
+            for di in (-0.5, 0.5):
+                for dk in (-0.5, 0.5):
+                    q = (p[0] + sx * di, y_high, p[2] + sz * dk)
+                    if x0 <= q[0] <= x1 and z0 <= q[2] <= z1:
+                        b.tube(web, p, q, web_size * 0.5, 4)
+
+
+def tier_fascia(b, plan, offset, y0, y1, material="walls", ribbon=None, ribbon_band=None):
+    """A solid balcony front round the bowl at `offset`, from y0 to y1, its top capped, and an
+    LED ribbon along it if asked (ribbon_band = (from, to) heights)."""
+    b.band(material, offset, y0, offset, y1, "in")
+    b.band(material, offset, y1, offset + 0.25, y1, "up")
+    if ribbon:
+        lo, hi = ribbon_band
+        b.band(ribbon, offset - 0.02, lo, offset - 0.02, hi, "in")

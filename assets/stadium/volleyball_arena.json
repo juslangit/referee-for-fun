@@ -1,0 +1,100 @@
+{
+  "about": "Indoor volleyball's arena from the national league up: an exhibition hall fitted out for the Games, modelled on MITEC, Kuala Lumpur (2017 SEA Games). Read by tools/stadium/build_stadium.py (builder venues/mitec.py) and by scripts/bowl.gd. Godot coordinates, metres. inner_half[0] is the front of the two telescopic stands, as the community hall's bleachers. The drapes close the ends at drape_z, behind the event's backdrop (+z) and screen (-z), which hang at z 14.75 and -14.65.",
+  "builder": "mitec",
+  "inner_half": [
+    9.5,
+    14.0
+  ],
+  "seat_spacing": 0.55,
+  "seat_colour": [
+    0.1,
+    0.3,
+    0.7
+  ],
+  "crowd_detail": 0.3,
+  "aisles": {
+    "width": 1.1
+  },
+  "tiers": [
+    {
+      "name": "telescopic stands",
+      "first_offset": 0.3,
+      "rows": 14,
+      "depth": 0.8,
+      "rise": 0.42,
+      "base": 0.4,
+      "gaps": [
+        -8.0,
+        0.0,
+        8.0
+      ],
+      "runs": [
+        {
+          "side": "-x",
+          "from": -14.0,
+          "to": 14.0
+        },
+        {
+          "side": "+x",
+          "from": -14.0,
+          "to": 14.0
+        }
+      ]
+    }
+  ],
+  "rail": {
+    "offset": 11.45,
+    "y": 7.6,
+    "height": 1.2,
+    "runs": [
+      {
+        "side": "-x",
+        "from": -14.0,
+        "to": 14.0
+      },
+      {
+        "side": "+x",
+        "from": -14.0,
+        "to": 14.0
+      }
+    ]
+  },
+  "hall": {
+    "half_x": 30.0,
+    "half_z": 42.0,
+    "height": 22.0,
+    "panel_band": 4.5,
+    "shutters": [
+      0.2,
+      0.62
+    ],
+    "truss_bay": 9.0,
+    "truss_bottom": 18.5,
+    "lamp_x": [
+      -22.0,
+      -14.0,
+      -6.0,
+      6.0,
+      14.0,
+      22.0
+    ],
+    "drape_z": 16.0,
+    "drape_half": 9.4,
+    "drape_height": 5.0
+  },
+  "rig": {
+    "half_width": 4.5,
+    "half_length": 9.0,
+    "hall_height": 11.0
+  },
+  "detail_bands": [
+    [
+      16,
+      0.22
+    ],
+    [
+      999,
+      0.1
+    ]
+  ]
+}

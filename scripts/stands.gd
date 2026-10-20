@@ -44,6 +44,19 @@ var bowl: Bowl
 ## hundred, and from the umpire's chair the nearest of them is twenty metres away.
 var crowd_detail := 1.0
 
+## How much of each spectator to keep at each distance from the court: [metres, keep]
+## pairs, nearest first. A bowl's back rows are thirty metres from the chair, where a
+## sixteenth of a person cannot be told from a quarter of one, and there are thousands of
+## them. Empty means `crowd_detail` for everybody. See `Props.simplified` for the steps a
+## mesh can actually be cut to: a quarter, an eighth and a sixteenth.
+var detail_bands: Array = []
+
+## Where the distance for `detail_bands` is measured from: the middle of the court, at the
+## height of the umpire's eye.
+const BAND_FROM := Vector3(0.0, 2.5, 0.0)
+
+static var _crowd_meshes := {}
+
 ## Multiplies every seat's colour. White leaves a hall's seats as they were; a bowl sets
 ## the stadium's own colour, and its seats take nothing else (see `_build_crowd`).
 var seat_colour := Color.WHITE
@@ -645,50 +658,39 @@ func _build_crowd() -> void:
 	# sat together in a block, and thinning the crowd thins all three evenly.
 	var dealt := 0
 	var models := crowd_models()
+	var bands: Array = detail_bands
+	if bands.is_empty() and bowl != null:
+		bands = bowl.data.get("detail_bands", [])
+	if bands.is_empty():
+		bands = [[INF, crowd_detail]]
 	for which in models.size():
 		var kind: Dictionary = models[which]
 		var take := _total - dealt if which == models.size() - 1 else roundi(_total * float(kind["share"]))
 		if take <= 0:
 			continue
-		var correction := Props.turned(PERSON_FACING)
-		var sitting := Props.merged(String(kind["sitting"]), float(kind["height"]),
-			correction, crowd_detail, false, TINTED)
-		var standing := Props.merged(String(kind["standing"]), float(kind["height"]),
-			correction, crowd_detail, false, TINTED)
-		if sitting.is_empty() or standing.is_empty():
-			continue
-
-		var slice: Array[Transform3D] = []
-		var tint: Array[Color] = []
+		var whole: Array[int] = []
 		for i in range(dealt, dealt + take):
-			slice.append(seats[i])
-			tint.append(shirts[i])
+			whole.append(i)
 		dealt += take
 
-		var shape: Transform3D = sitting[1]
-		var instance := _make_crowd_mesh("Crowd%d" % which, sitting[0], slice, tint, 0.0, shape)
-		_crowds.append(instance)
-		_crowd_seats.append(slice)
-		_crowd_shapes.append(shape)
-
-		# The same people standing up, every one of them hidden to begin with. Built from
-		# the same slice so instance i is the same person in both.
-		var up_shape: Transform3D = standing[1]
-		var risen := _make_crowd_mesh("Crowd%dUp" % which, standing[0], slice, tint, 0.0, up_shape)
-		_standers.append(risen)
-		_stander_shapes.append(up_shape)
-		var group := _crowds.size() - 1
-		for i in slice.size():
-			_sit_down(group, i, slice[i])
-		risen.multimesh.visible_instance_count = 0
-
-		var jumps := PackedFloat32Array()
-		jumps.resize(slice.size())
-		_crowd_jumps.append(jumps)
-		var holds := PackedFloat32Array()
-		holds.resize(jumps.size())
-		holds.fill(0.0)
-		_crowd_holds.append(holds)
+		# Each kind of person once per distance band, from the most detailed near the court to
+		# the least in the back rows. Still contiguous runs of the shuffled list within a band,
+		# so thinning the crowd thins every band evenly too.
+		var nearer := 0.0
+		for band: Array in bands:
+			var limit: float = band[0]
+			var keep: float = band[1]
+			var slice: Array[Transform3D] = []
+			var tint: Array[Color] = []
+			for i in whole:
+				var far := seats[i].origin.distance_to(BAND_FROM)
+				if far > nearer and far <= limit or (nearer == 0.0 and far <= limit):
+					slice.append(seats[i])
+					tint.append(shirts[i])
+			nearer = limit
+			if slice.is_empty():
+				continue
+			_add_crowd_group(kind, which, keep, slice, tint)
 
 	if not _crowds.is_empty():
 		_heads = null
@@ -702,6 +704,51 @@ func _build_crowd() -> void:
 ## `lift` raises the part above the step the person is sitting on, since both
 ## MultiMeshes work from the same seat positions. `shape` is the transform that makes
 ## the mesh stand up at the right size, when the mesh came from a downloaded model.
+## One kind of person at one level of detail: the sitting MultiMesh, the standing one
+## hidden behind it, and the bookkeeping for their reactions.
+func _add_crowd_group(kind: Dictionary, which: int, keep: float, slice: Array[Transform3D],
+		tint: Array[Color]) -> void:
+	var correction := Props.turned(PERSON_FACING)
+	var sitting := _crowd_mesh(String(kind["sitting"]), float(kind["height"]), correction, keep)
+	var standing := _crowd_mesh(String(kind["standing"]), float(kind["height"]), correction, keep)
+	if sitting.is_empty() or standing.is_empty():
+		return
+
+	var shape: Transform3D = sitting[1]
+	var instance := _make_crowd_mesh("Crowd%d" % which, sitting[0], slice, tint, 0.0, shape)
+	_crowds.append(instance)
+	_crowd_seats.append(slice)
+	_crowd_shapes.append(shape)
+
+	# The same people standing up, every one of them hidden to begin with. Built from
+	# the same slice so instance i is the same person in both.
+	var up_shape: Transform3D = standing[1]
+	var risen := _make_crowd_mesh("Crowd%dUp" % which, standing[0], slice, tint, 0.0, up_shape)
+	_standers.append(risen)
+	_stander_shapes.append(up_shape)
+	var group := _crowds.size() - 1
+	for i in slice.size():
+		_sit_down(group, i, slice[i])
+	risen.multimesh.visible_instance_count = 0
+
+	var jumps := PackedFloat32Array()
+	jumps.resize(slice.size())
+	_crowd_jumps.append(jumps)
+	var holds := PackedFloat32Array()
+	holds.resize(jumps.size())
+	holds.fill(0.0)
+	_crowd_holds.append(holds)
+
+
+## A spectator's mesh at one level of detail, made once per game. Simplifying a person is
+## the slow part of building a hall, and a bowl asks for each of them three times.
+static func _crowd_mesh(path: String, height: float, correction: Transform3D, keep: float) -> Array:
+	var key := "%s|%.3f|%.3f" % [path, height, keep]
+	if not _crowd_meshes.has(key):
+		_crowd_meshes[key] = Props.merged(path, height, correction, keep, false, TINTED)
+	return _crowd_meshes[key]
+
+
 func _make_crowd_mesh(
 	part: String,
 	mesh: Mesh,

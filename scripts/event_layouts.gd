@@ -55,6 +55,19 @@ static func for_sport(sport: StringName) -> Dictionary:
 
 
 ## Which way a thing standing at `at` has to turn to face `target`.
+## A modelled venue's video screens (`Bowl.screen_spots`), shown from rung `from` up, for the
+## event to put the score on. Empty if the venue has not been built.
+static func _screens_from(venue: String, from: int) -> Array:
+	var path := "res://assets/stadium/%s.json" % venue
+	if not ResourceLoader.exists(path):
+		return []
+	var out := []
+	for spot in Bowl.open(path).screen_spots():
+		spot["from"] = from
+		out.append(spot)
+	return out
+
+
 static func facing(at: Vector3, target := Vector3.ZERO) -> float:
 	return atan2(target.x - at.x, target.z - at.z)
 
@@ -87,12 +100,16 @@ static func badminton() -> Dictionary:
 		"logo": "logo_badminton",
 		"cameras": cameras,
 		"people": people,
+		# The event's name on the community hall's end wall. In the arena that wall is the
+		# end of the seating bowl, and its sponsors run round the suites instead.
 		"hangings": [
 			{"at": Vector3(0.0, 5.4, 13.2), "turn": PI, "size": Vector2(10.0, 2.8),
-				"backing": Color(0.03, 0.22, 0.24), "from": R},
+				"backing": Color(0.03, 0.22, 0.24), "from": S, "until": S},
 		],
 		"rail_banners": {"per_level": [0, 3, 5], "sides": [-1.0], "logo_every": 3, "above": 2.0},
 		"crowd_flags": {"per_level": [2, 10, 26]},
+		# The score on all four faces of the arena's screen cube, from the state open up.
+		"screens": _screens_from(Court.HALLS[R], R),
 	}
 
 
@@ -202,13 +219,10 @@ static func table_tennis() -> Dictionary:
 		var seat := Vector3(bx - 0.4, 0.0, z * (bz - 0.45))
 		props.append({"kind": "chair", "at": seat, "turn": facing(seat), "colour": Color(0.75, 0.12, 0.45),
 			"from": R})
+	# The vertical banners that hung behind the stands, and the screen that stood behind the
+	# end barrier, went on 2026-10-20: inside Malawati the stands come right up to them, and
+	# the score is on the cube hung from the dome instead (see `screens`).
 	var hangings: Array = []
-	# Vertical banners down from the roof behind both stands.
-	for side: float in [-1.0, 1.0]:
-		for z: float in [-3.4, 3.4]:
-			hangings.append({"at": Vector3(side * 9.4, 4.6, z), "turn": -side * PI * 0.5,
-				"size": Vector2(1.4, 3.6), "backing": Color(0.62, 0.10, 0.42), "fill": 0.9,
-				"picture": "logo_table_tennis", "from": R})
 	return {
 		"logo": "logo_table_tennis",
 		"paint": {
@@ -224,8 +238,7 @@ static func table_tennis() -> Dictionary:
 				{"height": 0.70, "led": true},
 			],
 		},
-		"screen": {"at": Vector3(0.0, 4.8, -bz - 1.4), "size": Vector2(5.2, 2.9), "from": A,
-			"colour": Color(0.14, 0.03, 0.12)},
+		"screens": _screens_from(TableTennisTable.HALLS[R], R),
 		"hangings": hangings,
 		"cameras": [
 			{"at": Vector3(0.0, 0.0, bz + 1.3), "look": Vector3(0.0, 0.8, 0.0), "high": true,
@@ -408,7 +421,6 @@ static func takraw() -> Dictionary:
 	var fx := TakrawSpec.HALF_WIDTH + TakrawSpec.FREE_ZONE
 	var fz := TakrawSpec.HALF_LENGTH + TakrawSpec.FREE_ZONE
 	var wall_z := TakrawSpec.HALF_LENGTH + TakrawCourt.FLOOR_MARGIN
-	var wall_x := TakrawCourt.HALL_HALF_WIDTH
 	var props: Array = [
 		# The officials' tables behind the referee's chair, white-skirted.
 		{"kind": "table", "at": Vector3(fx - 0.6, 0.0, -2.2), "turn": -PI * 0.5, "length": 2.4,
@@ -425,11 +437,8 @@ static func takraw() -> Dictionary:
 		{"at": Vector3(0.0, 4.6, wall_z - 0.25), "turn": PI, "size": Vector2(5.0, 1.4),
 			"picture": "banner_selamat_datang", "fill": 1.0, "from": S, "until": S},
 	]
-	# The LED ribbon along the top of both stands.
-	for side: float in [-1.0, 1.0]:
-		hangings.append({"at": Vector3(side * (wall_x - 0.3), 5.6, 0.0), "turn": -side * PI * 0.5,
-			"size": Vector2(16.0, 1.0), "backing": Color(0.04, 0.16, 0.62), "glowing": true,
-			"fill": 0.8, "from": A})
+	# The LED ribbon along the stands is part of the modelled Stadium Titiwangsa now, on the
+	# wall in front of them (see `TakrawCourt.HALLS`).
 	var people: Array = [
 		_person("AssistantReferee", Vector3(-TakrawSpec.POST_X - 0.5, 0.0, 0.35), OFFICIAL_NAVY, S,
 			false, Vector3(0.0, 0.0, 0.35)),
