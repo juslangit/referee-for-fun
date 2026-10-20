@@ -191,3 +191,18 @@ The hall, the court, the nets and the umpire's chair are built in code.
 
 Barlow Condensed and Barlow Semi Condensed, by The Barlow Project Authors (Jeremy Tribby).
 <https://github.com/jpt/barlow> — SIL Open Font License 1.1, `assets/fonts/OFL.txt`.
+
+## The tennis stadium and its sky
+
+The stadium round the tennis court was modelled for this game in Blender by
+`tools/stadium/build_stadium.py`, from the numbers in `assets/stadium/tennis_bowl.json`.
+Its sky and its textures are from [Poly Haven](https://polyhaven.com), all CC0 (no credit
+required, credited anyway):
+
+- **Rural Asphalt Road** (HDRI) by Alexander Scholten — the sky over the tennis stadium
+- **concrete_floor_02** — the stadium steps
+- **concrete_panels** — the stadium walls
+- **square_concrete_pavers** — the plaza round the stadium
+- **box_profile_metal_sheet** — the stadium roof
+
+The textures were turned grey for the stadium; the originals are in `tools/stadium/textures/`.

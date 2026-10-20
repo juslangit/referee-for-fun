@@ -1,0 +1,101 @@
+{
+  "about": "The tennis stadium's bowl. Read by tools/stadium/build_stadium.py (Blender, through the MCP) to model the steps, and by scripts/bowl.gd to seat the crowd on them, so the two cannot drift apart. Godot coordinates: x across the court, z along it, y up, metres. Every row runs round a rounded rectangle offset outwards from the inside face of the podium wall.",
+  "inner_half": [
+    10.4,
+    21.0
+  ],
+  "corner_radius": 5.0,
+  "podium": {
+    "thickness": 0.25,
+    "solid_height": 1.6,
+    "glass_top": 2.75
+  },
+  "tiers": [
+    {
+      "name": "lower",
+      "first_offset": 0.25,
+      "rows": 14,
+      "depth": 0.85,
+      "rise": 0.4,
+      "base": 1.6
+    },
+    {
+      "name": "upper",
+      "first_offset": 14.85,
+      "rows": 8,
+      "depth": 0.85,
+      "rise": 0.55,
+      "base": 8.4
+    }
+  ],
+  "concourse": {
+    "from_offset": 12.15,
+    "to_offset": 14.65,
+    "height": 7.2
+  },
+  "upper_front": {
+    "offset": 14.65,
+    "solid_top": 9.0,
+    "glass_top": 9.95
+  },
+  "back_wall": {
+    "offset": 21.65,
+    "thickness": 0.35,
+    "top": 16.0
+  },
+  "roof": {
+    "inner_offset": 12.6,
+    "outer_offset": 22.6,
+    "inner_height": 17.2,
+    "outer_height": 16.0,
+    "thickness": 0.35,
+    "rib_spacing": 6.5
+  },
+  "plaza_half": [
+    55.0,
+    65.0
+  ],
+  "seat_spacing": 0.62,
+  "aisles": {
+    "width": 1.1,
+    "side_z": [
+      -13.0,
+      -5.0,
+      5.0,
+      13.0
+    ],
+    "end_x": [
+      -3.0,
+      3.0
+    ],
+    "corner_deg": [
+      45.0
+    ]
+  },
+  "screens": [
+    {
+      "corner": [
+        -1,
+        -1
+      ],
+      "size": [
+        8.0,
+        4.5
+      ],
+      "offset": 13.5,
+      "bottom": 11.6
+    },
+    {
+      "corner": [
+        1,
+        1
+      ],
+      "size": [
+        8.0,
+        4.5
+      ],
+      "offset": 13.5,
+      "bottom": 11.6
+    }
+  ]
+}

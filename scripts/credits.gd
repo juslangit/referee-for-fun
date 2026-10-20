@@ -68,6 +68,14 @@ spectator baked into static poses. The sepak takraw animations were keyed
 by hand. The hall, the court, the nets and the umpire's chair are built
 in code.
 
+SKY AND STADIUM
+
+The tennis stadium was modelled for this game in Blender by
+tools/stadium/build_stadium.py. Its sky is Rural Asphalt Road by
+Alexander Scholten, and its concrete, paving and roof textures are
+concrete_floor_02, concrete_panels, square_concrete_pavers and
+box_profile_metal_sheet, all from Poly Haven under CC0.
+
 TYPE
 
 Barlow Condensed and Barlow Semi Condensed, by The Barlow Project

@@ -96,21 +96,17 @@ static func badminton() -> Dictionary:
 	}
 
 
-## The Kuala Lumpur Tennis Open. Outdoors at the National Tennis Centre further down the
-## ladder; at the top, indoors at a stadium, with a pale grey-blue surround, "KUALA LUMPUR"
-## painted behind each baseline and a royal-blue backdrop with the event's name on it.
+## The Kuala Lumpur Tennis Open, in an open-air stadium at every rung. At the top, a pale
+## grey-blue surround, "KUALA LUMPUR" painted behind each baseline and a royal-blue backdrop
+## with the event's name on it. Until 2026-10-20 the top rung was indoors and the rest were
+## club courts inside a green windbreak.
 static func tennis() -> Dictionary:
 	var surround_x := TennisSpec.HALF_WIDTH_DOUBLES + TennisSpec.SIDE_ROOM
 	var surround_z := TennisSpec.HALF_LENGTH + TennisSpec.RUN_BACK
 	var royal := Color(0.08, 0.20, 0.58)
+	# No walls: since 2026-10-20 the court is inside a modelled stadium at every rung (see
+	# `TennisCourt._build_stands`), which replaced the club's windbreak and the indoor walls.
 	var props: Array = [
-		# Outdoors: the green windbreak round the courts, and grass beyond it.
-		{"kind": "enclosure", "at": Vector3.ZERO, "half": Vector2(17.0, 21.5), "height": 3.2,
-			"colour": Color(0.10, 0.22, 0.16), "ground": Color(0.28, 0.40, 0.24), "from": S, "until": R},
-		# Indoors: the stadium's walls, and the sponsors round them.
-		{"kind": "enclosure", "at": Vector3.ZERO, "half": Vector2(17.5, 21.5), "height": 9.0,
-			"colour": Color(0.08, 0.09, 0.12), "ground": Color(0.10, 0.10, 0.12), "from": A,
-			"band": {"height": 5.2}},
 		{"kind": "floor_text", "at": Vector3(0.0, 0.0, -15.6), "text": "KUALA LUMPUR",
 			"colour": Color(1, 1, 1, 0.92), "size": 0.0052, "from": A},
 		{"kind": "floor_text", "at": Vector3(0.0, 0.0, 15.6), "turn": PI, "text": "KUALA LUMPUR",
@@ -163,7 +159,7 @@ static func tennis() -> Dictionary:
 
 	return {
 		"logo": "logo_tennis",
-		"indoors": [false, false, true],
+		"indoors": [false, false, false],
 		"paint": {
 			"surround": [null, Color(0.14, 0.30, 0.36), Color(0.46, 0.54, 0.62)],
 			"court": [null, null, Color(0.16, 0.32, 0.56)],
@@ -179,13 +175,12 @@ static func tennis() -> Dictionary:
 				{"height": 1.0, "colour": royal},
 			],
 		},
-		"screen": {"at": Vector3(0.0, 6.0, -surround_z - 1.3), "size": Vector2(8.0, 4.2),
-			"legs": 3.9, "from": A},
+		# The score on both of the stadium's corner screens, at every rung.
+		"screens": Bowl.open(TennisCourt.BOWL).screen_spots(),
 		"hangings": hangings,
 		"cameras": cameras,
 		"props": props,
 		"people": people,
-		"rail_banners": {"per_level": [0, 4, 6], "sides": [-1.0, 1.0], "logo_every": 3, "above": 1.8},
 		"crowd_flags": {"per_level": [0, 10, 28]},
 	}
 

@@ -95,6 +95,13 @@ var _sky_environment: Environment
 ## The node holding it, so it can be taken out of the tree when the court goes indoors.
 ## Two WorldEnvironments in one scene is a coin toss over which one the renderer uses.
 var _sky_world: WorldEnvironment
+
+## Which photographed sky is over the outdoor courts (see `RealSky`).
+var sky_id: StringName = &"rural_asphalt_road"
+
+## The sun stays where the courts were lit from before the sky was a photograph — 206°
+## round and high — so the sky is turned to bring its own sun round to that bearing.
+const SUN_AZIMUTH_DEG := 206.0
 var rally: TennisRally
 
 var _beat := Beat.SERVE
@@ -302,7 +309,7 @@ func _light_for_the_venue() -> void:
 	_sky_environment.background_mode = Environment.BG_SKY
 	_sky_environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	_sky_environment.ambient_light_energy = 0.7
-	_sun.rotation = Vector3(deg_to_rad(-58.0), deg_to_rad(-26.0), 0.0)
+	_sun.rotation = RealSky.sun_rotation(sky_id, _sky_turn_deg())
 	_sun.light_color = Color(1, 1, 1)
 	_sun.light_energy = 1.15
 
@@ -352,11 +359,15 @@ func _build_sky() -> void:
 	var sun := DirectionalLight3D.new()
 	_sun = sun
 	sun.name = "Sun"
-	sun.rotation = Vector3(deg_to_rad(-58.0), deg_to_rad(-26.0), 0.0)
+	sun.rotation = RealSky.sun_rotation(sky_id, _sky_turn_deg())
 	sun.light_energy = 1.15
 	sun.shadow_enabled = true
 	add_child(sun)
 	_build_sky_environment()
+
+
+func _sky_turn_deg() -> float:
+	return float(RealSky.SKIES[sky_id]["u"]) * 360.0 - SUN_AZIMUTH_DEG
 
 
 ## Freed rather than hidden when the career reaches the indoor stadium, and built again if
@@ -376,14 +387,8 @@ func _build_sky_environment() -> void:
 	var world := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
-	var sky := Sky.new()
-	var material := ProceduralSkyMaterial.new()
-	material.sky_top_color = Color(0.24, 0.46, 0.78)
-	material.sky_horizon_color = Color(0.74, 0.82, 0.90)
-	material.ground_bottom_color = Color(0.24, 0.36, 0.24)
-	material.ground_horizon_color = Color(0.46, 0.56, 0.42)
-	sky.sky_material = material
-	env.sky = sky
+	env.sky = RealSky.sky(sky_id)
+	env.sky_rotation = RealSky.turn_radians(_sky_turn_deg())
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_energy = 0.7
 	world.environment = env

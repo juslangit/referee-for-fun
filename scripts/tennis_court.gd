@@ -34,6 +34,12 @@ const CHAIR_LAYER := 4
 const NET_PANELS := 24
 
 var stands: Stands
+## The stadium round the court: concrete bowl, roof, screens and plaza, modelled in Blender
+## by `tools/stadium/build_stadium.py`. The seats and the people in it are `stands`.
+var stadium: Node3D
+
+const STADIUM := "res://assets/stadium/tennis_stadium.glb"
+const BOWL := "res://assets/stadium/tennis_bowl.json"
 ## The event round the court: see EventDressing.
 var event: EventDressing
 
@@ -208,9 +214,20 @@ func _build_chair() -> void:
 		part.layers = CHAIR_LAYER
 
 
+## Since 2026-10-20 every rung is the same open-air stadium — Luqman's call, after the club
+## courts' windbreak and two banks of steps under a photographed sky looked empty. The
+## rungs differ by how full it is and how it is dressed, not by the building.
 func _build_stands() -> void:
+	stadium = load(STADIUM).instantiate()
+	stadium.name = "Stadium"
+	add_child(stadium)
+
 	stands = Stands.new()
 	stands.name = "Stands"
+	stands.bowl = Bowl.open(BOWL)
+	# About a thousand triangles a spectator rather than five. See `Stands.crowd_detail`.
+	stands.crowd_detail = 0.22
+	stands.seat_colour = Color(0.12, 0.26, 0.58)
 	stands.near_row_x = TennisSpec.HALF_WIDTH_DOUBLES + TennisSpec.SIDE_ROOM + 0.8
 	stands.far_row_x = TennisSpec.HALF_WIDTH_DOUBLES + TennisSpec.SIDE_ROOM + 0.8
 	stands.row_depth = 0.92
@@ -235,6 +252,10 @@ func dress(tier: Venue.Tier, density: float) -> void:
 	# After the crowd, because the flags in it are held by people who are actually there.
 	event.dress(tier)
 	event.apply_paint("surround", _surround_material)
+	# The stadium's floor out to the podium is the same paint as the court's surround.
+	for piece in stadium.find_children("*", "MeshInstance3D", true, false):
+		if String(piece.name).begins_with("Apron"):
+			(piece as MeshInstance3D).material_override = _surround_material
 	event.apply_paint("court", _surface_material)
 	# Last, and after the paint: the rung decides whether there is a roof at all, how dark
 	# the hall goes and how hard the lamps burn.

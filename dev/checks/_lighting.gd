@@ -37,11 +37,14 @@ extends Node
 ## check that instantiated the scene and looked at it — which is what this did until
 ## 2026-09-20 — was looking at an outdoor court and reporting, correctly and uselessly, that
 ## it had no lamps.
+##
+## Since 2026-10-20 tennis is outdoors at every rung, in an open-air stadium under a
+## photographed sky, so it has no truss at the top either and is checked like the beach.
 const HALLS := [
 	["badminton", "res://scenes/match.tscn", true],
 	["beach", "res://scenes/beach.tscn", false],
 	["indoor volleyball", "res://scenes/volleyball.tscn", true],
-	["tennis", "res://scenes/tennis.tscn", true],
+	["tennis", "res://scenes/tennis.tscn", false],
 	["table tennis", "res://scenes/table_tennis.tscn", true],
 	["sepak takraw", "res://scenes/sepak_takraw.tscn", true],
 ]

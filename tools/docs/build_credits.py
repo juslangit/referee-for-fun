@@ -62,6 +62,23 @@ USED_FOR = {
 
 NOT_USED = "downloaded, not currently used in the game"
 
+SKY_AND_STADIUM = """\
+## The tennis stadium and its sky
+
+The stadium round the tennis court was modelled for this game in Blender by
+`tools/stadium/build_stadium.py`, from the numbers in `assets/stadium/tennis_bowl.json`.
+Its sky and its textures are from [Poly Haven](https://polyhaven.com), all CC0 (no credit
+required, credited anyway):
+
+- **Rural Asphalt Road** (HDRI) by Alexander Scholten — the sky over the tennis stadium
+- **concrete_floor_02** — the stadium steps
+- **concrete_panels** — the stadium walls
+- **square_concrete_pavers** — the plaza round the stadium
+- **box_profile_metal_sheet** — the stadium roof
+
+The textures were turned grey for the stadium; the originals are in `tools/stadium/textures/`.
+"""
+
 MADE_HERE = """\
 ## Made for this game
 
@@ -149,7 +166,7 @@ def markdown(entries):
             "Kept in the repository, credited anyway, and not in the shipped game.", ""]
     for entry in (e for e in entries if not e["in_game"]):
         out += [f"- **{entry['title']}** by {entry['author']} — {entry['licence']}", ""]
-    out += [MADE_HERE]
+    out += [MADE_HERE, SKY_AND_STADIUM]
     return "\n".join(out)
 
 
@@ -168,6 +185,12 @@ def for_the_game(entries):
               "spectator baked into static poses. The sepak takraw animations were keyed",
               "by hand. The hall, the court, the nets and the umpire's chair are built",
               "in code.", "",
+              "SKY AND STADIUM", "",
+              "The tennis stadium was modelled for this game in Blender by",
+              "tools/stadium/build_stadium.py. Its sky is Rural Asphalt Road by",
+              "Alexander Scholten, and its concrete, paving and roof textures are",
+              "concrete_floor_02, concrete_panels, square_concrete_pavers and",
+              "box_profile_metal_sheet, all from Poly Haven under CC0.", "",
               "TYPE", "",
               "Barlow Condensed and Barlow Semi Condensed, by The Barlow Project",
               "Authors (Jeremy Tribby) — SIL Open Font License 1.1.", "",

@@ -36,6 +36,18 @@ var seat_spacing := 0.80
 ## Temporary scaffold seating on sand rather than concrete steps in a building.
 var outdoors := false
 
+## A stadium bowl to seat people in, round all four sides, instead of two straight banks of
+## steps. The bowl's steps are a model of their own (see `Bowl`), so none are built here.
+var bowl: Bowl
+
+## How much of each spectator's mesh to keep. A bowl seats thousands rather than three
+## hundred, and from the umpire's chair the nearest of them is twenty metres away.
+var crowd_detail := 1.0
+
+## Multiplies every seat's colour. White leaves a hall's seats as they were; a bowl sets
+## the stadium's own colour, and its seats take nothing else (see `_build_crowd`).
+var seat_colour := Color.WHITE
+
 ## The two sides of the hall. Typed, because a bare [1.0, -1.0] is an untyped Array
 ## and everything derived from an element of it becomes a Variant.
 const SIDES: Array[float] = [1.0, -1.0]
@@ -487,6 +499,8 @@ func _row_x(side: float, row: int) -> float:
 
 
 func _build_seating() -> void:
+	if bowl != null:
+		return
 	# A school hall's steps are pale scuffed concrete under strip lights. An arena's are
 	# dark, because the light is all on the court and the stands are meant to recede.
 	var pale := tier == Venue.Tier.SCHOOL
@@ -527,7 +541,14 @@ func _build_crowd() -> void:
 	# a white lump nobody could tell, and the moment they became recognisable chairs a
 	# stand full of them sitting at slightly different angles read as a badly built set.
 	var bolted: Array[Transform3D] = []
-	for side: float in SIDES:
+	if bowl != null:
+		for bolt in bowl.seats():
+			bolted.append(bolt)
+			var seat := bolt
+			seat.basis = bolt.basis.rotated(Vector3.UP, randf_range(-0.18, 0.18))
+			seat.origin += bolt.basis.z * randf_range(-0.06, 0.06)
+			seats.append(seat)
+	for side: float in (SIDES if bowl == null else []):
 		for row in rows:
 			var height := row_rise * float(row + 1)
 			var x := _row_x(side, row)
@@ -595,8 +616,15 @@ func _build_crowd() -> void:
 			var greys: Array[Color] = []
 			for i in _total:
 				var shade := randf_range(0.86, 1.14)
-				greys.append(Color(shade, shade, shade))
-			_make_crowd_mesh("Seats", chair[0], bolted, greys, 0.0, chair[1])
+				greys.append(Color(seat_colour.r * shade, seat_colour.g * shade, seat_colour.b * shade))
+			var seats_mesh := _make_crowd_mesh("Seats", chair[0], bolted, greys, 0.0, chair[1])
+			if bowl != null:
+				# A stadium's seats are moulded plastic in the stadium's colour, not this
+				# model's own red, so the instance colour is the whole of the colour.
+				var plastic := StandardMaterial3D.new()
+				plastic.vertex_color_use_as_albedo = true
+				plastic.roughness = 0.55
+				seats_mesh.material_override = plastic
 			# How far forward somebody steps when they get out of the chair. A real
 			# tip-up seat folds up behind them; here they simply move clear of it, which
 			# from the court is the same picture.
@@ -620,9 +648,9 @@ func _build_crowd() -> void:
 			continue
 		var correction := Props.turned(PERSON_FACING)
 		var sitting := Props.merged(String(kind["sitting"]), float(kind["height"]),
-			correction, 1.0, false, TINTED)
+			correction, crowd_detail, false, TINTED)
 		var standing := Props.merged(String(kind["standing"]), float(kind["height"]),
-			correction, 1.0, false, TINTED)
+			correction, crowd_detail, false, TINTED)
 		if sitting.is_empty() or standing.is_empty():
 			continue
 

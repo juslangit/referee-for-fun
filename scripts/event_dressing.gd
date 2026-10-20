@@ -78,7 +78,8 @@ var _materials := {}
 var _led_faces: Array[MeshInstance3D] = []
 var _led_left := LED_SECONDS
 var _led_turn := 0
-var _screen_score: Label3D
+## The score on every video screen there is. A stadium has two.
+var _screen_scores: Array[Label3D] = []
 
 
 func dress(which: Venue.Tier) -> void:
@@ -87,13 +88,16 @@ func dress(which: Venue.Tier) -> void:
 		remove_child(child)
 		child.queue_free()
 	_led_faces.clear()
-	_screen_score = null
+	_screen_scores.clear()
 	if layout.is_empty():
 		return
 	if layout.has("boards"):
 		_build_boards(layout["boards"])
 	if layout.has("screen") and _here(layout["screen"]):
 		_build_screen(layout["screen"])
+	for item in layout.get("screens", []):
+		if _here(item):
+			_build_screen(item)
 	for item in layout.get("hangings", []):
 		if _here(item):
 			_hang(item)
@@ -147,8 +151,9 @@ func indoors() -> bool:
 
 ## The score on the big screen, where there is one.
 func set_score(text: String) -> void:
-	if _screen_score != null and is_instance_valid(_screen_score):
-		_screen_score.text = text
+	for score in _screen_scores:
+		if is_instance_valid(score):
+			score.text = text
 
 
 ## Whether an item belongs at this rung: from `from` up, and no higher than `until`.
@@ -336,14 +341,15 @@ func _build_screen(spec: Dictionary) -> void:
 		var logo := _picture(logo_name, _fit(logo_name, Vector2(size.x * 0.5, size.y * 0.55)), true)
 		logo.position = Vector3(-size.x * 0.22, size.y * 0.12, 0.2)
 		screen.add_child(logo)
-	_screen_score = Label3D.new()
-	_screen_score.text = "0  -  0"
-	_screen_score.font_size = 220
-	_screen_score.pixel_size = size.y * 0.0012
-	_screen_score.outline_size = 0
-	_screen_score.modulate = Color(1.0, 0.82, 0.30)
-	_screen_score.position = Vector3(size.x * 0.24, 0.0, 0.2)
-	screen.add_child(_screen_score)
+	var score := Label3D.new()
+	score.text = "0  -  0"
+	score.font_size = 220
+	score.pixel_size = size.y * 0.0012
+	score.outline_size = 0
+	score.modulate = Color(1.0, 0.82, 0.30)
+	score.position = Vector3(size.x * 0.24, 0.0, 0.2)
+	screen.add_child(score)
+	_screen_scores.append(score)
 	if spec.has("legs"):
 		for x: float in [-size.x * 0.4, size.x * 0.4]:
 			_block(screen, "Leg", Vector3(0.18, spec["legs"], 0.18),
