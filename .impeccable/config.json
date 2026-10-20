@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          "web/index.html"
+        ],
+        "createdAt": "2026-10-20T15:51:55.027Z",
+        "reason": "claude: the only pulsing dot is the shuttle-cam REC light, a literal recording indicator mirroring the game"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "web/index.html"
+        ],
+        "createdAt": "2026-10-20T15:51:55.056Z",
+        "reason": "claude: static scan without layout; flagged wrappers (hero, sections, monitor bezel, video) are inset by .wrap and clamp() padding, verified in 1440/768/390 renders"
+      }
+    ]
+  }
+}

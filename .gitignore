@@ -65,3 +65,7 @@ __pycache__/
 # Project record: built locally, never committed (it holds session logs)
 docs/index.html
 *.blend1
+
+# Website tooling output (taste-skill inspector, Playwright CLI)
+.taste-skill/
+.playwright-cli/
