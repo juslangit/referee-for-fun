@@ -13,6 +13,9 @@ func _ready() -> void:
 	var tag := OS.get_environment("TAG")
 	var arena: Node = load(OS.get_environment("SCENE")).instantiate()
 	arena.print_truth_while_testing = false
+	if OS.has_environment("WITH_UI"):
+		# Straight into the match, so the picture has the match's own interface on it.
+		arena.cutscenes = false
 	add_child(arena)
 	await get_tree().physics_frame
 	arena.career = Career.new()
@@ -25,9 +28,10 @@ func _ready() -> void:
 		arena.ui.briefing_acknowledged.emit()
 		await get_tree().process_frame
 	arena.begin_match()
-	for f in 40:
+	for f in (400 if OS.has_environment("WITH_UI") else 40):
 		await get_tree().process_frame
-	arena.ui.visible = false
+	# WITH_UI keeps the interface, for the pictures that go on the website.
+	arena.ui.visible = OS.has_environment("WITH_UI")
 	var stem := "res://dev/shots/_venue_%s_t%d" % [tag, tier]
 	var cam := arena.camera as Camera3D
 	cam.current = true
