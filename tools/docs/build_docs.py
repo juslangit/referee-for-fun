@@ -54,6 +54,13 @@ IMAGE_QUALITY = 62
 # screenshot says it is old.
 
 GALLERIES = [
+    ("tennis-stadium", "Tennis: a stadium under a real sky", "On 2026-10-20 Luqman found the outdoor tennis courts empty: a gradient sky over a green windbreak. The sky became a Poly Haven photograph with the game's sun matched to it, and every rung became one open-air stadium modelled in Blender through the MCP, with the crowd seated on its steps from the same numbers.", [
+        ("stadium_before", "Before: the club court inside its windbreak, under the old two-colour sky."),
+        ("stadium_club", "The club rung: the same stadium, a thinner crowd."),
+        ("stadium_centre", "Centre court: a full house in both tiers, the score on the corner screen."),
+        ("stadium_chair", "From the umpire's chair at the top rung."),
+        ("stadium_air", "From above: the bowl, the cantilevered roof on its ribs, the plaza and the sky."),
+    ]),
     ("badminton-strokes", "Badminton: a stroke for every situation", "On 2026-10-15 the game was played and every contact recorded (dev/looks/_movelog): the athletes had three strokes for everything. Thirty clips replaced them, each chosen by where the shuttle is against the body, how high, how far, what the shot will be and whether a smash is coming.", [
         ("bd_strokes_live", "Forty live contacts, each labelled with the stroke the game chose and how far the racket was from the shuttle."),
         ("bd_strokes_poses", "Every new clip at its moment of contact: smashes, clears, drops, blocks, the dive, drives, net shots, lifts, the kill, both serves, and the footwork."),
