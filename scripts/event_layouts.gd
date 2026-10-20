@@ -192,13 +192,9 @@ static func tennis() -> Dictionary:
 static func table_tennis() -> Dictionary:
 	var bx := TableTennisTable.BARRIER_X
 	var bz := TableTennisTable.BARRIER_Z
-	var props: Array = [
-		{"kind": "enclosure", "at": Vector3.ZERO, "half": Vector2(9.8, 8.4), "height": 7.5,
-			"colour": Color(0.30, 0.31, 0.34), "ground": Color(0.18, 0.18, 0.20), "from": S, "until": R},
-		{"kind": "enclosure", "at": Vector3.ZERO, "half": Vector2(9.8, 8.4), "height": 7.5,
-			"colour": Color(0.56, 0.36, 0.33), "ground": Color(0.18, 0.16, 0.20), "from": A,
-			"band": {"height": 4.6}},
-	]
+	# No walls of its own since 2026-10-20: the room is a modelled building at every rung
+	# (see `TableTennisTable.HALLS`), which replaced the grey and salmon enclosures.
+	var props: Array = []
 	# Towel boxes at the ends of the playing area, and the coaches' chairs in the corners.
 	for z: float in [-1.0, 1.0]:
 		props.append({"kind": "towel_box", "at": Vector3(-bx + 0.35, 0.0, z * (bz - 0.35)),

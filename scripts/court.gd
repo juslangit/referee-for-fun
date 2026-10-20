@@ -77,6 +77,10 @@ const NET_SHAKE_AMPLITUDE := 0.055
 ## The seating and the crowd in it.
 var stands: Stands
 
+## The modelled building at this rung, and the plain box that stands in for one.
+var building: VenueBuilding
+var shell_node: Node3D
+
 ## Everything else in the hall: truss, lamps, boards, scoreboard, kit and flashes.
 var venue: Venue
 ## The event round the hall: see EventDressing.
@@ -205,7 +209,15 @@ func _build_stands() -> void:
 ## the venue goes through here, so there is one place to look for what a promotion
 ## actually does to what the player sees.
 func dress(tier: Venue.Tier) -> void:
+	if building != null:
+		building.use(tier)
+		shell_node.visible = building.model == null
+		if stands != null:
+			building.seat(stands)
 	if venue != null:
+		# Inside a modelled building, the drapes and the end-wall screen that stood in for
+		# its walls would stand in front of its seats.
+		venue.modelled = building != null and building.model != null
 		venue.dress(tier)
 	if stands != null:
 		stands.dress(tier)
@@ -250,7 +262,17 @@ func _paint_hall(tier: Venue.Tier) -> void:
 		)
 
 
-## Four walls and a roof. Nothing here is decorative — a badminton hall is a closed
+## The building round the courts: a community hall with two courts in it at the school
+## hall and the district championship, and the Axiata Arena from the state open up, both
+## modelled (see `VenueBuilding`).
+const HALLS := {
+	Venue.Tier.SCHOOL: "badminton_hall",
+	Venue.Tier.REGIONAL: "badminton_arena",
+	Venue.Tier.ARENA: "badminton_arena",
+}
+
+
+## Four walls and a roof, kept for a rung with no modelled building. Nothing here is decorative — a badminton hall is a closed
 ## box, and the shuttle needs something to be bounded by. It also stops the court
 ## reading as though it is floating in empty space.
 func _build_hall() -> void:
@@ -259,24 +281,34 @@ func _build_hall() -> void:
 	var middle := (HALL_MAX_X + HALL_MIN_X) * 0.5
 	var half_l := HALL_LENGTH * 0.5
 
+	building = VenueBuilding.new()
+	building.name = "Building"
+	for tier: Venue.Tier in HALLS:
+		if ResourceLoader.exists("res://assets/stadium/%s.glb" % HALLS[tier]):
+			building.halls[tier] = HALLS[tier]
+	add_child(building)
+	shell_node = Node3D.new()
+	shell_node.name = "Shell"
+	add_child(shell_node)
+
 	var shell: Array[MeshInstance3D] = []
 
 	for x in [HALL_MIN_X - t * 0.5, HALL_MAX_X + t * 0.5]:
-		shell.append(_add_box(
+		shell.append(_add_box_to(shell_node, 
 			"SideWall",
 			Vector3(t, HALL_HEIGHT, HALL_LENGTH),
 			Vector3(x, HALL_HEIGHT * 0.5, 0.0),
 			_wall_material
 		))
 	for dir in [1.0, -1.0]:
-		shell.append(_add_box(
+		shell.append(_add_box_to(shell_node, 
 			"EndWall",
 			Vector3(width + t * 2.0, HALL_HEIGHT, t),
 			Vector3(middle, HALL_HEIGHT * 0.5, dir * (half_l + t * 0.5)),
 			_wall_material
 		))
 
-	shell.append(_add_box(
+	shell.append(_add_box_to(shell_node, 
 		"Ceiling",
 		Vector3(width + t * 2.0, t, HALL_LENGTH + t * 2.0),
 		Vector3(middle, HALL_HEIGHT + t * 0.5, 0.0),

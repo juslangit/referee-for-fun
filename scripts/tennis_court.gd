@@ -39,7 +39,7 @@ var stands: Stands
 var stadium: Node3D
 
 const STADIUM := "res://assets/stadium/tennis_stadium.glb"
-const BOWL := "res://assets/stadium/tennis_bowl.json"
+const BOWL := "res://assets/stadium/tennis_stadium.json"
 ## The event round the court: see EventDressing.
 var event: EventDressing
 

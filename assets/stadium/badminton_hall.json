@@ -1,0 +1,117 @@
+{
+  "about": "Badminton's community hall, for the school hall and the district championship: two courts side by side, as every hall in the country has. Read by tools/stadium/build_stadium.py (builder venues/dewan.py) and by scripts/bowl.gd. The hall is centred between our court and the one behind the umpire (Venue.SECOND_COURT_X 13.4), so centre[0] is 6.9 and inner_half[0] puts the near bleachers at x -6.55, where Stands.near_row_x has always had them. The stage is at the -z end.",
+  "builder": "dewan",
+  "inner_half": [
+    13.45,
+    11.0
+  ],
+  "centre": [
+    6.9,
+    0.0
+  ],
+  "benches": true,
+  "seat_spacing": 0.56,
+  "aisles": {
+    "width": 1.0
+  },
+  "tiers": [
+    {
+      "name": "bleachers",
+      "first_offset": 0.3,
+      "rows": 5,
+      "depth": 0.8,
+      "rise": 0.36,
+      "base": 0.2,
+      "gaps": [
+        -4.0,
+        4.0
+      ],
+      "runs": [
+        {
+          "side": "-x",
+          "from": -11.0,
+          "to": 11.0
+        },
+        {
+          "side": "+x",
+          "from": -11.0,
+          "to": 11.0
+        }
+      ]
+    }
+  ],
+  "hall": {
+    "half_x": 18.55,
+    "z_from": -18.5,
+    "z_to": 13.5,
+    "eave": 8.0,
+    "apex": 12.0,
+    "bay": 5.33,
+    "purlins": 6,
+    "dado": 1.2,
+    "windows": {
+      "sill": 5.6,
+      "height": 1.8,
+      "width": 3.0
+    },
+    "doors": [
+      -12.6,
+      12.6
+    ],
+    "stage": {
+      "depth": 5.0,
+      "height": 1.1,
+      "opening": 13.0,
+      "opening_height": 4.6
+    },
+    "fan_rows": [
+      -0.55,
+      0.55
+    ],
+    "fan_height": 6.6,
+    "light_rows": [
+      -0.85,
+      -0.3,
+      0.3,
+      0.85
+    ],
+    "light_height": 7.6,
+    "colours": {
+      "floor": [
+        0.85,
+        0.92,
+        0.88
+      ],
+      "wall": [
+        0.95,
+        0.92,
+        0.82
+      ],
+      "dado": [
+        0.1,
+        0.32,
+        0.24
+      ],
+      "trim": [
+        0.95,
+        0.95,
+        0.93
+      ],
+      "steel": [
+        0.8,
+        0.82,
+        0.85
+      ],
+      "door": [
+        0.4,
+        0.22,
+        0.1
+      ]
+    }
+  },
+  "rig": {
+    "half_width": 3.05,
+    "half_length": 6.7,
+    "hall_height": 9.0
+  }
+}

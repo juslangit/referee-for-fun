@@ -522,21 +522,23 @@ def screens(b, plan, frame="dark", face="screen", steel="steel", hang_to=None):
             b.beam(steel, (rx, sc["bottom"] + h + 0.2, rz), (rx, top, rz), 0.08, 0.08)
 
 
-def lighting_rig_cables(b, plan, steel="steel"):
+def lighting_rig_cables(b, plan, steel="steel", roof_at=None):
     """Chains from the roof down to where `HallLight` hangs its truss, so the game's own
     lighting rig is seen to hang from the building rather than float in it. The numbers
-    are HallLight's multiples of the court; see `rig` in the venue's JSON."""
+    are HallLight's multiples of the court; see `rig` in the venue's JSON. The rig hangs
+    over the court, which is at the origin whatever the building's own centre is.
+    `roof_at(x)` gives the roof's height over x, for a pitched roof; otherwise `rig.roof`."""
     rig = plan.get("rig")
     if not rig:
         return
     spread = rig["half_width"] * 1.443
     run = rig["half_length"] * 1.642
     y = rig["hall_height"] * 0.90
-    top = rig["roof"]
     for side in (1.0, -1.0):
+        x = side * spread
+        top = roof_at(x) if roof_at else rig["roof"]
         for section in (-1.0, 0.0, 1.0):
             for end in (-0.4, 0.4):
-                x = side * spread
                 z = section * run + end * run * 0.8
                 b.tube(steel, (x, y + 0.4, z), (x, top, z), 0.02, 4)
 
@@ -564,7 +566,12 @@ def run(repo, venue, build, make_materials, uv_metres, scene=None):
     for m in list(bpy.data.materials):
         if m.users == 0:
             bpy.data.materials.remove(m)
-    materials = make_materials()
+    # A builder that paints each venue its own colours takes the plan.
+    materials = make_materials(plan) if make_materials.__code__.co_argcount else make_materials()
+    # Named for the venue, since every venue's scene shares one Blender and two "steps" would
+    # come out as "steps.001".
+    for key, m in materials.items():
+        m.name = f"{venue}_{key}"
     coll = bpy.data.collections.new(name)
     sc.collection.children.link(coll)
     b = Builder(plan, materials)
@@ -573,7 +580,7 @@ def run(repo, venue, build, make_materials, uv_metres, scene=None):
     # Every surface is meant to be seen from one side; glass and cloth are not. By the key a
     # venue gave it, since another venue's scene in the same Blender may already hold a
     # material of that name and this one has been called "glass.001".
-    for key, m in materials.items():
+    for key, m in b.materials.items():
         m.use_backface_culling = key not in ("glass", "cloth", "net", "fabric", "drape", "wrap")
     window = bpy.context.window
     if window is not None:
@@ -586,3 +593,111 @@ def run(repo, venue, build, make_materials, uv_metres, scene=None):
     tris = sum(sum(len(p.vertices) - 2 for p in ob.data.polygons) for ob in objects)
     print(f"{venue}: {len(objects)} meshes, {tris} triangles -> {out}")
     return tris
+
+
+# --- temporary and folding stands ---------------------------------------------------------
+
+# How far apart a stand's frame uprights are along it.
+BAY = 2.4
+
+
+def bleacher(b, plan, tier, run, deck="deck", plank="plank", frame="frame", nosing="nosing",
+             wrap=None, skirt=None, rail_height=1.05, seat_height=0.43):
+    """A stand of decks and bench planks on an open frame, down one straight run: a beach
+    grandstand's scaffold, or a hall's folding bleachers. A seated person's hips are at
+    `seat_height` over their tread, just behind its middle, which is where the plank is.
+
+    `wrap` hangs a printed cloth round the back and both ends (the beach); `skirt` closes
+    the front under the first deck."""
+    rows, depth, rise, base, first = (tier["rows"], tier["depth"], tier["rise"], tier["base"],
+                                      tier["first_offset"])
+    lo, hi = run["from"], run["to"]
+    gaps = tier.get("gaps", [])
+    gap_w = plan["aisles"]["width"] if "aisles" in plan.data else 1.0
+    nx, nz = plan.run_normal(run)
+    yaw = math.atan2(nx, nz)
+
+    def P(along, d, y):
+        return plan.run_point(run, along, d, y)
+
+    for r in range(rows):
+        d0 = first + depth * r
+        d1 = d0 + depth
+        y = base + rise * (r + 1)
+        b.run_band(deck, run, d0, y, d1, y, "up")
+        b.run_band(deck, run, d0, y - 0.05, d0, y, "in")
+        cuts = [lo] + sum(([g - gap_w * 0.5, g + gap_w * 0.5] for g in gaps), []) + [hi]
+        for k in range(0, len(cuts), 2):
+            a0, a1 = cuts[k], cuts[k + 1]
+            seat_d = d0 + depth * 0.62
+            b.run_band(plank, run, seat_d - 0.15, y + seat_height, seat_d + 0.15, y + seat_height,
+                       "up", along=(a0, a1))
+            b.run_band(plank, run, seat_d - 0.15, y + seat_height - 0.04, seat_d - 0.15,
+                       y + seat_height, "in", along=(a0, a1))
+            a = a0 + 0.3
+            while a < a1:
+                b.box(frame, P(a, seat_d, y + seat_height * 0.5), (0.05, seat_height, 0.05), yaw)
+                a += BAY
+
+    for g in gaps:
+        for r in range(rows):
+            d0 = first + depth * r
+            y = base + rise * (r + 1)
+            b.box(deck, P(g, d0 + depth * 0.75, y + rise * 0.25), (gap_w, rise * 0.5, depth * 0.5), yaw)
+            for edge, top in ((d0 + 0.02, y), (d0 + depth * 0.5 + 0.02, y + rise * 0.5)):
+                b.box(nosing, P(g, edge, top + 0.004), (gap_w * 0.96, 0.01, 0.04), yaw)
+        b.box(deck, P(g, first - 0.25, (base + rise) * 0.5), (gap_w, base + rise, 0.5), yaw)
+
+    top = base + rise * rows
+    back = first + depth * rows
+    lines = [first + depth * r for r in range(0, rows + 1, 2)]
+    if lines[-1] < back - 0.01:
+        lines.append(back)
+    stations = []
+    a = lo + 0.15
+    while a < hi:
+        stations.append(a)
+        a += BAY
+    stations.append(hi - 0.15)
+
+    def height_at(d):
+        r = max(0, min(rows - 1, int((d - first) / depth - 1e-6)))
+        return base + rise * (r + 1)
+
+    for d in lines:
+        h = height_at(d) - 0.05
+        for a in stations:
+            b.tube(frame, P(a, d, 0.0), P(a, d, h), 0.024)
+        for y in (0.15, h * 0.5):
+            if y < h:
+                b.tube(frame, P(stations[0], d, y), P(stations[-1], d, y), 0.02)
+    for a in stations:
+        for i in range(len(lines) - 1):
+            d_a, d_b = lines[i], lines[i + 1]
+            y = min(height_at(d_a), height_at(d_b)) - 0.1
+            b.tube(frame, P(a, d_a, y), P(a, d_b, y), 0.02)
+            b.tube(frame, P(a, d_a, 0.15), P(a, d_b, 0.15), 0.02)
+    for k in range(len(stations) - 1):
+        if k % 2 == 0:
+            b.tube(frame, P(stations[k], back, 0.15), P(stations[k + 1], back, top - 0.3), 0.02)
+
+    rail = top + rail_height
+    for a in stations:
+        b.tube(frame, P(a, back - 0.05, top), P(a, back - 0.05, rail), 0.024)
+    for y in (top + rail_height * 0.5, rail):
+        b.tube(frame, P(lo, back - 0.05, y), P(hi, back - 0.05, y), 0.024)
+    for end_along in (lo, hi):
+        for r in range(rows):
+            d0 = first + depth * r
+            y = base + rise * (r + 1)
+            b.tube(frame, P(end_along, d0 + 0.05, y), P(end_along, d0 + 0.05, y + 1.0), 0.02)
+        b.tube(frame, P(end_along, first + 0.05, base + rise + 1.0),
+               P(end_along, back - 0.05, top + 1.0), 0.022)
+
+    if wrap:
+        b.run_band(wrap, run, back + 0.06, 0.0, back + 0.06, top, "out")
+        b.run_band(skirt or wrap, run, back + 0.05, 0.0, back + 0.05, top, "in")
+        for end in (-1, 1):
+            b.run_end(skirt or wrap, run, end, [(first, 0.0), (back, 0.0), (back, top), (first, base + rise)])
+    if skirt:
+        b.run_band(skirt, run, first - 0.02, 0.0, first - 0.02, base + rise - 0.05, "in")

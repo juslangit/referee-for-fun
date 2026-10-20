@@ -42,6 +42,22 @@ const EYE_HEIGHT := 1.25
 const CHAIR_LAYER := 4
 
 var stands: Stands
+## The modelled building at this rung (see `VenueBuilding`).
+var building: VenueBuilding
+
+## The building round the table: a community hall at the community centre and league
+## night, and Malawati Stadium from the national ranking event up.
+const HALLS := {
+	Venue.Tier.SCHOOL: "table_tennis_hall",
+	Venue.Tier.REGIONAL: "table_tennis_arena",
+	Venue.Tier.ARENA: "table_tennis_arena",
+}
+
+## The drapes down the two long sides, between the umpire and the crowd. Taken down once
+## there is a building with people in it: the dark surround is for the players, who look
+## along the table at the ends, and the drapes at the ends stay. Down the sides they hid the
+## whole crowd from the chair, and the crowd is how the player hears what they have done.
+var _side_drapes: Array[MeshInstance3D] = []
 ## The event round the table: see EventDressing.
 var event: EventDressing
 ## The truss and lamps over the playing area: see HallLight.
@@ -200,8 +216,8 @@ func _build_barriers() -> void:
 			Vector3(dir * BARRIER_X, BARRIER_HEIGHT * 0.5, 0.0), barrier)
 		_add_box("Barrier", Vector3(BARRIER_X * 2.0, BARRIER_HEIGHT, 0.05),
 			Vector3(0.0, BARRIER_HEIGHT * 0.5, dir * BARRIER_Z), barrier)
-		_add_box("Drape", Vector3(0.04, DRAPE_HEIGHT, BARRIER_Z * 2.2),
-			Vector3(dir * (BARRIER_X + 0.5), DRAPE_HEIGHT * 0.5, 0.0), drape)
+		_side_drapes.append(_add_box("Drape", Vector3(0.04, DRAPE_HEIGHT, BARRIER_Z * 2.2),
+			Vector3(dir * (BARRIER_X + 0.5), DRAPE_HEIGHT * 0.5, 0.0), drape))
 		_add_box("Drape", Vector3(BARRIER_X * 2.2, DRAPE_HEIGHT, 0.04),
 			Vector3(0.0, DRAPE_HEIGHT * 0.5, dir * (BARRIER_Z + 0.5)), drape)
 
@@ -230,6 +246,13 @@ func _build_chair() -> void:
 
 
 func _build_stands() -> void:
+	building = VenueBuilding.new()
+	building.name = "Building"
+	for tier: Venue.Tier in HALLS:
+		if ResourceLoader.exists("res://assets/stadium/%s.glb" % HALLS[tier]):
+			building.halls[tier] = HALLS[tier]
+	add_child(building)
+
 	stands = Stands.new()
 	stands.name = "Stands"
 	stands.near_row_x = BARRIER_X + 0.7
@@ -280,6 +303,10 @@ func shake_the_net(strength := 1.0) -> void:
 func dress(tier: Venue.Tier, density: float) -> void:
 	if stands == null:
 		return
+	building.use(tier)
+	building.seat(stands)
+	for drape in _side_drapes:
+		drape.visible = building.model == null
 	stands.dress(tier)
 	stands.set_density(density)
 	# After the crowd, because the flags in it are held by people who are actually there.

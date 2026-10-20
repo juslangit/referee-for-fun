@@ -112,6 +112,11 @@ const FLASH_ENERGY := 5.0
 
 var tier := Tier.REGIONAL
 
+## Whether the hall round the court is a modelled building (`Court.HALLS`). Its walls and
+## seats are its own, so the drapes and the end-wall video screen that dressed the plain box
+## are left out — both would stand in front of the seats.
+var modelled := false
+
 var _lights: Node3D
 var _flashes: Array[OmniLight3D] = []
 var _flash_left: PackedFloat32Array = PackedFloat32Array()
@@ -142,9 +147,9 @@ func dress(which: Tier) -> void:
 	_build_second_court(spec)
 	_build_corner_boards()
 	_build_officials()
-	if spec["curtain"]:
+	if spec["curtain"] and not modelled:
 		_build_curtain()
-	if spec["video_wall"]:
+	if spec["video_wall"] and not modelled:
 		_build_video_wall()
 	if spec["scoreboard"]:
 		_build_scoreboard()

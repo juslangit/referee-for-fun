@@ -31,6 +31,9 @@ const HALL_HEIGHT := 11.0
 const HALL_HALF_WIDTH := VolleySpec.HALF_WIDTH + VolleySpec.FREE_ZONE + 1.0 + 6.0 * 0.90 + 0.7
 
 var stands: Stands
+## The modelled building at this rung, and the plain box that stands in for one.
+var building: VenueBuilding
+var shell: Node3D
 ## The event round the court: see EventDressing.
 var event: EventDressing
 
@@ -185,23 +188,42 @@ func _build_referee_stand() -> void:
 		part.layers = STAND_LAYER
 
 
-## Four walls and a ceiling, so the hall is a room rather than a floor in the void.
+## The building round the court: a community hall at the bottom of the ladder and the
+## exhibition-hall arena from the state rung up, both modelled (see `VenueBuilding`).
+const HALLS := {
+	Venue.Tier.SCHOOL: "volleyball_hall",
+	Venue.Tier.REGIONAL: "volleyball_arena",
+	Venue.Tier.ARENA: "volleyball_arena",
+}
+
+
+## Four walls and a ceiling, so the hall is a room rather than a floor in the void. Only
+## while no modelled building stands here — kept so a rung without one is still a room.
 func _build_hall() -> void:
+	building = VenueBuilding.new()
+	building.name = "Building"
+	for tier: Venue.Tier in HALLS:
+		if ResourceLoader.exists("res://assets/stadium/%s.glb" % HALLS[tier]):
+			building.halls[tier] = HALLS[tier]
+	add_child(building)
+	shell = Node3D.new()
+	shell.name = "Shell"
+	add_child(shell)
 	var length := (VolleySpec.HALF_LENGTH + FLOOR_MARGIN) * 2.0
 	var width := HALL_HALF_WIDTH * 2.0
 
 	# Plain concrete under the stands, between the sports floor and the walls.
-	_add_box("HallFloor", Vector3(width, FLOOR_THICKNESS, length),
+	_add_box_to(shell, "HallFloor", Vector3(width, FLOOR_THICKNESS, length),
 		Vector3(0.0, -0.006, 0.0), _make_material(Color(0.30, 0.30, 0.32)))
 
 	for dir in [1.0, -1.0]:
-		_add_box("EndWall", Vector3(width, HALL_HEIGHT, 0.3),
+		_add_box_to(shell, "EndWall", Vector3(width, HALL_HEIGHT, 0.3),
 			Vector3(0.0, HALL_HEIGHT * 0.5, dir * (length * 0.5)), _hall_material)
-		_add_box("SideWall", Vector3(0.3, HALL_HEIGHT, length),
+		_add_box_to(shell, "SideWall", Vector3(0.3, HALL_HEIGHT, length),
 			Vector3(dir * (width * 0.5), HALL_HEIGHT * 0.5, 0.0), _hall_material)
 
 	var roof := _make_material(Color(0.13, 0.14, 0.17))
-	_add_box("Ceiling", Vector3(width, 0.3, length),
+	_add_box_to(shell, "Ceiling", Vector3(width, 0.3, length),
 		Vector3(0.0, HALL_HEIGHT, 0.0), roof)
 
 
@@ -227,6 +249,9 @@ func _build_stands() -> void:
 func dress(tier: Venue.Tier, density: float) -> void:
 	if stands == null:
 		return
+	building.use(tier)
+	building.seat(stands)
+	shell.visible = building.model == null
 	stands.dress(tier)
 	stands.set_density(density)
 	# After the crowd, because the flags in it are held by people who are actually there.
@@ -269,6 +294,11 @@ func jeer(share: float) -> void:
 
 func _add_box(name: String, size: Vector3, at: Vector3,
 		material: StandardMaterial3D) -> MeshInstance3D:
+	return _add_box_to(self, name, size, at, material)
+
+
+func _add_box_to(parent: Node, name: String, size: Vector3, at: Vector3,
+		material: StandardMaterial3D) -> MeshInstance3D:
 	var node := MeshInstance3D.new()
 	node.name = name
 	var box := BoxMesh.new()
@@ -276,7 +306,7 @@ func _add_box(name: String, size: Vector3, at: Vector3,
 	node.mesh = box
 	node.position = at
 	node.material_override = material
-	add_child(node)
+	parent.add_child(node)
 	return node
 
 
