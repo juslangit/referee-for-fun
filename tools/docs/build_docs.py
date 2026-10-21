@@ -60,6 +60,8 @@ GALLERIES = [
         ("review_chase", "The camera coming down the court after the shuttle, the trail behind it."),
         ("review_answer", "Straight over the mark, the line beside it, and the answer on the pill."),
         ("review_beach", "The same at the beach: a volleyball's mark in the sand, IN."),
+        ("review_screen", "Halfway through the flight the picture cuts to the arena's big screen, the replay playing on it, then back for the dive."),
+        ("review_final_whistle", "The worst calls at the final whistle, played the same way: BALL TRACKING flips to the answer over the mark."),
     ]),
     ("venues", "Every sport in a real place", "On 2026-10-20 Luqman asked for the surroundings of every sport to be done before the next release, and chose a different building for each indoor sport with a community hall at the bottom of the ladder. Every venue was modelled in Blender through the MCP from one JSON that also seats the crowd: the beach under a photographed sky, a dewan for the school rungs, and arenas drawn from the Axiata Arena, MITEC, Stadium Titiwangsa and Malawati Stadium.", [
         ("venues_beach", "The beach: Spiaggia di Mondello for a sky, the sea in front of the umpire, and scaffold grandstands with the crowd on their planks."),
