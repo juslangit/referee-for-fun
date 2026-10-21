@@ -54,6 +54,13 @@ IMAGE_QUALITY = 62
 # screenshot says it is old.
 
 GALLERIES = [
+    ("review", "Reviews played out on court", "On 2026-10-21 Luqman sent a clip of the BWF review and asked for every sport's challenge to look like it. A challenged line call now empties the court, flies the ball again with a yellow trail while the camera chases it down, and dives to straight over the mark, where an OFFICIAL REVIEW pill flips to the answer. Every sport with reviews has it; a touch at the beach keeps the card.", [
+        ("review_reference", "The reference Luqman sent: the BWF review's last picture, the line and the mark, IN on the pill."),
+        ("review_wide", "The empty court from behind the hitter, the flight starting to draw itself."),
+        ("review_chase", "The camera coming down the court after the shuttle, the trail behind it."),
+        ("review_answer", "Straight over the mark, the line beside it, and the answer on the pill."),
+        ("review_beach", "The same at the beach: a volleyball's mark in the sand, IN."),
+    ]),
     ("venues", "Every sport in a real place", "On 2026-10-20 Luqman asked for the surroundings of every sport to be done before the next release, and chose a different building for each indoor sport with a community hall at the bottom of the ladder. Every venue was modelled in Blender through the MCP from one JSON that also seats the crowd: the beach under a photographed sky, a dewan for the school rungs, and arenas drawn from the Axiata Arena, MITEC, Stadium Titiwangsa and Malawati Stadium.", [
         ("venues_beach", "The beach: Spiaggia di Mondello for a sky, the sea in front of the umpire, and scaffold grandstands with the crowd on their planks."),
         ("venues_hall", "A community hall at the school rungs: louvred windows, portal frames, fans, battens, a stage and wooden bleachers."),
