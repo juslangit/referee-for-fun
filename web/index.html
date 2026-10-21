@@ -428,7 +428,7 @@ footer nav a:hover{color:var(--gold)}
 <section id="trailer" aria-labelledby="trailer-h">
   <img class="bg" src="img/wide-badminton.jpg" alt="" width="1400" height="788" loading="lazy">
   <div class="wrap">
-    <p class="release rv">Release date <b data-rel="date">21 October 2026</b></p>
+    <p class="release rv">Release date <b data-rel="date">1 November 2026</b></p>
     <h2 class="orn rv" id="trailer-h" style="--d:80ms;margin-top:28px">Six sports. One chair.</h2>
     <p class="sub rv" style="--d:160ms">Ninety seconds recorded out of the running game. Every rally, every call and every time the crowd gets out of its seat is something the game did on its own.</p>
     <div class="monitor rv" style="--d:240ms">
@@ -640,7 +640,7 @@ footer nav a:hover{color:var(--gold)}
         <div>
           <p class="t">Desktop game · single player · free, nothing to buy</p>
           <h2 id="dl-h"><span translate="no">Referee For Fun</span> <span data-rel="version">v0.3.1</span></h2>
-          <p class="release">Released <b data-rel="date">21 October 2026</b><span class="count" data-rel="count" hidden></span></p>
+          <p class="release">Release date <b data-rel="date">1 November 2026</b><span class="count" data-rel="count" hidden></span></p>
         </div>
         <a class="textlink" href="#versions">What's new in this version</a>
       </div>
@@ -1062,7 +1062,6 @@ document.documentElement.classList.add('js');
 /* ---- live release info, through /api/release (cached GitHub data); the page as written is the fallback ---- */
 (function(){
   if (!window.fetch) return;
-  var longDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
   var shortDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
   var mb = function(b){ return new Intl.NumberFormat('en-GB').format(Math.round(b / 1048576)) + '\u00a0MB'; };
   var esc = function(s){ return s.replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
@@ -1091,9 +1090,8 @@ document.documentElement.classList.add('js');
       var latest = rels[0];
       var asset = function(r, ext){ return (r.assets || []).filter(function(a){ return a.name.slice(-ext.length) === ext; })[0]; };
       var dmg = asset(latest, '.dmg'), exe = asset(latest, '.exe');
-      var dateText = longDate.format(new Date(latest.published));
       document.querySelectorAll('[data-rel="version"]').forEach(function(e){ e.textContent = latest.tag; });
-      document.querySelectorAll('[data-rel="date"]').forEach(function(e){ e.textContent = dateText; });
+      // The announced release date is set by hand in the page (1 November 2026), not taken from GitHub.
       if (data.downloads > 0) document.querySelectorAll('[data-rel="count"]').forEach(function(e){
         e.textContent = new Intl.NumberFormat('en-GB').format(data.downloads) + ' downloads so far'; e.hidden = false;
       });
