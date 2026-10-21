@@ -641,9 +641,15 @@ func _take_the_stroke(here: Vector3) -> void:
 			Vector3(target.x, 0.0, target.z + signf(target.z) * 0.55),
 			Sides.opponent(hitter)))
 
-	# Off the rubber rather than out of the air beside it.
-	send_over(_striker.struck_from(Vector3(here.x, maxf(here.y, STRIKE_HEIGHT), here.z)),
-		target, RALLY_ANGLES)
+	# Off the rubber rather than out of the air beside it — and never from below the
+	# table top. `struck_from` may bring the contact down 30 cm to the bat, which behind
+	# the end of the table put it under the table's height, where no flight reaches the
+	# far half; the solver gave up, the ball was launched at no speed, fell through the
+	# floor, and the point hung for 22 seconds until the time limit called it
+	# (found 2026-10-21, three rallies in twelve).
+	var contact := _striker.struck_from(Vector3(here.x, maxf(here.y, STRIKE_HEIGHT), here.z))
+	contact.y = maxf(contact.y, TableTennisSpec.HEIGHT + 0.06)
+	send_over(contact, target, RALLY_ANGLES)
 
 
 ## A ball hit safely onto the far half, which the other player will reach and return.

@@ -89,9 +89,20 @@ func _look(name: String, scene: String, sport: StringName) -> void:
 	print("%s: reviewing %d points of flight, margin %.2f, truth %s" % [
 		name, path.size(), rally.margin, "IN" if rally.was_in else "OUT"])
 
+	# `-- <dir> <sport> booth` plays this call as the final whistle's replay instead.
+	var booth := OS.get_cmdline_user_args().size() > 2 and OS.get_cmdline_user_args()[2] == "booth"
 	var state := {"finished": false}
 	var run := func() -> void:
-		await arena.review(Sides.Team.RED)
+		if booth:
+			arena.worst_calls.consider(rally, path)
+			var replays := ReplayBooth.new()
+			replays.arena = arena
+			arena.add_child(replays)
+			# As the real ending does: the paper's photograph first, then the replays.
+			await replays.photograph(arena.worst_calls.worst())
+			await replays.play(arena.worst_calls.countdown())
+		else:
+			await arena.review(Sides.Team.RED)
 		state.finished = true
 	run.call()
 	var shot := 0

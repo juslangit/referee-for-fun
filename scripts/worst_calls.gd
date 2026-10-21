@@ -34,6 +34,8 @@ func consider(rally, path: PackedVector3Array) -> void:
 	moments.append({
 		"path": path,
 		"landing": rally.landing_point,
+		# How far from the line, so the replay's last picture can keep the line in it.
+		"margin": float(rally.margin),
 		"seen": float(rally.visibility()),
 		"changed": bool(rally.changed_the_result()),
 		"called": call_words(rally),

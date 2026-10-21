@@ -271,6 +271,20 @@ const FIDGET_MOST := 450
 ## How far above a seated spectator's own origin the bubble's tail points. A little
 ## over the 0.78 the head mesh is lifted by, so the tail lands just clear of the hair
 ## rather than through it.
+## The hall clapping in time while a review plays (2026-10-21). A clap every 0.21 s,
+## the tempo of the recording under it (`Sound.REVIEW_CLAPPING`); the share of the seated
+## hall that joins in; how far each one is off the beat, so it reads as a room and not a
+## machine; and how much a clap moves somebody, which from the court is a small dip and
+## lean forward.
+const CLAP_EVERY := 0.21
+const CLAP_SHARE := 0.5
+const CLAP_SLOP := 0.035
+const CLAP_DIP := 0.03
+const CLAP_LEAN := 0.11
+## A ceiling on how many clap at once, for the same reason as `FIDGET_MOST`: every one is
+## a transform written every frame.
+const CLAP_MOST := 1400
+
 const MOUTH_HEIGHT := 1.02
 
 var _heads: MultiMeshInstance3D
@@ -322,6 +336,12 @@ var _fidget_due: PackedFloat32Array = PackedFloat32Array()
 ## records rallies by what the game does with a given run of numbers.
 var _dice := RandomNumberGenerator.new()
 
+## Who is clapping along, per group, and how far off the beat each is. Empty when the
+## hall is not.
+var _clappers: Array = []
+var _clap_offsets: Array = []
+var _clap_clock := 0.0
+
 ## Where everybody sits, and how far through their jump each of them is. Kept so a
 ## cheer can be drawn by moving instances rather than by animating three hundred
 ## skeletons, which is the one thing a MultiMesh cannot do.
@@ -352,6 +372,8 @@ func dress(which: Venue.Tier) -> void:
 		remove_child(child)
 		child.queue_free()
 	_heads = null
+	_clappers.clear()
+	_clap_offsets.clear()
 	_crowds.clear()
 	_crowd_seats.clear()
 	_standers.clear()
@@ -477,8 +499,64 @@ func _react(share: float, seconds: float, standing: bool) -> void:
 	_draw_the_risen(_cheering)
 
 
+## The hall claps in time, or stops.
+func clap_along(on: bool) -> void:
+	for group in _clappers.size():
+		var seats: Array[Transform3D] = _crowd_seats[group]
+		var jumps: PackedFloat32Array = _crowd_jumps[group]
+		for i in _clappers[group]:
+			if jumps[i] <= 0.0:
+				_sit_down(group, i, seats[i])
+	_clappers.clear()
+	_clap_offsets.clear()
+	_clap_clock = 0.0
+	if not on:
+		return
+	for group in _crowds.size():
+		var multi: MultiMesh = _crowds[group].multimesh
+		var shown := multi.visible_instance_count
+		if shown < 0:
+			shown = multi.instance_count
+		var most := ceili(CLAP_MOST * float(_crowd_seats[group].size()) / maxf(_total, 1.0))
+		var who := PackedInt32Array()
+		var off := PackedFloat32Array()
+		for i in shown:
+			if who.size() >= most:
+				break
+			if _dice.randf() < CLAP_SHARE:
+				who.append(i)
+				off.append(_dice.randf_range(-CLAP_SLOP, CLAP_SLOP))
+		_clappers.append(who)
+		_clap_offsets.append(off)
+
+
+func _clap(delta: float) -> void:
+	if _clappers.is_empty():
+		return
+	_clap_clock += delta
+	for group in _clappers.size():
+		var who: PackedInt32Array = _clappers[group]
+		var off: PackedFloat32Array = _clap_offsets[group]
+		var seats: Array[Transform3D] = _crowd_seats[group]
+		var jumps: PackedFloat32Array = _crowd_jumps[group]
+		var clocks: PackedFloat32Array = _fidget_clocks[group]
+		for k in who.size():
+			var i := who[k]
+			# Somebody on their feet or mid-fidget is being moved by that instead.
+			if jumps[i] > 0.0 or clocks[i] > 0.0:
+				continue
+			# Sharp on the beat and easing back: the hands meet, and the body follows.
+			var beat := fposmod((_clap_clock + off[k]) / CLAP_EVERY, 1.0)
+			var pulse := exp(-beat * 6.0)
+			var seat := seats[i]
+			seat.origin.y -= pulse * CLAP_DIP
+			seat.basis = seat.basis * Basis(Vector3.RIGHT, -pulse * CLAP_LEAN)
+			_sit_down(group, i, seat)
+
+
 func _process(delta: float) -> void:
 	_fidget(delta)
+	_clap(delta)
 	if not _cheering:
 		return
 

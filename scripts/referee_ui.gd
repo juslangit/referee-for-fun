@@ -1089,24 +1089,8 @@ func _build_review_pill() -> void:
 	foot.add_theme_constant_override("separation", 8)
 	_pill_sheet.add_child(foot)
 
-	# White, rounded, ringed in black, with a shadow under it: the broadcast's pill.
-	_pill = PanelContainer.new()
-	_pill.custom_minimum_size = Vector2(300, 112)
-	var face := StyleBoxFlat.new()
-	face.bg_color = UiTheme.PAPER
-	face.set_corner_radius_all(26)
-	face.set_border_width_all(6)
-	face.border_color = UiTheme.INK
-	face.shadow_color = Color(0, 0, 0, 0.45)
-	face.shadow_size = 10
-	face.shadow_offset = Vector2(0, 4)
-	face.content_margin_left = 36
-	face.content_margin_right = 36
-	face.anti_aliasing = true
-	_pill.add_theme_stylebox_override("panel", face)
-	_pill_word = UiTheme.label("", UiTheme.HEADING, UiTheme.INK, UiTheme.heavy())
-	_pill_word.add_theme_constant_override("line_spacing", -8)
-	_pill.add_child(_pill_word)
+	_pill = _make_pill()
+	_pill_word = _pill.get_child(0)
 	foot.add_child(_centred(_pill))
 
 	_pill_result = UiTheme.label("", UiTheme.BODY, UiTheme.CHALK, UiTheme.heavy())
@@ -1119,6 +1103,30 @@ func _build_review_pill() -> void:
 	foot.add_child(_pill_hint)
 
 
+## White, rounded, ringed in black, with a shadow under it: the broadcast's pill. Its
+## one child is the label with the word on it.
+func _make_pill() -> PanelContainer:
+	var pill := PanelContainer.new()
+	pill.custom_minimum_size = Vector2(300, 112)
+	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var face := StyleBoxFlat.new()
+	face.bg_color = UiTheme.PAPER
+	face.set_corner_radius_all(26)
+	face.set_border_width_all(6)
+	face.border_color = UiTheme.INK
+	face.shadow_color = Color(0, 0, 0, 0.45)
+	face.shadow_size = 10
+	face.shadow_offset = Vector2(0, 4)
+	face.content_margin_left = 36
+	face.content_margin_right = 36
+	face.anti_aliasing = true
+	pill.add_theme_stylebox_override("panel", face)
+	var word := UiTheme.label("", UiTheme.HEADING, UiTheme.INK, UiTheme.heavy())
+	word.add_theme_constant_override("line_spacing", -8)
+	pill.add_child(word)
+	return pill
+
+
 ## Opens the review played in the hall. The answer is not on it yet.
 func show_review_pill(team: Sides.Team, reviews_left: int) -> void:
 	hide_close_cam()
@@ -1126,7 +1134,7 @@ func show_review_pill(team: Sides.Team, reviews_left: int) -> void:
 	_pill_tag.add_theme_stylebox_override("panel", UiTheme.slant(Sides.colour(team)))
 	_pill_note.text = "%s has %d review%s left" % [
 		Sides.label(team), reviews_left, "" if reviews_left == 1 else "s"]
-	_set_pill_word("OFFICIAL\nREVIEW")
+	_set_pill_word(_pill_word, "OFFICIAL\nREVIEW")
 	_pill_result.text = ""
 	_pill_hint.text = ""
 	_pill.scale = Vector2.ONE
@@ -1151,21 +1159,25 @@ func _quiet_the_hud(quiet: bool) -> void:
 
 ## Flips the pill over to `word`: it closes up to a line, changes, and opens again.
 func flip_review_pill(word: String) -> void:
+	_flip(_pill, _pill_word, word)
+
+
+func _flip(pill: PanelContainer, label: Label, word: String) -> void:
 	if _pill_turn != null and _pill_turn.is_valid():
 		_pill_turn.kill()
-	_pill.pivot_offset = _pill.size * 0.5
+	pill.pivot_offset = pill.size * 0.5
 	_pill_turn = create_tween()
-	_pill_turn.tween_property(_pill, "scale:y", 0.0, 0.11).set_ease(Tween.EASE_IN)
-	_pill_turn.tween_callback(_set_pill_word.bind(word))
-	_pill_turn.tween_property(_pill, "scale:y", 1.0, 0.16) \
+	_pill_turn.tween_property(pill, "scale:y", 0.0, 0.11).set_ease(Tween.EASE_IN)
+	_pill_turn.tween_callback(_set_pill_word.bind(label, word))
+	_pill_turn.tween_property(pill, "scale:y", 1.0, 0.16) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 
 
-func _set_pill_word(word: String) -> void:
-	_pill_word.text = word
+func _set_pill_word(label: Label, word: String) -> void:
+	label.text = word
 	var short := word.length() <= 8
-	_pill_word.add_theme_font_size_override("font_size", UiTheme.HUGE if short else UiTheme.HEADING + 4)
-	_pill_word.add_theme_font_override("font", UiTheme.heavy())
+	label.add_theme_font_size_override("font_size", UiTheme.HUGE if short else UiTheme.HEADING + 4)
+	label.add_theme_font_override("font", UiTheme.heavy())
 
 
 ## What the answer did to the call, under the pill.
@@ -4086,6 +4098,8 @@ var _replay_said: Label
 var _replay_truth: Label
 var _replay_close: PanelContainer
 var _replay_view: TextureRect
+var _replay_pill: PanelContainer
+var _replay_pill_word: Label
 
 
 func _build_replay() -> void:
@@ -4138,19 +4152,27 @@ func _build_replay() -> void:
 	_replay_view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	close_stack.add_child(_replay_view)
 
-	# The words, bottom centre: what you said, and underneath it what was true.
+	# Bottom centre: the review's pill, and under it the words — what you said, and
+	# underneath that what was true. Since 2026-10-21 the replay is played the way a
+	# review is (`ReviewReplay`), so it carries the same pill, reading BALL TRACKING
+	# until the ball is down and then the answer.
+	var foot := VBoxContainer.new()
+	foot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	foot.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	foot.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	foot.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	foot.offset_bottom = -REPLAY_INSET
+	foot.alignment = BoxContainer.ALIGNMENT_END
+	foot.add_theme_constant_override("separation", 14)
+	_replay.add_child(foot)
+	_replay_pill = _make_pill()
+	_replay_pill_word = _replay_pill.get_child(0)
+	foot.add_child(_centred(_replay_pill))
 	var caption := PanelContainer.new()
 	caption.add_theme_stylebox_override("panel", UiTheme.plate(UiTheme.ACCENT, 0.90))
 	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	caption.anchor_left = 0.5
-	caption.anchor_right = 0.5
-	caption.anchor_top = 1.0
-	caption.anchor_bottom = 1.0
-	caption.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	caption.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	caption.offset_top = -REPLAY_INSET
-	caption.offset_bottom = -REPLAY_INSET
-	_replay.add_child(caption)
+	caption.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	foot.add_child(caption)
 	var lines := VBoxContainer.new()
 	lines.add_theme_constant_override("separation", 6)
 	caption.add_child(lines)
@@ -4192,7 +4214,14 @@ func show_replay(title: String, count: String, said: String) -> void:
 	_replay_said.text = said
 	_replay_truth.text = ""
 	_replay_close.visible = false
+	_replay_pill.scale = Vector2.ONE
+	_set_pill_word(_replay_pill_word, "BALL\nTRACKING")
 	_replay.visible = true
+
+
+## Flips the replay's pill to the answer. See `flip_review_pill`.
+func flip_replay_pill(word: String) -> void:
+	_flip(_replay_pill, _replay_pill_word, word)
 
 
 func set_replay_truth(text: String) -> void:

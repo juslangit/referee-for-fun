@@ -47,6 +47,20 @@ const MOST_FLIGHT := 2.0
 ## How much nearer the camera creeps while the answer is up, as a share of its height.
 const CREEP := 0.22
 
+## How much longer than wide the skid gets per unit of flatness, and its limit.
+const SKID_PER_FLATNESS := 0.35
+const LONGEST_SKID := 2.4
+
+## How far above the floor the mark is drawn. It is also drawn over the floor whatever the
+## depth says: at 3 mm it fought the court's own surface and came out as a broken star.
+const MARK_LIFT := 0.006
+
+## The cut to the hall's big screen (2026-10-21): from this far into the flight to its
+## end, the picture is the screen in the hall with the replay playing on it, and then it
+## cuts back for the dive. Only where the venue has a screen.
+const SCREEN_FROM := 0.45
+const FEED_SIZE := Vector2i(960, 540)
+
 const FOV := 50.0
 const TRAIL := Color(1.0, 0.85, 0.10)
 const MARK := Color(0.20, 0.22, 0.21, 0.92)
@@ -59,6 +73,10 @@ var _trail: MultiMeshInstance3D
 var _mark: MeshInstance3D
 var _ball_radius := 0.03
 
+## Set to run what is left of the replay straight to the mark. A review never sets it —
+## its wait is the point — but the replays at the final whistle take SPACE.
+var hurry := false
+
 ## What was put away for the replay and must come back after it.
 var _hidden: Array[Node3D] = []
 var _was_current: Camera3D
@@ -67,6 +85,12 @@ var _was_current: Camera3D
 var _settled := false
 var _creep_to := 0.0
 var _landing := Vector3.ZERO
+
+## The replay on the hall's screen: a second camera that copies this one, rendering into
+## a picture put up on the screen, and a camera in the hall looking at the screen.
+var _feed: SubViewport
+var _feed_camera: Camera3D
+var _hall: Camera3D
 
 
 func _ready() -> void:
@@ -82,7 +106,11 @@ func fly(path: PackedVector3Array, landing: Vector3, margin := 0.0) -> void:
 	_read_the_sport()
 	_landing = landing
 	_settled = false
-	_was_current = get_viewport().get_camera_3d()
+	# Played several times over at the final whistle: the camera to go back to is the
+	# one from before the first, not this one.
+	var showing := get_viewport().get_camera_3d()
+	if showing != _camera:
+		_was_current = showing
 	_clear_the_court()
 	# The path's last point is where the underside touched, and the ball is drawn from
 	# its middle, so it ends the flight sitting on the floor rather than half through it.
@@ -121,11 +149,13 @@ func fly(path: PackedVector3Array, landing: Vector3, margin := 0.0) -> void:
 	_camera.global_position = wide
 	_camera.look_at(court, Vector3.UP)
 	_put_ghost(path, 0.0)
+	var on_screen := _open_the_feed()
 	await _wait(WIDE_HOLD)
 
 	# The flight. The camera keeps the floor in the picture and leans towards the ball
 	# rather than staring at it: a lob at the top of its arc would otherwise fill the
 	# screen with the crowd.
+	_sound("review_flight")
 	var lasted := float(path.size() - 1) / float(Engine.physics_ticks_per_second)
 	var shown := clampf(lasted / SLOW, SHORTEST, LONGEST)
 	var t := 0.0
@@ -141,16 +171,23 @@ func fly(path: PackedVector3Array, landing: Vector3, margin := 0.0) -> void:
 		_camera.global_position = spot
 		var aim := court.lerp(landing, drift).lerp(here, 0.3 * (1.0 - drift))
 		_camera.look_at(aim, Vector3.UP)
+		# The second half of the flight as the hall sees it, up on the screen.
+		if on_screen:
+			if f >= SCREEN_FROM and f < 1.0 and not hurry:
+				_hall.current = true
+			else:
+				_camera.current = true
+	_camera.current = true
 
 	# The ball is down. What is left on the floor is the mark, at its true size.
 	_ghost.visible = false
-	_mark.global_position = landing + Vector3.UP * 0.003
-	_mark.visible = true
+	_lay_the_mark(path, landing)
 
 	# The dive: the camera comes in over the mark first and drops onto it last, so the
 	# end of it is a straight fall towards the floor rather than a swing. The trail goes
 	# early: it comes down on top of the mark, and a camera dropping onto the mark would
 	# otherwise drop through it.
+	_sound("review_dive")
 	var from := chase - landing
 	var level := Vector3(from.x, 0.0, from.z)
 	t = 0.0
@@ -170,9 +207,77 @@ func fly(path: PackedVector3Array, landing: Vector3, margin := 0.0) -> void:
 	_settled = true
 
 
+## Puts the replay up on the venue's big screen and frames a shot of it from the floor.
+## Returns whether there is a screen to cut to.
+##
+## The screen picked is the one nearest the middle of the court — the cube hung over an
+## arena floor where there is one — because the shot of it is taken from beside the court,
+## looking up, and a screen on a far wall is a smudge from there.
+func _open_the_feed() -> bool:
+	var event = arena.event_dressing()
+	if event == null:
+		return false
+	var best: Dictionary = {}
+	var nearest := INF
+	for spot: Dictionary in event.screens():
+		var node: Node3D = spot["node"]
+		if not is_instance_valid(node) or not node.is_visible_in_tree():
+			continue
+		var away := Vector2(node.global_position.x, node.global_position.z).length()
+		if away < nearest:
+			nearest = away
+			best = spot
+	if best.is_empty():
+		return false
+
+	if _feed == null:
+		_feed = SubViewport.new()
+		_feed.name = "ScreenFeed"
+		_feed.size = FEED_SIZE
+		_feed.handle_input_locally = false
+		add_child(_feed)
+		_feed.world_3d = get_viewport().find_world_3d()
+		_feed_camera = Camera3D.new()
+		_feed_camera.fov = FOV
+		_feed_camera.near = 0.02
+		_feed.add_child(_feed_camera)
+		_feed_camera.current = true
+	_feed.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	event.show_feed(_feed.get_texture())
+
+	var screen: Node3D = best["node"]
+	var size: Vector2 = best["size"]
+	var facing := screen.global_basis.z.normalized()
+	var across := screen.global_basis.x.normalized()
+	var spot := screen.global_position + facing * size.x * 1.3 + across * size.x * 0.3
+	spot.y = maxf(screen.global_position.y - size.y * 1.2, 1.5)
+	_hall.global_position = _in_the_room(spot)
+	_hall.look_at(screen.global_position, Vector3.UP)
+	return true
+
+
+func _close_the_feed() -> void:
+	if _feed == null:
+		return
+	var event = arena.event_dressing()
+	if event != null:
+		event.show_feed(null)
+	_feed.queue_free()
+	_feed = null
+	_feed_camera = null
+
+
+## Asks the hall's sound for `what`, if this match has any sound.
+func _sound(what: String) -> void:
+	var hall = arena.get("sound")
+	if hall != null and is_instance_valid(hall):
+		hall.call(what)
+
+
 ## Puts the court back the way the replay found it.
 func finish() -> void:
 	_settled = false
+	_close_the_feed()
 	_ghost.visible = false
 	_trail.visible = false
 	_mark.visible = false
@@ -190,6 +295,8 @@ func finish() -> void:
 
 
 func _process(delta: float) -> void:
+	if _feed_camera != null:
+		_feed_camera.global_transform = _camera.global_transform
 	if not _settled:
 		return
 	var above := _camera.global_position.y - _landing.y
@@ -200,13 +307,36 @@ func _process(delta: float) -> void:
 ## where it is rather than letting it run on behind the pause menu.
 func _tick() -> float:
 	await get_tree().process_frame
-	return 0.0 if get_tree().paused else get_process_delta_time()
+	if hurry:
+		return INF
+	if get_tree().paused and process_mode != Node.PROCESS_MODE_ALWAYS:
+		return 0.0
+	return get_process_delta_time()
 
 
 func _wait(seconds: float) -> void:
 	var t := 0.0
 	while t < seconds:
 		t += await _tick()
+
+
+## The mark the ball left: a dot for a ball that came down steeply, and an oval skid
+## drawn out along its path for one that came in low and fast, as ball tracking draws
+## it. How long is how flat it arrived: the ratio of its speed along the floor to its
+## speed into it.
+func _lay_the_mark(path: PackedVector3Array, landing: Vector3) -> void:
+	var last := path.size() - 1
+	var arriving := path[last] - path[maxi(last - 3, 0)]
+	var along := Vector3(arriving.x, 0.0, arriving.z)
+	var down := maxf(-arriving.y, 0.0001)
+	var skid := clampf(1.0 + along.length() / down * SKID_PER_FLATNESS, 1.0, LONGEST_SKID)
+	var basis := Basis.IDENTITY
+	if along.length() > 0.0001:
+		basis = Basis.looking_at(along.normalized(), Vector3.UP)
+	_mark.global_transform = Transform3D(
+		basis * Basis.from_scale(Vector3(_ball_radius, 1.0, _ball_radius * skid)),
+		landing + Vector3.UP * MARK_LIFT)
+	_mark.visible = true
 
 
 ## Looks at `spot`, turning from upright towards having `square` up the screen as `f`
@@ -282,7 +412,6 @@ func _dress(path: PackedVector3Array) -> void:
 	dots.visible_instance_count = 0
 	_trail.visible = true
 
-	_mark.scale = Vector3(_ball_radius, 1.0, _ball_radius)
 	_mark.visible = false
 	_copy_the_ball()
 
@@ -317,7 +446,6 @@ func _meshes_in(node: Node) -> Array[GeometryInstance3D]:
 
 ## Empties the court for the replay, and remembers what it put away.
 func _clear_the_court() -> void:
-	_hidden.clear()
 	var away: Array[Node3D] = []
 	for player in arena.players:
 		away.append(player)
@@ -350,6 +478,11 @@ func _build() -> void:
 	_camera.near = 0.02
 	add_child(_camera)
 
+	_hall = Camera3D.new()
+	_hall.name = "HallCamera"
+	_hall.fov = FOV
+	add_child(_hall)
+
 	_ghost = Node3D.new()
 	_ghost.name = "Ball"
 	_ghost.visible = false
@@ -366,7 +499,14 @@ func _build() -> void:
 	_trail = MultiMeshInstance3D.new()
 	_trail.name = "Trail"
 	_trail.multimesh = dots
-	_trail.material_override = ReplayBooth._paint(TRAIL)
+	# Faded out close to the lens. The camera chases the ball down the court, so the
+	# trail goes past it, and a dot a hand's width from the lens was a yellow blob across
+	# a third of the picture.
+	var trail_paint := ReplayBooth._paint(TRAIL)
+	trail_paint.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA
+	trail_paint.distance_fade_min_distance = 0.5
+	trail_paint.distance_fade_max_distance = 1.4
+	_trail.material_override = trail_paint
 	_trail.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_trail.visible = false
 	add_child(_trail)
@@ -379,7 +519,10 @@ func _build() -> void:
 	_mark = MeshInstance3D.new()
 	_mark.name = "Mark"
 	_mark.mesh = disc
-	_mark.material_override = ReplayBooth._paint(MARK)
+	var dent := ReplayBooth._paint(MARK)
+	dent.no_depth_test = true
+	dent.render_priority = 1
+	_mark.material_override = dent
 	_mark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_mark.visible = false
 	add_child(_mark)

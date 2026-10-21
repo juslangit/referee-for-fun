@@ -80,6 +80,8 @@ var _led_left := LED_SECONDS
 var _led_turn := 0
 ## The score on every video screen there is. A stadium has two.
 var _screen_scores: Array[Label3D] = []
+## Every video screen, as {"node", "size"}, for a replay to be put up on.
+var _screens: Array[Dictionary] = []
 
 
 func dress(which: Venue.Tier) -> void:
@@ -89,6 +91,7 @@ func dress(which: Venue.Tier) -> void:
 		child.queue_free()
 	_led_faces.clear()
 	_screen_scores.clear()
+	_screens.clear()
 	if layout.is_empty():
 		return
 	if layout.has("boards"):
@@ -154,6 +157,39 @@ func set_score(text: String) -> void:
 	for score in _screen_scores:
 		if is_instance_valid(score):
 			score.text = text
+
+
+## The venue's video screens, as {"node", "size"}. The node's +Z faces the court.
+func screens() -> Array[Dictionary]:
+	return _screens
+
+
+## Puts `picture` up on every screen in place of the logo and the score, or takes it down
+## again with null. What a review is shown on in the hall (`ReviewReplay`).
+func show_feed(picture: Texture2D) -> void:
+	for spot in _screens:
+		var screen: Node3D = spot["node"]
+		if not is_instance_valid(screen):
+			continue
+		var feed := screen.get_node_or_null("Feed") as MeshInstance3D
+		if picture == null:
+			if feed != null:
+				feed.queue_free()
+			continue
+		if feed == null:
+			feed = MeshInstance3D.new()
+			feed.name = "Feed"
+			var quad := QuadMesh.new()
+			quad.size = spot["size"]
+			feed.mesh = quad
+			# In front of the logo and the score, which it covers while it is up.
+			feed.position = Vector3(0.0, 0.0, 0.24)
+			feed.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var glow := StandardMaterial3D.new()
+			glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			feed.material_override = glow
+			screen.add_child(feed)
+		(feed.material_override as StandardMaterial3D).albedo_texture = picture
 
 
 ## Whether an item belongs at this rung: from `from` up, and no higher than `until`.
@@ -350,6 +386,7 @@ func _build_screen(spec: Dictionary) -> void:
 	score.position = Vector3(size.x * 0.24, 0.0, 0.2)
 	screen.add_child(score)
 	_screen_scores.append(score)
+	_screens.append({"node": screen, "size": size})
 	if spec.has("legs"):
 		for x: float in [-size.x * 0.4, size.x * 0.4]:
 			_block(screen, "Leg", Vector3(0.18, spec["legs"], 0.18),

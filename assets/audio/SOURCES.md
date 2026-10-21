@@ -164,3 +164,17 @@ sound the game has always played is 813420 — the same author, also CC0, 2.55 s
 - **Wide Cinematic Ambiet for Tension Effect** — Freesound 493741, by `The-Sacha-Rush`,
   **CC0**. Downloaded as the alternative and not used: it is a flat bed where the trailer
   needed an arc.
+
+## Review replay (2026-10-21)
+
+- **`hall/review_riser.wav`** — "Tension riser", Freesound 609767 by `xkeril`, **CC0**
+  (https://freesound.org/people/xkeril/sounds/609767/). The first 3.6 s of a 12.4 s riser, mono,
+  0.1 s fade in and 0.4 s fade out. Plays under the replay's flight. Fetched with `sfx get 609767`.
+- **`hall/review_dive.wav`** — "whoosh 24", Freesound 60011 by `qubodup`, **CC0**
+  (https://freesound.org/people/qubodup/sounds/60011/). Mono. The dive onto the mark.
+- **`hall/review_clapping.wav`** — "crowd clap rhythmic.wav", Freesound 424793 by `johnnyguitar01`,
+  **CC0** (https://freesound.org/people/johnnyguitar01/sounds/424793/), Finlandia Hall, Helsinki.
+  0.02-5.27 s: 25 claps at 0.21 s, so it loops on the beat; looped in code. The hall clapping in
+  time through a review; `Stands.CLAP_EVERY` matches its tempo.
+- The pill's flip reuses `hall/scoreboard_tick.ogg`, louder. Also downloaded and not used:
+  Freesound 60017 (swosh-30, qubodup, CC0).

@@ -1915,6 +1915,12 @@ func the_stands() -> Stands:
 	return court.stands
 
 
+## The event round the court, which badminton never handed to the spine: its big screen
+## was built and never told the score, and had nothing to show a review on.
+func event_dressing() -> EventDressing:
+	return court.event if court != null else null
+
+
 ## The tape, 1.524 m up at the centre, measured from the floor like every other sport's.
 ##
 ## Badminton was the only sport that never overrode this, so it inherited the spine's

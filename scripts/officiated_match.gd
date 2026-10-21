@@ -605,6 +605,7 @@ func review(asked: Sides.Team) -> bool:
 	var played := path.size() > 1
 
 	sound.review_begins()
+	_hall_claps(true)
 	if played:
 		if review_replay == null:
 			review_replay = ReviewReplay.new()
@@ -614,11 +615,14 @@ func review(asked: Sides.Team) -> bool:
 		ui.show_review_pill(asked, challenge.remaining(asked))
 		await review_replay.fly(path, landing, margin)
 		ui.flip_review_pill("")
+		sound.review_flip()
 		await get_tree().create_timer(ReviewReplay.BLANK).timeout
 		ui.flip_review_pill(truth)
+		sound.review_flip()
 	else:
 		ball_cam.aim_at(landing)
 		ui.show_review(asked, challenge.remaining(asked), ball_cam.texture())
+		sound.review_ooh()
 		await get_tree().create_timer(REVIEW_SUSPENSE).timeout
 
 	if played:
@@ -629,6 +633,7 @@ func review(asked: Sides.Team) -> bool:
 	else:
 		ui.set_review_verdict("%s  ·  CALL STANDS" % truth, Color(0.55, 0.85, 0.60))
 
+	_hall_claps(false)
 	challenge.settle(asked, overturned)
 	suspicion.register_review_judgement(seen, leaned, overturned)
 	sound.review_answer(overturned)
@@ -645,6 +650,14 @@ func review(asked: Sides.Team) -> bool:
 		review_replay.finish()
 	_reviewing = false
 	return overturned
+
+
+## The hall clapping in time through a review, as a real one does, and stopping for the
+## answer. The sound starts and stops with `Sound.review_begins` and `review_answer`.
+func _hall_claps(on: bool) -> void:
+	var seating := the_stands()
+	if seating != null:
+		seating.clap_along(on)
 
 
 # --- sitting through a review ---------------------------------------------------
@@ -1076,6 +1089,13 @@ func send(from: Vector3, to: Vector3, angle: float) -> void:
 	var velocity := ShotSolver.solve(from, to, angle, floor_height(), shot)
 	if velocity == Vector3.ZERO:
 		velocity = ShotSolver.solve(from, to, 45.0, floor_height(), shot)
+	# And if nothing solves, a plain lob that lands near enough, rather than a ball let go
+	# at no speed — which drops straight through the floor and leaves the point waiting
+	# on the rally's time limit.
+	if velocity == Vector3.ZERO:
+		var hang := 1.0
+		var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
+		velocity = (to - from) / hang + Vector3.UP * 0.5 * gravity * hang
 	_ball.launch(from, velocity)
 
 

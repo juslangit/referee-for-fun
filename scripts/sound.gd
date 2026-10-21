@@ -41,6 +41,13 @@ const REVIEW_OPEN := "res://assets/audio/hall/review_open.ogg"
 const REVIEW_OOOH := "res://assets/audio/hall/review_oooh.mp3"
 const REVIEW_STANDS := "res://assets/audio/hall/review_stands.ogg"
 const REVIEW_OVERTURNED := "res://assets/audio/hall/review_overturned.ogg"
+## The replay's own sound (2026-10-21): a riser under the flight, cut from Freesound 609767
+## (xkeril, CC0), and a whoosh for the dive onto the mark, Freesound 60011 (qubodup, CC0).
+const REVIEW_RISER := "res://assets/audio/hall/review_riser.wav"
+const REVIEW_DIVE := "res://assets/audio/hall/review_dive.wav"
+## The hall clapping in time while it waits, Freesound 424793 (johnnyguitar01, CC0), cut to
+## 25 claps so it loops on the beat. A clap every 0.21 s; `Stands.CLAP_EVERY` matches it.
+const REVIEW_CLAPPING := "res://assets/audio/hall/review_clapping.wav"
 
 ## Footsteps, by what the court is made of, and the squeak of a shoe stopping on it.
 const STEPS_WOOD := [
@@ -189,6 +196,12 @@ const STEP_DB := -21.0
 const SQUEAK_DB := -17.0
 const SCOREBOARD_DB := -20.0
 const REVIEW_DB := -8.0
+const RISER_DB := -14.0
+const CLAPPING_DB := -12.0
+const DIVE_DB := -10.0
+## The pill turning over, on the scoreboard's tick but louder: it is the one sound in the
+## review that says the answer is coming.
+const FLIP_DB := -9.0
 const ENDING_DB := -6.0
 
 ## How quickly the room's mood follows the umpire's. Slow on purpose — a hall does not
@@ -226,6 +239,10 @@ var _reaction: AudioStreamPlayer
 var _whistle: AudioStreamPlayer
 var _occasion: AudioStreamPlayer
 var _review: AudioStreamPlayer
+var _riser: AudioStreamPlayer
+var _dive: AudioStreamPlayer
+var _flip: AudioStreamPlayer
+var _clapping: AudioStreamPlayer
 var _scoreboard: AudioStreamPlayer
 var _strikes: Array[AudioStreamPlayer3D] = []
 var _next_strike := 0
@@ -257,6 +274,16 @@ func _ready() -> void:
 	_occasion = _flat(MATCH_CHEER, ENDING_DB)
 	_occasion.bus = Settings.CROWD_BUS
 	_review = _flat(REVIEW_OPEN, REVIEW_DB)
+	_riser = _flat(REVIEW_RISER, RISER_DB)
+	_dive = _flat(REVIEW_DIVE, DIVE_DB)
+	_flip = _flat(SCOREBOARD, FLIP_DB)
+	_clapping = _flat(REVIEW_CLAPPING, CLAPPING_DB)
+	if _clapping.stream is AudioStreamWAV:
+		var looped := (_clapping.stream as AudioStreamWAV).duplicate() as AudioStreamWAV
+		looped.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		looped.loop_begin = 0
+		looped.loop_end = int(looped.get_length() * looped.mix_rate)
+		_clapping.stream = looped
 	_scoreboard = _flat(SCOREBOARD, SCOREBOARD_DB)
 
 	for i in STRIKE_VOICES:
@@ -471,12 +498,67 @@ func match_over(removed: bool) -> void:
 func review_begins() -> void:
 	_count(&"review")
 	_play_on(_review, REVIEW_OPEN, REVIEW_DB)
+	review_clapping(true)
+
+
+## The hall clapping in time while the review plays, and stopping for the answer.
+##
+## The "ooh" that used to open the review now comes at the dive (`review_dive`): the
+## broadcast's room claps through the replay and draws breath when the picture drops onto
+## the mark, which is the moment it is about to find out.
+func review_clapping(on: bool) -> void:
+	_count(&"review_clapping" if on else &"review_clapping_stops")
+	if _clapping.stream == null:
+		return
+	if on:
+		_clapping.volume_db = CLAPPING_DB
+		if not _clapping.playing:
+			_clapping.play()
+		return
+	if _clapping.playing:
+		var fade := create_tween()
+		fade.tween_property(_clapping, "volume_db", -60.0, 0.4)
+		fade.tween_callback(_clapping.stop)
+
+
+## The replay's flight: a riser that builds while the ball flies.
+func review_flight() -> void:
+	_count(&"review_flight")
+	if _riser.stream == null:
+		return
+	_riser.volume_db = RISER_DB
+	_riser.play()
+
+
+## The dive onto the mark: the riser is cut off under a whoosh.
+func review_dive() -> void:
+	_count(&"review_dive")
+	if _riser.playing:
+		var fade := create_tween()
+		fade.tween_property(_riser, "volume_db", -60.0, 0.35)
+		fade.tween_callback(_riser.stop)
+	if _dive.stream != null:
+		_dive.play()
+	review_ooh()
+
+
+## The hall drawing breath just before it finds out.
+func review_ooh() -> void:
+	_count(&"review_ooh")
 	_occasion_plays(REVIEW_OOOH)
+
+
+## The pill turning over.
+func review_flip() -> void:
+	_count(&"review_flip")
+	if _flip.stream != null:
+		_flip.play()
 
 
 ## The review's answer, before the room makes up its mind about it.
 func review_answer(overturned: bool) -> void:
 	_count(&"review_answer")
+	review_clapping(false)
 	_play_on(_review, REVIEW_OVERTURNED if overturned else REVIEW_STANDS, REVIEW_DB)
 
 
