@@ -1,4 +1,4 @@
-"""Writes index.html, the v0.3.1 trailer composition, from one edit list.
+"""Writes index.html, the v0.3.2 trailer composition, from one edit list.
 
     python3 tools/trailer/film/make_edit.py
 
@@ -32,7 +32,7 @@ EDIT = [
     ("shot", 63.4, 3.4, {"src": "beach", "from": 2.2, "lt": ["Beach volleyball", "Under a photographed sky"], "hard": True}),
     ("shot", 66.8, 3.4, {"src": "tabletennis", "from": 1.0, "lt": ["Table tennis", "A dome after Malawati"], "hard": True}),
     ("shot", 70.2, 3.4, {"src": "takraw", "from": 3.0, "lt": ["Sepak takraw", "A hall after Titiwangsa"], "hard": True}),
-    ("shot", 73.6, 5.8, {"src": "ending", "from": 6.2}),
+    ("shot", 73.6, 5.8, {"src": "ending", "from": 19.7}),
     ("card", 79.4, 3.6, {"lines": ["How long before", "somebody notices?"], "bg": "bg-arena"}),
     ("end", 83.0, 7.0, {}),
 ]
@@ -68,7 +68,7 @@ for i, (kind, start, dur, p) in enumerate(EDIT):
                 f'<section id="{cid}" class="clip card" data-start="{start}" data-duration="{dur}" data-track-index="1">'
                 f'<img class="cbg" data-layout-allow-overflow src="assets/img/{p["bg"]}.jpg" alt="">'
                 f'<div class="cwrap"><div class="rule"></div>{lines}</div>'
-                f'<div class="tag"><b>REFEREE FOR FUN</b><span>v0.3.1</span></div></section>')
+                f'<div class="tag"><b>REFEREE FOR FUN</b><span>v0.3.2</span></div></section>')
             js.append(f'tl.fromTo("#{cid} .cbg", {{scale:1.12}}, {{scale:1.0, duration:{dur}, ease:"none"}}, {start});')
             js.append(f'tl.fromTo("#{cid} .rule", {{scaleX:0}}, {{scaleX:1, duration:.4, ease:"power3.out"}}, {start + 0.15:.2f});')
             js.append(f'tl.fromTo("#{cid} .ln span", {{yPercent:110}}, {{yPercent:0, duration:.55, ease:"back.out(1.6)", stagger:.14}}, {start + 0.2:.2f});')
@@ -101,7 +101,7 @@ for i, (kind, start, dur, p) in enumerate(EDIT):
                 f'<section id="{cid}" class="clip card end-card" data-start="{start}" data-duration="{dur}" data-track-index="1">'
                 f'<img class="cbg" data-layout-allow-overflow src="assets/img/bg-arena.jpg" alt=""><div class="lock"><img class="logo" src="assets/img/logo.png" alt="Referee For Fun">'
                 f'<div class="slab"></div><p class="free">Free for macOS and Windows</p>'
-                f'<div class="tag big"><b>OUT NOW · v0.3.1</b><span>juslangit.github.io/referee-for-fun</span></div></div></section>')
+                f'<div class="tag big"><b>OUT NOW · v0.3.2</b><span>referee-for-fun.pages.dev</span></div></div></section>')
             js.append(f'tl.fromTo("#{cid} .cbg", {{scale:1.0}}, {{scale:1.1, duration:{dur}, ease:"none"}}, {start});')
             js.append(f'tl.fromTo("#{cid} .logo", {{scale:1.35, opacity:0}}, {{scale:1, opacity:1, duration:.55, ease:"expo.out"}}, {start + 0.15:.2f});')
             js.append(f'tl.fromTo("#{cid} .slab", {{scaleX:0}}, {{scaleX:1, duration:.45, ease:"power3.out"}}, {start + 0.5:.2f});')
@@ -125,7 +125,7 @@ page = f'''<!doctype html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920, height=1080">
-<title>Referee For Fun — v0.3.1 trailer</title>
+<title>Referee For Fun — v0.3.2 trailer</title>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
 <style>
 @font-face{{font-family:"Barlow Condensed";src:url("assets/fonts/BarlowCondensed-Bold.ttf") format("truetype");font-weight:700}}

@@ -8,12 +8,16 @@ extends Node
 ## Driven by the environment, the same way `_hallshot` is, so the whole trailer is a shell
 ## loop over this one scene rather than fourteen near-identical scripts:
 ##
-##   SHOT     what the shot does: rally, honest, lie, brief, career, ending
+##   SHOT     what the shot does: rally, honest, lie, brief, career, ending, review
 ##   SCENE    which sport
 ##   TIER     which rung of the ladder
 ##   SECONDS  how long to keep playing before quitting
 ##
-## Nothing here is staged footage. The trailer plays the actual game and records what it
+## Nothing here is staged footage, with one exception: in the `review` shot the side a
+## wrong call goes against always challenges it (`_always_challenged.gd`), because a real
+## side only sometimes does. The rally, the call and the review are the game's own.
+##
+## Otherwise nothing here is staged footage. The trailer plays the actual game and records what it
 ## does — `--write-movie` forces a fixed frame rate, so the recording is deterministic and
 ## a shot that looked right once looks right again.
 
@@ -74,6 +78,10 @@ func _ready() -> void:
 			await _hold(seconds)
 		"lie":
 			await _play(seconds, false)
+		"review":
+			arena.challenge = load("res://dev/trailer/_always_challenged.gd").new()
+			await _play_to_a_review()
+			await _hold(seconds)
 		_:
 			await _play(seconds, true)
 	get_tree().quit()
@@ -103,6 +111,25 @@ func _play(seconds: float, honestly: bool) -> void:
 			break
 		await get_tree().process_frame
 	await get_tree().process_frame
+
+
+## Plays wrong calls until one is reviewed, and returns once the review is over.
+func _play_to_a_review() -> void:
+	var reviewed := false
+	for frame in 60 * FPS:
+		if arena._reviewing:
+			reviewed = true
+		elif reviewed:
+			return
+		elif arena._phase == arena.Phase.READY:
+			arena.start_rally()
+		elif arena._phase == arena.Phase.AWAITING_CALL:
+			await _hold(0.7)
+			var truth: bool = arena.rally.was_in if arena.rally != null else true
+			arena.make_call(&"out" if truth else &"in")
+		elif arena._phase == arena.Phase.REMOVED:
+			return
+		await get_tree().process_frame
 
 
 ## Waits in **recorded** seconds, not real ones.
