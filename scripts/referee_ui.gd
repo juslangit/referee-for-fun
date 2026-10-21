@@ -250,6 +250,7 @@ func _ready() -> void:
 	_build_sport_menu()
 	_build_format_menu()
 	_build_review()
+	_build_review_pill()
 	_build_pause_menu()
 	_build_career_panel()
 	_build_history_panel()
@@ -1005,6 +1006,8 @@ func show_review(team: Sides.Team, reviews_left: int, view: Texture2D) -> void:
 ## the answer is up: the wait before that is the whole point of a review.
 func set_review_hint(text: String) -> void:
 	_review_hint.text = text
+	if _pill_hint != null:
+		_pill_hint.text = text
 
 
 func set_review_verdict(text: String, tint: Color) -> void:
@@ -1029,6 +1032,146 @@ func _verdict_bar(fill: Color) -> StyleBoxFlat:
 func hide_review() -> void:
 	if _review != null:
 		_review.visible = false
+	if _pill_sheet != null and _pill_sheet.visible:
+		_pill_sheet.visible = false
+		_quiet_the_hud(false)
+
+
+# --- the review, played in the hall ----------------------------------------------
+#
+# A line call under review is played out on the court itself now (`ReviewReplay`), and
+# what goes over it is what the broadcast puts over it: a white pill at the foot of the
+# screen saying OFFICIAL REVIEW, which flips over blank and then flips again to the
+# answer. Who asked and what it did to the call sit in smaller type around it, because
+# this game is about the umpire, and the broadcast is not.
+
+var _pill_sheet: Control
+var _pill: PanelContainer
+var _pill_word: Label
+var _pill_who: Label
+var _pill_tag: PanelContainer
+var _pill_note: Label
+var _pill_result: Label
+var _pill_hint: Label
+var _pill_turn: Tween
+
+
+func _build_review_pill() -> void:
+	_pill_sheet = Control.new()
+	_pill_sheet.name = "ReviewPill"
+	_pill_sheet.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_pill_sheet.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pill_sheet.visible = false
+	_root.add_child(_pill_sheet)
+
+	# Top centre: the score bug has the top left and the line judge the top right.
+	var top := VBoxContainer.new()
+	top.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	top.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	top.offset_top = 28
+	top.add_theme_constant_override("separation", 4)
+	_pill_sheet.add_child(top)
+	_pill_tag = PanelContainer.new()
+	_pill_who = UiTheme.label("", UiTheme.BODY, UiTheme.CHALK, UiTheme.heavy())
+	_pill_tag.add_child(_pill_who)
+	top.add_child(_pill_tag)
+	_pill_note = UiTheme.label("", UiTheme.SMALL, UiTheme.CHALK)
+	_pill_note.add_theme_color_override("font_outline_color", UiTheme.INK)
+	_pill_note.add_theme_constant_override("outline_size", 6)
+	top.add_child(_pill_note)
+
+	var foot := VBoxContainer.new()
+	foot.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	foot.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	foot.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	foot.offset_bottom = -40
+	foot.alignment = BoxContainer.ALIGNMENT_END
+	foot.add_theme_constant_override("separation", 8)
+	_pill_sheet.add_child(foot)
+
+	# White, rounded, ringed in black, with a shadow under it: the broadcast's pill.
+	_pill = PanelContainer.new()
+	_pill.custom_minimum_size = Vector2(300, 112)
+	var face := StyleBoxFlat.new()
+	face.bg_color = UiTheme.PAPER
+	face.set_corner_radius_all(26)
+	face.set_border_width_all(6)
+	face.border_color = UiTheme.INK
+	face.shadow_color = Color(0, 0, 0, 0.45)
+	face.shadow_size = 10
+	face.shadow_offset = Vector2(0, 4)
+	face.content_margin_left = 36
+	face.content_margin_right = 36
+	face.anti_aliasing = true
+	_pill.add_theme_stylebox_override("panel", face)
+	_pill_word = UiTheme.label("", UiTheme.HEADING, UiTheme.INK, UiTheme.heavy())
+	_pill_word.add_theme_constant_override("line_spacing", -8)
+	_pill.add_child(_pill_word)
+	foot.add_child(_centred(_pill))
+
+	_pill_result = UiTheme.label("", UiTheme.BODY, UiTheme.CHALK, UiTheme.heavy())
+	_pill_result.add_theme_color_override("font_outline_color", UiTheme.INK)
+	_pill_result.add_theme_constant_override("outline_size", 8)
+	foot.add_child(_pill_result)
+	_pill_hint = UiTheme.label("", UiTheme.SMALL, UiTheme.CHALK)
+	_pill_hint.add_theme_color_override("font_outline_color", UiTheme.INK)
+	_pill_hint.add_theme_constant_override("outline_size", 6)
+	foot.add_child(_pill_hint)
+
+
+## Opens the review played in the hall. The answer is not on it yet.
+func show_review_pill(team: Sides.Team, reviews_left: int) -> void:
+	hide_close_cam()
+	_pill_who.text = "CHALLENGED BY %s" % Sides.label(team)
+	_pill_tag.add_theme_stylebox_override("panel", UiTheme.slant(Sides.colour(team)))
+	_pill_note.text = "%s has %d review%s left" % [
+		Sides.label(team), reviews_left, "" if reviews_left == 1 else "s"]
+	_set_pill_word("OFFICIAL\nREVIEW")
+	_pill_result.text = ""
+	_pill_hint.text = ""
+	_pill.scale = Vector2.ONE
+	_pill_sheet.visible = true
+	_quiet_the_hud(true)
+
+
+## Fades out everything on the HUD but the reputation and the line judge while a review
+## plays: the broadcast puts one thing on the screen, and the commentary box, the key
+## hints and the volleyball score bar, which lives at the foot of the screen, all sat
+## right on top of it. Faded rather than hidden, because what
+## they say during the review still has to be there when it ends, and each of them
+## decides for itself when it is visible.
+func _quiet_the_hud(quiet: bool) -> void:
+	if _hud == null:
+		return
+	for piece in _hud.get_children():
+		if piece in [_meter, _judge_plate]:
+			continue
+		(piece as CanvasItem).modulate.a = 0.0 if quiet else 1.0
+
+
+## Flips the pill over to `word`: it closes up to a line, changes, and opens again.
+func flip_review_pill(word: String) -> void:
+	if _pill_turn != null and _pill_turn.is_valid():
+		_pill_turn.kill()
+	_pill.pivot_offset = _pill.size * 0.5
+	_pill_turn = create_tween()
+	_pill_turn.tween_property(_pill, "scale:y", 0.0, 0.11).set_ease(Tween.EASE_IN)
+	_pill_turn.tween_callback(_set_pill_word.bind(word))
+	_pill_turn.tween_property(_pill, "scale:y", 1.0, 0.16) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+
+
+func _set_pill_word(word: String) -> void:
+	_pill_word.text = word
+	var short := word.length() <= 8
+	_pill_word.add_theme_font_size_override("font_size", UiTheme.HUGE if short else UiTheme.HEADING + 4)
+	_pill_word.add_theme_font_override("font", UiTheme.heavy())
+
+
+## What the answer did to the call, under the pill.
+func set_review_result(text: String, tint: Color) -> void:
+	_pill_result.text = text
+	_pill_result.add_theme_color_override("font_color", tint)
 
 
 # --- teaching -------------------------------------------------------------------

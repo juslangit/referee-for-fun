@@ -34,9 +34,14 @@ func _ready() -> void:
 	await _time_one(sand, false)
 	await _time_one(sand, true)
 	print()
-	print("the suspense is %0.1f s and the verdict %0.1f s, so a waved-on review should"
-		% [sand.REVIEW_SUSPENSE, sand.REVIEW_VERDICT])
-	print("come in a shade over %0.1f s and never under it." % sand.REVIEW_SUSPENSE)
+	# A line call is played out on the court since 2026-10-21 (`ReviewReplay`), and the
+	# replay is the suspense: its length depends on the flight, so the waved-on time is
+	# the replay plus the blank, rather than REVIEW_SUSPENSE. Touches still use the timer.
+	print("a line call's suspense is its replay (%.1f s wide, %.1f-%.1f s of flight,"
+		% [ReviewReplay.WIDE_HOLD, ReviewReplay.SHORTEST, ReviewReplay.LONGEST])
+	print("%.1f s of dive, %.1f s blank), and the verdict %0.1f s; a waved-on review"
+		% [ReviewReplay.DIVE, ReviewReplay.BLANK, sand.REVIEW_VERDICT])
+	print("should take the suspense and never less.")
 	get_tree().quit()
 
 

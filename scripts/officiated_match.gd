@@ -56,6 +56,8 @@ var ball_cam: ShuttleCam
 var recorder: FlightRecorder
 var worst_calls := WorstCalls.new()
 var replay_booth: ReplayBooth
+## Plays a challenged line call out on the court. Made the first time one is asked for.
+var review_replay: ReviewReplay
 
 var players: Array[Player] = []
 var serving := Sides.Team.RED
@@ -592,13 +594,37 @@ func review(asked: Sides.Team) -> bool:
 	var seen: float = rally.visibility()
 	var leaned := which_way_it_leaned()
 	var landing: Vector3 = rally.landing_point
+	var margin: float = rally.margin
 
-	ball_cam.aim_at(landing)
-	ui.show_review(asked, challenge.remaining(asked), ball_cam.texture())
+	# A line call is played out on the court, the ball flown again and the camera
+	# dropped onto the mark; the flight is the wait. A touch has no landing to fly to,
+	# and keeps the card.
+	var path := PackedVector3Array()
+	if not about_a_touch and recorder != null:
+		path = recorder.path_to(landing)
+	var played := path.size() > 1
+
 	sound.review_begins()
-	await get_tree().create_timer(REVIEW_SUSPENSE).timeout
+	if played:
+		if review_replay == null:
+			review_replay = ReviewReplay.new()
+			review_replay.name = "ReviewReplay"
+			review_replay.arena = self
+			add_child(review_replay)
+		ui.show_review_pill(asked, challenge.remaining(asked))
+		await review_replay.fly(path, landing, margin)
+		ui.flip_review_pill("")
+		await get_tree().create_timer(ReviewReplay.BLANK).timeout
+		ui.flip_review_pill(truth)
+	else:
+		ball_cam.aim_at(landing)
+		ui.show_review(asked, challenge.remaining(asked), ball_cam.texture())
+		await get_tree().create_timer(REVIEW_SUSPENSE).timeout
 
-	if overturned:
+	if played:
+		ui.set_review_result("CALL OVERTURNED" if overturned else "CALL STANDS",
+			UiTheme.BAD if overturned else UiTheme.GOOD)
+	elif overturned:
 		ui.set_review_verdict("%s  ·  CALL OVERTURNED" % truth, Color(0.96, 0.42, 0.36))
 	else:
 		ui.set_review_verdict("%s  ·  CALL STANDS" % truth, Color(0.55, 0.85, 0.60))
@@ -615,6 +641,8 @@ func review(asked: Sides.Team) -> bool:
 	ui.set_review_hint("SPACE   ·   carry on")
 	await _wait_or_skip(REVIEW_VERDICT)
 	ui.hide_review()
+	if played:
+		review_replay.finish()
 	_reviewing = false
 	return overturned
 
