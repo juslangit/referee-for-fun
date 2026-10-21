@@ -1,4 +1,5 @@
-"""Cuts the recorded shots into the two-minute trailer.
+"""Cuts the recorded shots into the two-minute v0.2.1 trailer. Superseded on 2026-10-21 by
+the HyperFrames film in tools/trailer/film/ (make_edit.py); kept so the old cut can be rebuilt.
 
     python3 tools/trailer/cut.py
 

@@ -150,6 +150,14 @@ sound the game has always played is 813420 — the same author, also CC0, 2.55 s
 
 ## Trailer music
 
+- **Quirky cinematic song** — Freesound 701691, by `Daniel Prellball`, **CC0**
+  (https://freesound.org/people/Daniel%20Prellball/sounds/701691/). 213 s, 44.1 kHz wav, described by
+  its author as "an instrumental song for a comedy". Used from the start under the v0.3.0 trailer
+  (2026-10-21): it opens at about -28 dB and builds to -12 dB by 85 s, which is the trailer's arc.
+  Kept as lossless FLAC in `tools/trailer/music/` (outside Godot's import) rather than here. Fetched with `sfx get 701691`.
+  Also downloaded and not used: Freesound 507747 (Hybrid Action Music 01, flat at -11 dB throughout —
+  the music would win over the game) and 814843 (Wonders, builds too late).
+
 - **Tension Rising Cinematic Drone by Mantice** — Freesound 854836, by `bassimat`, **CC0**.
   300 s, 48 kHz wav. Used from 2:30 in, where it starts to build, under
   `build/trailer/referee-for-fun-trailer.mp4`. Fetched with `sfx get 854836`.

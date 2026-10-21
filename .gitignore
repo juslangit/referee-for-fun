@@ -69,3 +69,9 @@ docs/index.html
 # Website tooling output (taste-skill inspector, Playwright CLI)
 .taste-skill/
 .playwright-cli/
+
+# Trailer film: renders, converted footage and HyperFrames working files are rebuilt, not kept
+tools/trailer/film/renders/
+tools/trailer/film/assets/shots/
+tools/trailer/film/.hyperframes/
+tools/trailer/film/node_modules/
