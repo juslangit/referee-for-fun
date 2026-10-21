@@ -225,6 +225,49 @@ const STAND_RISE := 0.16
 ## What fraction of the hall bothers to get up for any one rally.
 const CHEER_SHARE := 0.45
 
+## Everybody used to do exactly the same thing at exactly the same moment: the same arc,
+## the same height, the same 0.9 seconds, three hundred people landing in one frame.
+## Luqman on 2026-10-21, after watching the trailer: "the audience movement is all the
+## same. i want a randomize movement, make it more like real life." So each person now
+## brings their own timing to every reaction, and these are the spreads they are dealt
+## from.
+##
+## How late somebody is to react. Most of a hall goes within a quarter of a second; a few
+## were looking at their phone.
+const REACT_LATE := 0.45
+const STRAGGLER_SHARE := 0.12
+const STRAGGLER_LATE := 1.1
+
+## How a cheer is done. Some people jump once, some bounce two or three times, and some
+## just get up, clap for a moment and sit down — that last kind has no arc at all.
+const CHEER_RISERS := 0.3
+const CHEER_BOUNCE := Vector2(0.5, 0.85)
+const CHEER_LIFT := Vector2(0.45, 1.4)
+const CHEER_RISE_HOLD := Vector2(1.1, 2.4)
+
+## How long somebody stays on their feet over a bad call, as a share of STAND_SECONDS:
+## the first to sit back down gives up at a little over half of it, the most stubborn
+## outlast it by half again.
+const STAND_HOLD := Vector2(0.55, 1.5)
+
+## Nobody stands perfectly still, so the risen sway and turn to the people beside them.
+const STAND_SWAY := 0.14
+const REACT_TURN := 0.3
+
+## Between reactions a seated hall is still never frozen: somebody turns to the person
+## next to them, somebody leans forward, somebody sits back. On average each person does
+## something every this many seconds, for a second or three.
+const FIDGET_EVERY := 7.0
+const FIDGET_SECONDS := Vector2(1.2, 3.2)
+const FIDGET_TURN := 0.45
+const FIDGET_LEAN := 0.08
+
+## How many people in the whole hall may be fidgeting at once. A school hall never gets
+## near it; a six-thousand-seat bowl would otherwise have two thousand people moving every
+## frame, which cost the international final six frames a second. Nobody counts the
+## people turning their heads in the back rows.
+const FIDGET_MOST := 450
+
 ## How far above a seated spectator's own origin the bubble's tail points. A little
 ## over the 0.78 the head mesh is lifted by, so the tail lands just clear of the hair
 ## rather than through it.
@@ -253,6 +296,31 @@ var _stand_forward := 0.0
 ## a flag per instance rather than a second timer, because a spectator is doing one or
 ## the other and never both.
 var _crowd_holds: Array = []
+
+## Each person's own version of the reaction they are in, dealt when it starts. Parallel to
+## `_crowd_jumps`: how long the moving part lasts (the rest of the timer is the wait before
+## they move), how high they go, how many times they bounce (none for somebody who only
+## stands), which way they turn, and where in their sway they start.
+var _crowd_lengths: Array = []
+var _crowd_lifts: Array = []
+var _crowd_bounces: Array = []
+var _crowd_turns: Array = []
+var _crowd_phases: Array = []
+
+## The seated fidgets, kept apart from the reactions so the checks that count people out
+## of their seats are not fooled by somebody turning to talk to a neighbour. Only the
+## people fidgeting right now are visited each frame, which keeps a big bowl cheap.
+var _fidgeters: Array = []
+var _fidget_clocks: Array = []
+var _fidget_lengths: Array = []
+var _fidget_turns: Array = []
+var _fidget_leans: Array = []
+var _fidget_due: PackedFloat32Array = PackedFloat32Array()
+
+## The crowd's own dice. Every frame of a reaction or a fidget rolls some, and drawn from
+## the global generator they would change every rally that comes after them — the trailer
+## records rallies by what the game does with a given run of numbers.
+var _dice := RandomNumberGenerator.new()
 
 ## Where everybody sits, and how far through their jump each of them is. Kept so a
 ## cheer can be drawn by moving instances rather than by animating three hundred
@@ -291,6 +359,11 @@ func dress(which: Venue.Tier) -> void:
 	_crowd_shapes.clear()
 	_crowd_jumps.clear()
 	_crowd_holds.clear()
+	for moves: Array in [_crowd_lengths, _crowd_lifts, _crowd_bounces, _crowd_turns,
+			_crowd_phases, _fidgeters, _fidget_clocks, _fidget_lengths, _fidget_turns,
+			_fidget_leans]:
+		moves.clear()
+	_fidget_due.clear()
 	_seats.clear()
 	_build_seating()
 	_build_crowd()
@@ -360,17 +433,52 @@ func _react(share: float, seconds: float, standing: bool) -> void:
 	for group in _crowd_jumps.size():
 		var jumps: PackedFloat32Array = _crowd_jumps[group]
 		var holds: PackedFloat32Array = _crowd_holds[group]
+		var lengths: PackedFloat32Array = _crowd_lengths[group]
+		var lifts: PackedFloat32Array = _crowd_lifts[group]
+		var bounces: PackedFloat32Array = _crowd_bounces[group]
+		var turns: PackedFloat32Array = _crowd_turns[group]
+		var phases: PackedFloat32Array = _crowd_phases[group]
 		for i in jumps.size():
-			if jumps[i] <= 0.0 and randf() < share:
-				jumps[i] = seconds
-				holds[i] = 1.0 if standing else 0.0
+			if jumps[i] > 0.0 or _dice.randf() >= share:
+				continue
+			# Squared, so most of the hall goes almost together and only a tail is late.
+			var late := pow(_dice.randf(), 2.0) * REACT_LATE
+			if _dice.randf() < STRAGGLER_SHARE:
+				late += _dice.randf_range(0.3, STRAGGLER_LATE)
+			var length := 0.0
+			if standing:
+				length = seconds * _dice.randf_range(STAND_HOLD.x, STAND_HOLD.y)
+				bounces[i] = 0.0
+				lifts[i] = _dice.randf_range(0.85, 1.05)
+			elif _dice.randf() < CHEER_RISERS:
+				length = _dice.randf_range(CHEER_RISE_HOLD.x, CHEER_RISE_HOLD.y)
+				bounces[i] = 0.0
+				lifts[i] = _dice.randf_range(0.8, 1.0)
+			else:
+				# One jump for most, two or three for the excited few.
+				var roll := _dice.randf()
+				bounces[i] = 1.0 if roll < 0.6 else (2.0 if roll < 0.9 else 3.0)
+				length = bounces[i] * _dice.randf_range(CHEER_BOUNCE.x, CHEER_BOUNCE.y) \
+						* (seconds / CHEER_SECONDS)
+				lifts[i] = _dice.randf_range(CHEER_LIFT.x, CHEER_LIFT.y)
+			lengths[i] = length
+			jumps[i] = late + length
+			holds[i] = 1.0 if standing else 0.0
+			turns[i] = _dice.randf_range(-REACT_TURN, REACT_TURN)
+			phases[i] = _dice.randf() * TAU
 		_crowd_jumps[group] = jumps
 		_crowd_holds[group] = holds
+		_crowd_lengths[group] = lengths
+		_crowd_lifts[group] = lifts
+		_crowd_bounces[group] = bounces
+		_crowd_turns[group] = turns
+		_crowd_phases[group] = phases
 	_cheering = not _crowds.is_empty()
 	_draw_the_risen(_cheering)
 
 
 func _process(delta: float) -> void:
+	_fidget(delta)
 	if not _cheering:
 		return
 
@@ -378,6 +486,11 @@ func _process(delta: float) -> void:
 	for group in _crowds.size():
 		var jumps: PackedFloat32Array = _crowd_jumps[group]
 		var holds: PackedFloat32Array = _crowd_holds[group]
+		var lengths: PackedFloat32Array = _crowd_lengths[group]
+		var lifts: PackedFloat32Array = _crowd_lifts[group]
+		var bounces: PackedFloat32Array = _crowd_bounces[group]
+		var turns: PackedFloat32Array = _crowd_turns[group]
+		var phases: PackedFloat32Array = _crowd_phases[group]
 		var seats: Array[Transform3D] = _crowd_seats[group]
 		for i in jumps.size():
 			if jumps[i] <= 0.0:
@@ -388,26 +501,103 @@ func _process(delta: float) -> void:
 				_sit_down(group, i, seats[i])
 				continue
 			still_going = true
+			if jumps[i] > lengths[i]:
+				# Not moved yet. Still in the chair while the people round them go.
+				continue
+			var through := 1.0 - jumps[i] / lengths[i]
+			var into := lengths[i] - jumps[i]
 			var seat := seats[i]
-			if holds[i] > 0.5:
-				# On their feet: up quickly, held for as long as it lasts, and back
-				# down at the end. Nothing in the middle, which is the point of it.
-				var left := jumps[i] / STAND_SECONDS
-				var up := 1.0
-				if left > 1.0 - STAND_RISE:
-					up = (1.0 - left) / STAND_RISE
-				elif left < STAND_RISE:
-					up = left / STAND_RISE
-				seat.origin.y += clampf(up, 0.0, 1.0) * STAND_HEIGHT
+			var lift := 0.0
+			var turn := turns[i]
+			if bounces[i] <= 0.0:
+				# On their feet: up quickly, held for as long as it lasts, and back down at
+				# the end. Rising takes the same fraction of a second for everyone, which
+				# is why it is measured in seconds and not as a share of the hold.
+				var rise := minf(into / (STAND_RISE * STAND_SECONDS * 0.5), 1.0)
+				var fall := minf(jumps[i] / (STAND_RISE * STAND_SECONDS * 0.6), 1.0)
+				lift = minf(rise, fall) * STAND_HEIGHT * lifts[i]
+				# Never quite still while up: a slow sway, and the angrier half of a
+				# jeering hall bouncing on the spot as they shout.
+				turn += sin(into * 1.3 + phases[i]) * STAND_SWAY
+				if holds[i] > 0.5 and phases[i] < PI:
+					lift += absf(sin(into * 5.0 + phases[i])) * 0.035
+				elif holds[i] <= 0.5:
+					# Clapping, which from the court is a small quick bob.
+					lift += absf(sin(into * 7.0 + phases[i])) * 0.02
 			else:
-				# One arc up and back down, so nobody lands before the shout is over.
-				var through := 1.0 - jumps[i] / CHEER_SECONDS
-				seat.origin.y += sin(through * PI) * CHEER_HEIGHT
+				# A jump per bounce, each lower than the last, so nobody lands before
+				# their own shout is over.
+				var bounce := minf(floorf(through * bounces[i]), bounces[i] - 1.0)
+				var arc := through * bounces[i] - bounce
+				lift = sin(arc * PI) * CHEER_HEIGHT * lifts[i] * pow(0.7, bounce)
+			seat.origin.y += lift
+			seat.basis = seat.basis.rotated(Vector3.UP, turn * minf(through * 4.0, 1.0))
 			_stand_up(group, i, seat)
 		_crowd_jumps[group] = jumps
 	if not still_going:
 		_draw_the_risen(false)
 	_cheering = still_going
+
+
+## The seated hall between reactions: a few people at a time turning to a neighbour or
+## leaning in, so nobody in the stands is a statue.
+##
+## Starts are spread by a running total rather than rolled per person per frame, so a
+## hall of two thousand costs a handful of picks a frame rather than two thousand rolls.
+func _fidget(delta: float) -> void:
+	for group in _crowds.size():
+		var multi: MultiMesh = _crowds[group].multimesh
+		var shown := multi.visible_instance_count
+		if shown < 0:
+			shown = multi.instance_count
+		var seats: Array[Transform3D] = _crowd_seats[group]
+		var jumps: PackedFloat32Array = _crowd_jumps[group]
+		var who: PackedInt32Array = _fidgeters[group]
+		var clocks: PackedFloat32Array = _fidget_clocks[group]
+		var lengths: PackedFloat32Array = _fidget_lengths[group]
+		var turns: PackedFloat32Array = _fidget_turns[group]
+		var leans: PackedFloat32Array = _fidget_leans[group]
+
+		_fidget_due[group] += float(shown) * delta / FIDGET_EVERY
+		while _fidget_due[group] >= 1.0:
+			_fidget_due[group] -= 1.0
+			if shown <= 0:
+				continue
+			if who.size() >= ceili(FIDGET_MOST * float(seats.size()) / maxf(_total, 1.0)):
+				continue
+			var i := _dice.randi() % shown
+			if jumps[i] > 0.0 or clocks[i] > 0.0:
+				continue
+			clocks[i] = 0.0001
+			lengths[i] = _dice.randf_range(FIDGET_SECONDS.x, FIDGET_SECONDS.y)
+			turns[i] = _dice.randf_range(-FIDGET_TURN, FIDGET_TURN)
+			leans[i] = _dice.randf_range(-FIDGET_LEAN, FIDGET_LEAN)
+			who.append(i)
+
+		var kept := PackedInt32Array()
+		for i in who:
+			if jumps[i] > 0.0:
+				# Caught up in a reaction, which moves them itself.
+				clocks[i] = 0.0
+				continue
+			clocks[i] += delta
+			var seat := seats[i]
+			if clocks[i] >= lengths[i]:
+				clocks[i] = 0.0
+				_sit_down(group, i, seat)
+				continue
+			kept.append(i)
+			# Turn, hold the look, turn back.
+			var t := clocks[i] / lengths[i]
+			var w := smoothstep(0.0, 0.25, t) * (1.0 - smoothstep(0.7, 1.0, t))
+			seat.basis = seat.basis.rotated(Vector3.UP, turns[i] * w)
+			seat.basis = seat.basis * Basis(Vector3.RIGHT, leans[i] * w)
+			_sit_down(group, i, seat)
+		_fidgeters[group] = kept
+		_fidget_clocks[group] = clocks
+		_fidget_lengths[group] = lengths
+		_fidget_turns[group] = turns
+		_fidget_leans[group] = leans
 
 
 ## Drawn sitting in the chair, and not drawn standing.
@@ -738,6 +928,16 @@ func _add_crowd_group(kind: Dictionary, which: int, keep: float, slice: Array[Tr
 	holds.resize(jumps.size())
 	holds.fill(0.0)
 	_crowd_holds.append(holds)
+	for moves: Array in [_crowd_lengths, _crowd_lifts, _crowd_bounces, _crowd_turns,
+			_crowd_phases, _fidget_clocks, _fidget_lengths, _fidget_turns, _fidget_leans]:
+		var each := PackedFloat32Array()
+		each.resize(slice.size())
+		each.fill(0.0)
+		moves.append(each)
+	_fidgeters.append(PackedInt32Array())
+	# Started part of the way to the first fidget, so a hall does not sit still for its
+	# opening second and then all start at once.
+	_fidget_due.append(_dice.randf())
 
 
 ## A spectator's mesh at one level of detail, made once per game. Simplifying a person is
