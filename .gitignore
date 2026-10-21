@@ -75,3 +75,6 @@ tools/trailer/film/renders/
 tools/trailer/film/assets/shots/
 tools/trailer/film/.hyperframes/
 tools/trailer/film/node_modules/
+
+# Cloudflare wrangler cache
+.wrangler/

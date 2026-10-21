@@ -11,10 +11,10 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Referee For Fun — free on macOS and Windows">
 <meta property="og:description" content="You are the umpire, not the athlete. The game knows where every ball landed, to the millimetre. It will never tell you.">
-<meta property="og:image" content="https://juslangit.github.io/referee-for-fun/img/og.jpg">
-<meta property="og:url" content="https://juslangit.github.io/referee-for-fun/">
+<meta property="og:image" content="https://referee-for-fun.pages.dev/img/og.jpg">
+<meta property="og:url" content="https://referee-for-fun.pages.dev/">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://juslangit.github.io/referee-for-fun/img/og.jpg">
+<meta name="twitter:image" content="https://referee-for-fun.pages.dev/img/og.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=Cormorant+SC:wght@600;700&display=swap">
@@ -231,6 +231,7 @@ section{position:relative}
 .store-head .t{font-size:16px;color:var(--soft)}
 .store-head h2{font-size:clamp(36px,4vw,54px);margin-top:4px}
 .store-head .release{margin-top:14px;font-size:18px}
+.release .count{margin-left:18px;padding-left:18px;border-left:1px solid #333;color:#fff;font-variant-numeric:tabular-nums}
 .eds{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:40px}
 @media (max-width:860px){.eds{grid-template-columns:1fr}}
 .ed{position:relative;background:#0a0a0a;border-radius:6px;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s}
@@ -350,7 +351,8 @@ section{position:relative}
 .close .sub{margin:14px auto 0;font-size:20px;color:#e2e2e2}
 .close .btns{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-top:34px}
 .close .phone{margin-top:26px;font-size:16px;color:var(--soft)}
-.close .phone .textlink{background:none;border:0;padding:0;cursor:pointer;color:#fff}
+.close .phone .textlink{background:none;border:0;padding:0;cursor:pointer;color:#fff;font:inherit;text-decoration:underline;text-underline-offset:3px}
+.close .phone .short{color:var(--gold);font-weight:600;overflow-wrap:anywhere}
 @media (max-width:600px){.close .btns .btn{width:100%}}
 
 /* ---------------- footer ---------------- */
@@ -638,7 +640,7 @@ footer nav a:hover{color:var(--gold)}
         <div>
           <p class="t">Desktop game · single player · free, nothing to buy</p>
           <h2 id="dl-h"><span translate="no">Referee For Fun</span> <span data-rel="version">v0.3.1</span></h2>
-          <p class="release">Released <b data-rel="date">21 October 2026</b></p>
+          <p class="release">Released <b data-rel="date">21 October 2026</b><span class="count" data-rel="count" hidden></span></p>
         </div>
         <a class="textlink" href="#versions">What's new in this version</a>
       </div>
@@ -653,7 +655,7 @@ footer nav a:hover{color:var(--gold)}
             <ol><li>Open the .dmg and drag the app to Applications</li><li>Open it once. macOS stops it, because the build is unsigned</li><li>System Settings → Privacy &amp; Security → <b>Open Anyway</b></li></ol>
             <span class="chip">One security prompt, the first time only</span>
             <p class="sum">SHA-256 <code data-rel="mac-sha">4db1f9cfa7e230efe6789c047eea951b19940ff2bc76b2296266c66da725fedc</code></p>
-            <a class="btn solid" data-rel="mac-url" href="https://github.com/juslangit/referee-for-fun/releases/download/v0.3.1/Referee.For.Fun.dmg">Download for macOS</a>
+            <a class="btn solid" data-rel="mac-url" href="/dl/mac">Download for macOS</a>
             <a class="textlink walk" href="#panel-mac" data-os="mac">Step by step, with pictures</a>
           </div>
         </article>
@@ -666,7 +668,7 @@ footer nav a:hover{color:var(--gold)}
             <ol><li>Save the .exe anywhere. There is no installer</li><li>Run it. SmartScreen appears: choose <b>More info</b></li><li>Choose <b>Run anyway</b></li></ol>
             <span class="chip">One security prompt, the first time only</span>
             <p class="sum">SHA-256 <code data-rel="win-sha">a81254c29aeabefd36e65f30fff0b3fced59be5bac1bd10580a5de96c177149a</code></p>
-            <a class="btn solid" data-rel="win-url" href="https://github.com/juslangit/referee-for-fun/releases/download/v0.3.1/Referee.For.Fun.exe">Download for Windows</a>
+            <a class="btn solid" data-rel="win-url" href="/dl/win">Download for Windows</a>
             <a class="textlink walk" href="#panel-win" data-os="win">Step by step, with pictures</a>
           </div>
         </article>
@@ -752,24 +754,24 @@ footer nav a:hover{color:var(--gold)}
       <p class="kick rv">Every build, still downloadable</p>
       <h2 class="rv" id="versions-h" style="--d:80ms">Version history</h2>
       <div class="rule rv" style="--d:140ms"></div>
-      <p class="rv" style="--d:200ms">Read from the project's GitHub releases each time this page opens, so it is never behind the game.</p>
+      <p class="rv" style="--d:200ms">Read from the project's GitHub releases, refreshed every few minutes, so it is never behind the game.</p>
     </div>
     <ul class="rel-list" id="rel-list">
       <li><details class="rel" open><summary><span class="v">v0.3.1</span><span class="n">A crowd that moves like people<span class="latest">Latest</span></span><span class="d">21 Oct 2026</span></summary>
         <div class="body"><p><strong>The stands no longer move as one.</strong> Everybody in the crowd now reacts in their own way: some jump once, some bounce two or three times, some just get up and clap, a few are late, and they sit back down one by one. Between rallies people turn to the person next to them and lean in, so nobody in the stands is frozen.</p>
-        <div class="files"><a href="https://github.com/juslangit/referee-for-fun/releases/download/v0.3.1/Referee.For.Fun.dmg">macOS · 444&nbsp;MB</a><a href="https://github.com/juslangit/referee-for-fun/releases/download/v0.3.1/Referee.For.Fun.exe">Windows · 515&nbsp;MB</a><a href="https://github.com/juslangit/referee-for-fun/releases/tag/v0.3.1">Release page</a></div></div></details></li>
+        <div class="files"><a href="/dl/v0.3.1/mac">macOS · 444&nbsp;MB</a><a href="/dl/v0.3.1/win">Windows · 515&nbsp;MB</a><a href="https://github.com/juslangit/referee-for-fun/releases/tag/v0.3.1">Release page</a></div></div></details></li>
       <li><details class="rel"><summary><span class="v">v0.3.0</span><span class="n">Real people, in real places</span><span class="d">20 Oct 2026</span></summary>
         <div class="body"><p><strong>Every sport has somewhere to be played.</strong> Every venue is now a building modelled for the game, with the crowd seated on its own steps: badminton climbs to an arena drawn from the Axiata Arena, volleyball to an exhibition hall after MITEC, sepak takraw to a hall drawn from Stadium Titiwangsa, table tennis to a domed bowl after Malawati Stadium. Tennis is an open-air stadium and beach volleyball is played under a photographed beach sky.</p><p><strong>Realistic players, officials and crowd</strong>, with rackets, balls and a tournament chair to match, and a stroke for every situation in every sport.</p>
-        <div class="files"><a href="https://github.com/juslangit/referee-for-fun/releases/download/v0.3.0/Referee.For.Fun.dmg">macOS · 442&nbsp;MB</a><a href="https://github.com/juslangit/referee-for-fun/releases/download/v0.3.0/Referee.For.Fun.exe">Windows · 514&nbsp;MB</a><a href="https://github.com/juslangit/referee-for-fun/releases/tag/v0.3.0">Release page</a></div></div></details></li>
+        <div class="files"><a href="/dl/v0.3.0/mac">macOS · 442&nbsp;MB</a><a href="/dl/v0.3.0/win">Windows · 514&nbsp;MB</a><a href="https://github.com/juslangit/referee-for-fun/releases/tag/v0.3.0">Release page</a></div></div></details></li>
       <li><details class="rel"><summary><span class="v">v0.2.1</span><span class="n">The hall faces the right way</span><span class="d">21 Sep 2026</span></summary>
         <div class="body"><p><strong>The crowd was facing the wrong way</strong>: the seats a quarter turn out and the people in them with their backs to the play. Fixed, along with a challenge that could start after you had been thrown off. Adds a credits screen and a setting for how much of the hall to draw.</p>
-        <div class="files"><a href="https://github.com/juslangit/referee-for-fun/releases/download/v0.2.1/Referee.For.Fun.dmg">macOS · 368&nbsp;MB</a><a href="https://github.com/juslangit/referee-for-fun/releases/download/v0.2.1/Referee.For.Fun.exe">Windows · 413&nbsp;MB</a><a href="https://github.com/juslangit/referee-for-fun/releases/tag/v0.2.1">Release page</a></div></div></details></li>
+        <div class="files"><a href="/dl/v0.2.1/mac">macOS · 368&nbsp;MB</a><a href="/dl/v0.2.1/win">Windows · 413&nbsp;MB</a><a href="https://github.com/juslangit/referee-for-fun/releases/tag/v0.2.1">Release page</a></div></div></details></li>
       <li><details class="rel"><summary><span class="v">v0.2.0</span><span class="n">The hall</span><span class="d">20 Sep 2026</span></summary>
         <div class="body"><p>Real see-through nets at each sport's own mesh size, an 80-triangle arena chair the crowd actually sits in, tennis and table tennis lit like the rest, and line judges who put their arms down after an OUT.</p>
-        <div class="files"><a href="https://github.com/juslangit/referee-for-fun/releases/download/v0.2.0/Referee.For.Fun.dmg">macOS · 361&nbsp;MB</a><a href="https://github.com/juslangit/referee-for-fun/releases/download/v0.2.0/Referee.For.Fun.exe">Windows · 403&nbsp;MB</a><a href="https://github.com/juslangit/referee-for-fun/releases/tag/v0.2.0">Release page</a></div></div></details></li>
+        <div class="files"><a href="/dl/v0.2.0/mac">macOS · 361&nbsp;MB</a><a href="/dl/v0.2.0/win">Windows · 403&nbsp;MB</a><a href="https://github.com/juslangit/referee-for-fun/releases/tag/v0.2.0">Release page</a></div></div></details></li>
       <li><details class="rel"><summary><span class="v">v0.1.0</span><span class="n">Testing build</span><span class="d">20 Sep 2026</span></summary>
         <div class="body"><p>First public build. Six sports from the umpire's chair: badminton, beach volleyball, indoor volleyball, tennis, table tennis and sepak takraw.</p>
-        <div class="files"><a href="https://github.com/juslangit/referee-for-fun/releases/download/v0.1.0/Referee.For.Fun.dmg">macOS · 355&nbsp;MB</a><a href="https://github.com/juslangit/referee-for-fun/releases/download/v0.1.0/Referee.For.Fun.exe">Windows · 397&nbsp;MB</a><a href="https://github.com/juslangit/referee-for-fun/releases/tag/v0.1.0">Release page</a></div></div></details></li>
+        <div class="files"><a href="/dl/v0.1.0/mac">macOS · 355&nbsp;MB</a><a href="/dl/v0.1.0/win">Windows · 397&nbsp;MB</a><a href="https://github.com/juslangit/referee-for-fun/releases/tag/v0.1.0">Release page</a></div></div></details></li>
     </ul>
   </div>
 </section>
@@ -780,10 +782,10 @@ footer nav a:hover{color:var(--gold)}
     <h2 class="orn rv" id="close-h">Take the chair</h2>
     <p class="sub rv" style="--d:80ms">Free, one file, no account. The hall is already full.</p>
     <div class="btns rv" style="--d:160ms">
-      <a class="btn solid" data-rel="mac-url" href="https://github.com/juslangit/referee-for-fun/releases/download/v0.3.1/Referee.For.Fun.dmg">Download for macOS</a>
-      <a class="btn solid" data-rel="win-url" href="https://github.com/juslangit/referee-for-fun/releases/download/v0.3.1/Referee.For.Fun.exe">Download for Windows</a>
+      <a class="btn solid" data-rel="mac-url" href="/dl/mac">Download for macOS</a>
+      <a class="btn solid" data-rel="win-url" href="/dl/win">Download for Windows</a>
     </div>
-    <p class="phone rv" style="--d:220ms">On a phone? The game is for a Mac or a Windows PC. <button type="button" id="copy-link" class="textlink" aria-live="polite">Copy this page's link</button> to open it there.</p>
+    <p class="phone rv" style="--d:220ms">On a phone? The game is for a Mac or a Windows PC. Open <a class="short" href="/download" translate="no">referee-for-fun.pages.dev/download</a> on your computer and the right build starts by itself. <button type="button" id="copy-link" class="textlink" aria-live="polite">Copy that link</button></p>
   </div>
 </section>
 </main>
@@ -1036,9 +1038,9 @@ document.documentElement.classList.add('js');
   var b = document.getElementById('copy-link');
   if (!b) return;
   b.addEventListener('click', function(){
-    var url = 'https://juslangit.github.io/referee-for-fun/';
-    var done = function(){ b.textContent = 'Link copied'; setTimeout(function(){ b.textContent = "Copy this page's link"; }, 2500); };
-    if (navigator.share && /iPhone|iPad|Android/i.test(navigator.userAgent)) { navigator.share({ title: 'Referee For Fun', url: url }).catch(function(){}); return; }
+    var url = 'https://referee-for-fun.pages.dev/download';
+    var done = function(){ b.textContent = 'Link copied'; setTimeout(function(){ b.textContent = 'Copy that link'; }, 2500); };
+    if (navigator.share && /iPhone|iPad|Android/i.test(navigator.userAgent)) { navigator.share({ title: 'Referee For Fun — download on a Mac or PC', url: url }).catch(function(){}); return; }
     if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, function(){ prompt('Copy this link', url); });
     else prompt('Copy this link', url);
   });
@@ -1057,10 +1059,9 @@ document.documentElement.classList.add('js');
   if (isWin && window.__showOS) window.__showOS('win');
 })();
 
-/* ---- live release info from GitHub; the page as written is the fallback ---- */
+/* ---- live release info, through /api/release (cached GitHub data); the page as written is the fallback ---- */
 (function(){
   if (!window.fetch) return;
-  var REPO = 'juslangit/referee-for-fun';
   var longDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
   var shortDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
   var mb = function(b){ return new Intl.NumberFormat('en-GB').format(Math.round(b / 1048576)) + '\u00a0MB'; };
@@ -1082,38 +1083,33 @@ document.documentElement.classList.add('js');
     if (list) out.push('<ul>' + list.join('') + '</ul>');
     return out.join('');
   }
-  fetch('https://api.github.com/repos/' + REPO + '/releases?per_page=20', { headers: { Accept: 'application/vnd.github+json' } })
+  fetch('/api/release')
     .then(function(r){ if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(function(rels){
-      rels = rels.filter(function(r){ return !r.draft; });
+    .then(function(data){
+      var rels = data.releases || [];
       if (!rels.length) return;
       var latest = rels[0];
       var asset = function(r, ext){ return (r.assets || []).filter(function(a){ return a.name.slice(-ext.length) === ext; })[0]; };
       var dmg = asset(latest, '.dmg'), exe = asset(latest, '.exe');
-      var d = new Date(latest.published_at);
-      var dateText = longDate.format(d);
-      document.querySelectorAll('[data-rel="version"]').forEach(function(e){ e.textContent = latest.tag_name; });
+      var dateText = longDate.format(new Date(latest.published));
+      document.querySelectorAll('[data-rel="version"]').forEach(function(e){ e.textContent = latest.tag; });
       document.querySelectorAll('[data-rel="date"]').forEach(function(e){ e.textContent = dateText; });
-      var sha = function(a){ return a && a.digest ? a.digest.replace(/^sha256:/, '') : null; };
-      if (sha(dmg)) document.querySelectorAll('[data-rel="mac-sha"]').forEach(function(e){ e.textContent = sha(dmg); });
-      if (sha(exe)) document.querySelectorAll('[data-rel="win-sha"]').forEach(function(e){ e.textContent = sha(exe); });
-      if (dmg) {
-        document.querySelectorAll('[data-rel="mac-size"]').forEach(function(e){ e.textContent = mb(dmg.size); });
-        document.querySelectorAll('[data-rel="mac-url"]').forEach(function(e){ e.href = dmg.browser_download_url; });
-      }
-      if (exe) {
-        document.querySelectorAll('[data-rel="win-size"]').forEach(function(e){ e.textContent = mb(exe.size); });
-        document.querySelectorAll('[data-rel="win-url"]').forEach(function(e){ e.href = exe.browser_download_url; });
-      }
+      if (data.downloads > 0) document.querySelectorAll('[data-rel="count"]').forEach(function(e){
+        e.textContent = new Intl.NumberFormat('en-GB').format(data.downloads) + ' downloads so far'; e.hidden = false;
+      });
+      if (dmg && dmg.sha256) document.querySelectorAll('[data-rel="mac-sha"]').forEach(function(e){ e.textContent = dmg.sha256; });
+      if (exe && exe.sha256) document.querySelectorAll('[data-rel="win-sha"]').forEach(function(e){ e.textContent = exe.sha256; });
+      if (dmg) document.querySelectorAll('[data-rel="mac-size"]').forEach(function(e){ e.textContent = mb(dmg.size); });
+      if (exe) document.querySelectorAll('[data-rel="win-size"]').forEach(function(e){ e.textContent = mb(exe.size); });
       var html = rels.map(function(r, i){
-        var dt = new Date(r.published_at);
-        var title = (r.name || r.tag_name).replace(/^Referee For Fun\s+v[\d.]+\s+[—-]\s+/i, '');
+        var title = (r.name || r.tag).replace(/^Referee For Fun\s+v[\d.]+\s+[—-]\s+/i, '');
         title = title.charAt(0).toUpperCase() + title.slice(1);
-        var files = (r.assets || []).filter(function(a){ return /\.(dmg|exe)$/.test(a.name); }).map(function(a){
-          return '<a href="' + esc(a.browser_download_url) + '">' + (/\.dmg$/.test(a.name) ? 'macOS' : 'Windows') + ' · ' + mb(a.size) + '</a>';
-        }).join('') + '<a href="' + esc(r.html_url) + '">Release page</a>';
-        return '<li><details class="rel"' + (i === 0 ? ' open' : '') + '><summary><span class="v">' + esc(r.tag_name) + '</span><span class="n">' + esc(title) +
-          (i === 0 ? '<span class="latest">Latest</span>' : '') + '</span><span class="d">' + shortDate.format(dt) +
+        var files = (r.assets || []).map(function(a){
+          var os = /\.dmg$/.test(a.name) ? 'mac' : 'win';
+          return '<a href="/dl/' + esc(r.tag) + '/' + os + '">' + (os === 'mac' ? 'macOS' : 'Windows') + ' · ' + mb(a.size) + '</a>';
+        }).join('') + '<a href="' + esc(r.url) + '">Release page</a>';
+        return '<li><details class="rel"' + (i === 0 ? ' open' : '') + '><summary><span class="v">' + esc(r.tag) + '</span><span class="n">' + esc(title) +
+          (i === 0 ? '<span class="latest">Latest</span>' : '') + '</span><span class="d">' + shortDate.format(new Date(r.published)) +
           '</span></summary><div class="body">' + md(r.body || '') + '<p>How to open it: see <a href="#install">getting past the security prompt</a>.</p><div class="files">' + files + '</div></div></details></li>';
       }).join('');
       document.getElementById('rel-list').innerHTML = html;
